@@ -1,0 +1,96 @@
+# =========================
+# Secrets
+# =========================
+.env
+.env.*
+!.env.example
+secrets/
+secret/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*credentials*.json
+*service-account*.json
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+ENV/
+env/
+
+# =========================
+# Android / Buildozer
+# =========================
+.buildozer/
+.gradle/
+build/
+dist/
+bin/
+*.apk
+*.aab
+*.apks
+*.xapk
+local.properties
+
+# =========================
+# Caches / logs
+# =========================
+.cache/
+pip-wheel-metadata/
+*.log
+
+# =========================
+# Runtime / user data
+# =========================
+saves/
+imports/
+models/
+logs/
+*.gguf
+
+# =========================
+# Notebooks
+# =========================
+*.ipynb
+.ipynb_checkpoints/
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
+*.iml
+
+# =========================
+# OS / temporary files
+# =========================
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# =========================
+# Local tooling
+# =========================
+tools/local/
