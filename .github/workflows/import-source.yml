@@ -1,0 +1,140 @@
+name: Import source bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip
+          EXPECTED='154d9d26808d504464d1f9ba31c94a531f6bdc83656852c96fd24b155c76221b'
+          ACTUAL="$(sha256sum RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED"
+
+      - name: Extract and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          archive = Path("RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip")
+          root = Path(".").resolve()
+          stage = root / ".source_import_tmp"
+          stage.mkdir()
+
+          with zipfile.ZipFile(archive) as zf:
+              for info in zf.infolist():
+                  name = info.filename
+                  target = (stage / name).resolve()
+                  if target != stage and stage not in target.parents:
+                      raise SystemExit(f"unsafe archive path: {name!r}")
+                  if name.startswith("/") or name.startswith("\\"):
+                      raise SystemExit(f"absolute archive path: {name!r}")
+                  if info.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                      continue
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with zf.open(info) as src, target.open("wb") as dst:
+                      dst.write(src.read())
+
+          forbidden = []
+          for p in stage.rglob("*"):
+              rel = p.relative_to(stage).as_posix()
+              low = rel.lower()
+              if (
+                  "/__pycache__/" in f"/{low}/"
+                  or low.endswith((".pyc", ".pyo", ".pyd", ".ipynb", ".gguf", ".apk", ".aab"))
+                  or low.startswith(".env")
+                  or low.endswith((".pem", ".key", ".p12", ".pfx"))
+              ):
+                  forbidden.append(rel)
+
+          if forbidden:
+              raise SystemExit("forbidden files in source bundle:\n" + "\n".join(forbidden))
+
+          required = [
+              "main.py",
+              "rpg_android_app.py",
+              "rpg_android_file_picker.py",
+              "buildozer.spec",
+              "engine",
+              "scenarios",
+              "tests",
+          ]
+          missing = [x for x in required if not (stage / x).exists()]
+          if missing:
+              raise SystemExit("missing required source entries: " + ", ".join(missing))
+          PY
+
+      - name: Import source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete             --exclude='.git/'             --exclude='.github/'             --exclude='SECURITY.md'             --exclude='.gitignore'             .source_import_tmp/ ./
+
+          rm -rf .source_import_tmp
+          rm -f RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip
+
+      - name: Final security gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if find . -type f \(             -name '*.pyc' -o -name '*.pyo' -o -name '*.ipynb' -o             -name '*.gguf' -o -name '*.apk' -o -name '*.aab' -o             -name '.env' -o -name '*.pem' -o -name '*.key' -o             -name '*.p12' -o -name '*.pfx'           \) -print -quit | grep -q .; then
+            echo "Forbidden file detected after import."
+            exit 1
+          fi
+
+          if find . -type d -name '__pycache__' -print -quit | grep -q .; then
+            echo "__pycache__ detected after import."
+            exit 1
+          fi
+
+          grep -RInE --exclude-dir=.git --exclude-dir=.github             --exclude='*.md'             '-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|\bghp_[A-Za-z0-9_]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bAIza[0-9A-Za-z_-]{20,}\b' .             && { echo "Possible credential pattern detected."; exit 1; } || true
+
+      - name: Verify project shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f main.py
+          test -f buildozer.spec
+          test -d engine
+          test -d scenarios
+          test -d tests
+          test -f .gitignore
+          test -f SECURITY.md
+
+      - name: Commit source import
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "No source changes detected."; exit 1; }
+          git commit -m "chore: import RPG Engine v1.28.3 source"
+          git push origin HEAD:main
+
+      - name: Remove importer workflow
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/import-source.yml
+          git commit -m "chore: remove one-time source importer"
+          git push origin HEAD:main
