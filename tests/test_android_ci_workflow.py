@@ -32,6 +32,9 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert '"${{ github.workspace }}/.ci/bin"' in text
     assert 'BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"' in text
     assert 'BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"' in text
+    assert 'export PATH="$VENV_DIR/bin:$PATH"' in text
+    assert "command -v cython" in text
+    assert "cython --version" in text
     assert "android_native/arm64-v8a/llama-server.bin" in text
     assert 'name: rpg-engine-v1.1.4-android-debug' in text
     assert '${{ env.BIN_DIR }}/*.apk' in text
