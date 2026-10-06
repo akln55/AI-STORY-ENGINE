@@ -87,6 +87,7 @@ jobs:
           set -euo pipefail
           rsync -a --delete \
             --exclude='.git/' \
+            --exclude='.github/' \
             --exclude='.source_import_tmp/' \
             --exclude='SECURITY.md' \
             --exclude='.gitignore' \
