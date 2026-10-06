@@ -101,12 +101,16 @@ jobs:
           P4A_NO_INTERACTIVE: "1"
         run: |
           set -euo pipefail
+          source "$VENV_DIR/bin/activate"
           export PATH="$VENV_DIR/bin:$PATH"
+          test "$VIRTUAL_ENV" = "$VENV_DIR"
           command -v cython
           cython --version
+          command -v buildozer
+          buildozer --version
           rm -rf "$BUILD_DIR" "$BIN_DIR"
           mkdir -p "$BUILD_DIR" "$BIN_DIR"
-          "$VENV_DIR/bin/buildozer" -v android debug
+          buildozer -v android debug
           "$VENV_DIR/bin/python" tools/verify_android_staging.py --source-dir . --build-dir "$BUILD_DIR"
           APK="$(find "$BIN_DIR" -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
