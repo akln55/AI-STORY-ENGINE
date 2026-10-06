@@ -109,9 +109,9 @@ jobs:
           rm -rf "$BUILD_DIR" "$BIN_DIR"
           mkdir -p "$BUILD_DIR" "$BIN_DIR"
           buildozer -v android debug
-          "$VENV_DIR/bin/python" tools/verify_android_staging.py --source-dir . --build-dir "$BUILD_DIR"
           APK="$(find "$BIN_DIR" -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
+          "$VENV_DIR/bin/python" tools/verify_android_staging.py --source-dir . --apk "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
       - name: Verify APK metadata and provenance
