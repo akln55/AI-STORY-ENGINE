@@ -95,8 +95,6 @@ jobs:
       - name: Build Android debug APK
         shell: bash
         env:
-          BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"
-          BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"
           BUILDOZER_WARN_ON_ROOT: "0"
           P4A_NO_INTERACTIVE: "1"
         run: |
