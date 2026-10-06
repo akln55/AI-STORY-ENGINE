@@ -95,6 +95,7 @@ jobs:
       - name: Build Android debug APK
         shell: bash
         env:
+          PATH: "${{ env.VENV_DIR }}/bin:${{ env.PATH }}"
           BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"
           BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"
           BUILDOZER_WARN_ON_ROOT: "0"
