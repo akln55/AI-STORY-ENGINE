@@ -95,13 +95,15 @@ jobs:
       - name: Build Android debug APK
         shell: bash
         env:
-          PATH: "${{ env.VENV_DIR }}/bin:${{ env.PATH }}"
           BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"
           BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"
           BUILDOZER_WARN_ON_ROOT: "0"
           P4A_NO_INTERACTIVE: "1"
         run: |
           set -euo pipefail
+          export PATH="$VENV_DIR/bin:$PATH"
+          command -v cython
+          cython --version
           rm -rf "$BUILD_DIR" "$BIN_DIR"
           mkdir -p "$BUILD_DIR" "$BIN_DIR"
           "$VENV_DIR/bin/buildozer" -v android debug
