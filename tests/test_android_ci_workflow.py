@@ -33,7 +33,7 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert 'BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"' in text
     assert 'BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"' in text
     assert "android_native/arm64-v8a/llama-server.bin" in text
-    assert 'name: rpg-engine-v1.1.1-android-debug' in text
+    assert 'name: rpg-engine-v1.1.4-android-debug' in text
     assert '${{ env.BIN_DIR }}/*.apk' in text
     assert "package: name='org.rpgengine'" in text
     assert "p4a_commit=58d21141f17c889bf8585f5665921d72028f8831" in text
@@ -71,4 +71,4 @@ def test_test_only_workflow_is_read_only_and_action_pinned():
 def test_android_workflow_verifies_staged_source_before_apk_metadata():
     source = (ROOT / ".github" / "workflows" / "android-build.yml").read_text()
     assert "tools/verify_android_staging.py" in source
-    assert "rpg-engine-v1.1.1-android-debug" in source
+    assert "rpg-engine-v1.1.4-android-debug" in source
