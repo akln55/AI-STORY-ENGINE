@@ -21,3 +21,5 @@ android.accept_sdk_license = True
 [buildozer]
 log_level = 2
 warn_on_root = 0
+build_dir = ./.ci/build-cache
+bin_dir = ./.ci/bin
