@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          .ci/test-venv/bin/python -m pytest -q
+          .ci/test-venv/bin/python -m pytest -q tests
 
       - name: Compile Python source
         shell: bash
