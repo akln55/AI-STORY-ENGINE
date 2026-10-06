@@ -65,6 +65,10 @@ def verify_staging(source_dir: Path, staging_dir: Path) -> list[str]:
     # Only inspect textual Python sources. Binary/native assets are intentionally
     # ignored so a model or executable cannot trigger a false positive.
     for path in staging_dir.rglob("*.py"):
+        # This verifier is itself part of the source tree and contains the
+        # forbidden module names as validation patterns; do not self-scan it.
+        if path.relative_to(staging_dir).as_posix() == "tools/verify_android_staging.py":
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
