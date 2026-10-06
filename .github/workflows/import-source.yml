@@ -19,9 +19,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip
-          EXPECTED='e62f4abf750d8a193a70e461f2ab547079a5e06aa105595036038d6e4f9966dc'
-          ACTUAL="$(sha256sum RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip | awk '{print $1}')"
+          test -f RPG_ENGINE_v1.1.5_CLEAN_HANDOFF.zip
+          EXPECTED='80d559759ade84a33f3ff9a5b55e27598ad52287f1bb13f45ef1ced699c05369'
+          ACTUAL="$(sha256sum RPG_ENGINE_v1.1.5_CLEAN_HANDOFF.zip | awk '{print $1}')"
           test "$ACTUAL" = "$EXPECTED"
 
       - name: Extract and validate
@@ -32,7 +32,7 @@ jobs:
           from pathlib import Path
           import zipfile
 
-          archive = Path("RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip")
+          archive = Path("RPG_ENGINE_v1.1.5_CLEAN_HANDOFF.zip")
           root = Path(".").resolve()
           stage = root / ".source_import_tmp"
           stage.mkdir()
@@ -43,7 +43,7 @@ jobs:
                   target = (stage / name).resolve()
                   if target != stage and stage not in target.parents:
                       raise SystemExit(f"unsafe archive path: {name!r}")
-                  if name.startswith("/") or name.startswith("\\"):
+                  if name.startswith("/") or name.startswith("\"):
                       raise SystemExit(f"absolute archive path: {name!r}")
                   if info.is_dir():
                       target.mkdir(parents=True, exist_ok=True)
@@ -88,14 +88,14 @@ jobs:
           rsync -a --delete             --exclude='.git/'             --exclude='.github/'             --exclude='SECURITY.md'             --exclude='.gitignore'             .source_import_tmp/ ./
 
           rm -rf .source_import_tmp
-          rm -f RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip
+          rm -f RPG_ENGINE_v1.1.5_CLEAN_HANDOFF.zip
 
       - name: Final security gate
         shell: bash
         run: |
           set -euo pipefail
 
-          if find . -type f \(               -name '*.pyc' -o -name '*.pyo' -o -name '*.ipynb' -o               -name '*.gguf' -o -name '*.apk' -o -name '*.aab' -o               -name '.env' -o -name '*.pem' -o -name '*.key' -o               -name '*.p12' -o -name '*.pfx'             \) -print -quit | grep -q .; then
+          if find . -type f (               -name '*.pyc' -o -name '*.pyo' -o -name '*.ipynb' -o               -name '*.gguf' -o -name '*.apk' -o -name '*.aab' -o               -name '.env' -o -name '*.pem' -o -name '*.key' -o               -name '*.p12' -o -name '*.pfx'             ) -print -quit | grep -q .; then
             echo "Forbidden file detected after import."
             exit 1
           fi
@@ -127,10 +127,10 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+akln55@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && { echo "No source changes detected."; exit 1; }
-          git commit -m "chore: import RPG Engine v1.28.3 source"
+          git commit -m "chore: import RPG Engine v1.1.5 clean handoff"
           git push origin HEAD:main
 
       - name: Remove importer workflow
