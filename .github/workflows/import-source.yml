@@ -19,9 +19,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip
+          test -f RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip
           EXPECTED='845938283e61197db5d53a2151186e5038410f89bf7958c81463f8fc713d7dd6'
-          ACTUAL="$(sha256sum RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip | awk '{print $1}')"
+          ACTUAL="$(sha256sum RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip | awk '{print $1}')"
           test "$ACTUAL" = "$EXPECTED"
 
       - name: Extract and validate
@@ -32,7 +32,7 @@ jobs:
           from pathlib import Path
           import zipfile
 
-          archive = Path("RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip")
+          archive = Path("RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip")
           root = Path(".").resolve()
           stage = root / ".source_import_tmp"
           stage.mkdir()
@@ -88,7 +88,7 @@ jobs:
           rsync -a --delete             --exclude='.git/'             --exclude='.github/'             --exclude='SECURITY.md'             --exclude='.gitignore'             .source_import_tmp/ ./
 
           rm -rf .source_import_tmp
-          rm -f RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip
+          rm -f RPG_ENGINE_v1.1_GITHUB_SOURCE_CORRECTED.zip
 
       - name: Final security gate
         shell: bash
