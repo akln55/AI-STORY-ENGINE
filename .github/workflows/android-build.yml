@@ -10,15 +10,15 @@ concurrency:
   group: android-build-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  NDK_VERSION: "29.0.14206865"
-  BUILD_DIR: "${{ github.workspace }}/.ci/build-cache"
-  BIN_DIR: "${{ github.workspace }}/.ci/bin"
-  VENV_DIR: "${{ github.workspace }}/.ci/venv"
-
 jobs:
   android-build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      NDK_VERSION: "29.0.14206865"
+      BUILD_DIR: "${{ github.workspace }}/.ci/build-cache"
+      BIN_DIR: "${{ github.workspace }}/.ci/bin"
+      VENV_DIR: "${{ github.workspace }}/.ci/venv"
     steps:
       - name: Checkout source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -31,22 +31,34 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git zip unzip openjdk-17-jdk python3-venv python3-dev file
+          sudo apt-get install -y \
+            build-essential cmake ninja-build git zip unzip \
+            openjdk-17-jdk python3-venv python3-dev file \
+            autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 \
+            libffi-dev libssl-dev libltdl-dev autopoint gettext
           java -version
           cmake --version
+          python3 --version
 
       - name: Prepare Android SDK / NDK
         shell: bash
         run: |
           set -euo pipefail
-          : "${ANDROID_SDK_ROOT:?GitHub runner must provide ANDROID_SDK_ROOT}"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$SDK_ROOT" || { echo "Android SDK root is not configured on the runner."; exit 1; }
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
           command -v sdkmanager
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;${NDK_VERSION}"
-          echo "ANDROID_NDK=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
-          test -d "${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          test -d "$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
 
       - name: Create isolated Python environment
         shell: bash
@@ -57,7 +69,7 @@ jobs:
           test -x "$VENV_DIR/bin/python"
           test -x "$VENV_DIR/bin/pip"
           "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
-          "$VENV_DIR/bin/python" -m pip install "buildozer==1.6.0" "Cython==0.29.33"
+          "$VENV_DIR/bin/python" -m pip install "buildozer==1.6.0" "Cython==0.29.33" "pytest==8.4.2"
           "$VENV_DIR/bin/buildozer" --version
 
       - name: Run source tests
@@ -77,8 +89,8 @@ jobs:
           readelf -h android_native/arm64-v8a/llama-server.bin | tee .ci/native-elf.txt
           grep -q 'Class:.*ELF64' .ci/native-elf.txt
           grep -q 'Machine:.*AArch64' .ci/native-elf.txt
+          grep -q '^llama.cpp tag=v0.6.0 commit=d81235049384534c167caea52b85a694f6103d14$' android_native/arm64-v8a/llama-server.bin.build-info
           sha256sum android_native/arm64-v8a/llama-server.bin | tee .ci/native-sha256.txt
-          ./android_native/arm64-v8a/llama-server.bin --version | tee .ci/native-version.txt
 
       - name: Build Android debug APK
         shell: bash
@@ -110,10 +122,11 @@ jobs:
           {
             echo "git_commit=$GITHUB_SHA"
             echo "runner=ubuntu-24.04"
+            echo "python=$(python3 --version)"
             echo "ndk=$NDK_VERSION"
             echo "buildozer=1.6.0"
+            echo "p4a_commit=58d21141f17c889bf8585f5665921d72028f8831"
             cat .ci/native-sha256.txt
-            cat .ci/native-version.txt
             cat .ci/apk-sha256.txt
           } > .ci/android-build-provenance.txt
 
@@ -122,10 +135,9 @@ jobs:
         with:
           name: rpg-engine-v1.1-android-debug
           path: |
-            .ci/bin/*.apk
+            ${{ env.BIN_DIR }}/*.apk
             .ci/native-elf.txt
             .ci/native-sha256.txt
-            .ci/native-version.txt
             .ci/apk-badging.txt
             .ci/apk-sha256.txt
             .ci/android-build-provenance.txt
