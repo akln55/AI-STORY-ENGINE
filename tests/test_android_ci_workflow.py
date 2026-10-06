@@ -28,10 +28,6 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     text = WORKFLOW.read_text(encoding="utf-8")
 
     assert 'NDK_VERSION: "29.0.14206865"' in text
-    assert '"${{ github.workspace }}/.ci/build-cache"' in text
-    assert '"${{ github.workspace }}/.ci/bin"' in text
-    assert 'BUILDOZER_BUILD_DIR: "${{ env.BUILD_DIR }}"' in text
-    assert 'BUILDOZER_BIN_DIR: "${{ env.BIN_DIR }}"' in text
     assert 'source "$VENV_DIR/bin/activate"' in text
     assert 'test "$VIRTUAL_ENV" = "$VENV_DIR"' in text
     assert 'export PATH="$VENV_DIR/bin:$PATH"' in text
@@ -43,6 +39,9 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert '${{ env.BIN_DIR }}/*.apk' in text
     assert "package: name='org.rpgengine'" in text
     assert "p4a_commit=58d21141f17c889bf8585f5665921d72028f8831" in text
+    spec = SPEC.read_text(encoding="utf-8")
+    assert "build_dir = ./.ci/build-cache" in spec
+    assert "bin_dir = ./.ci/bin" in spec
     assert "./android_native/arm64-v8a/llama-server.bin --version" not in text
 
 
