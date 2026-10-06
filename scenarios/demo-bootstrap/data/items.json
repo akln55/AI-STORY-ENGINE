@@ -1,0 +1,14 @@
+{
+  "rope": {
+    "id": "rope",
+    "name": "coiled rope"
+  },
+  "torch": {
+    "id": "torch",
+    "name": "oil torch"
+  },
+  "mushroom": {
+    "id": "mushroom",
+    "name": "glowing mushroom"
+  }
+}

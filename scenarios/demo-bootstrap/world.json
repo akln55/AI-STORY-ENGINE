@@ -1,0 +1,130 @@
+{
+  "character": {
+    "name": "Wanderer",
+    "location_id": "village"
+  },
+  "locations": {
+    "village": "Sleepy Village",
+    "forest": "Whispering Forest",
+    "cave": "Dark Cave"
+  },
+  "exits": {
+    "village": [
+      "forest"
+    ],
+    "forest": [
+      "village",
+      "cave"
+    ],
+    "cave": [
+      "forest"
+    ]
+  },
+  "items": {
+    "rope": {
+      "id": "rope",
+      "name": "coiled rope",
+      "location_id": "village"
+    },
+    "torch": {
+      "id": "torch",
+      "name": "oil torch",
+      "location_id": "cave"
+    },
+    "mushroom": {
+      "id": "mushroom",
+      "name": "glowing mushroom",
+      "location_id": "forest"
+    }
+  },
+  "npcs": {
+    "elder": {
+      "id": "elder",
+      "name": "village elder",
+      "location_id": "village",
+      "hp": 30,
+      "max_hp": 30,
+      "disposition": 20,
+      "traits": [
+        "wise",
+        "cautious"
+      ]
+    },
+    "wolf": {
+      "id": "wolf",
+      "name": "grey wolf",
+      "location_id": "forest",
+      "hp": 40,
+      "max_hp": 40,
+      "disposition": -50,
+      "traits": [
+        "predator"
+      ]
+    }
+  },
+  "relationships": {},
+  "events": {},
+  "quests": {
+    "forest_supply": {
+      "id": "forest_supply",
+      "title": "Forest Supplies",
+      "description": "Bring back a glowing mushroom from the forest.",
+      "status": "available",
+      "giver": "elder",
+      "objectives": [
+        {
+          "id": "mushroom",
+          "description": "Collect the glowing mushroom",
+          "type": "collect",
+          "target_id": "mushroom",
+          "required_count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "type": "xp",
+          "amount": 30
+        }
+      ],
+      "unlocks_on_complete": [
+        "wolf_hunt"
+      ]
+    },
+    "wolf_hunt": {
+      "id": "wolf_hunt",
+      "title": "Drive Off the Wolf",
+      "description": "Defeat the wolf threatening the forest path.",
+      "status": "available",
+      "giver": "elder",
+      "prerequisites": [
+        {
+          "type": "quest",
+          "id": "forest_supply",
+          "status": "completed"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "wolf",
+          "description": "Defeat the grey wolf",
+          "type": "defeat",
+          "target_id": "wolf",
+          "required_count": 1
+        }
+      ],
+      "rewards": [
+        {
+          "type": "xp",
+          "amount": 50
+        },
+        {
+          "type": "resource",
+          "target": "player.hp",
+          "operation": "add",
+          "amount": 20
+        }
+      ],
+      "expires_turn": 30
+    }
+  }
+}

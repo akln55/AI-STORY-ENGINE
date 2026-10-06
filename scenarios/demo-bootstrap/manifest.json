@@ -1,0 +1,14 @@
+{
+  "pack_format": 2,
+  "scenario_id": "demo-bootstrap",
+  "name": "Demo Bootstrap",
+  "version": "1.0.0",
+  "engine_min_version": "0.8.0",
+  "description": "Small development scenario used for engine tests and the CLI shell.",
+  "schema": "rpg-engine-scenario-v1",
+  "chapter_pack_size": 1,
+  "chapter_count": 1,
+  "chapter_packs": [
+    "demo_0001_0001"
+  ]
+}

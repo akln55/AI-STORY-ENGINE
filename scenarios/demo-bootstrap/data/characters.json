@@ -1,0 +1,14 @@
+{
+  "elder": {
+    "id": "elder",
+    "name": "village elder",
+    "first_appearance": 1,
+    "presence": [{"location_id": "village"}]
+  },
+  "wolf": {
+    "id": "wolf",
+    "name": "grey wolf",
+    "first_appearance": 1,
+    "presence": [{"location_id": "forest"}]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "village": {
+    "id": "village",
+    "name": "Sleepy Village"
+  },
+  "forest": {
+    "id": "forest",
+    "name": "Whispering Forest"
+  },
+  "cave": {
+    "id": "cave",
+    "name": "Dark Cave"
+  }
+}
