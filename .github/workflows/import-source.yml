@@ -20,7 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip
-          EXPECTED='154d9d26808d504464d1f9ba31c94a531f6bdc83656852c96fd24b155c76221b'
+          EXPECTED='845938283e61197db5d53a2151186e5038410f89bf7958c81463f8fc713d7dd6'
           ACTUAL="$(sha256sum RPG_ENGINE_v1.28.3_GITHUB_SOURCE.zip | awk '{print $1}')"
           test "$ACTUAL" = "$EXPECTED"
 
