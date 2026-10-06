@@ -87,7 +87,6 @@ jobs:
           set -euo pipefail
           rsync -a --delete \
             --exclude='.git/' \
-            --exclude='.github/' \
             --exclude='SECURITY.md' \
             --exclude='.gitignore' \
             .source_import_tmp/ ./
@@ -149,11 +148,3 @@ jobs:
           git commit -m "chore: import RPG Engine v1.1.5 clean handoff"
           git push origin HEAD:main
 
-      - name: Remove importer workflow
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          git rm .github/workflows/import-source.yml
-          git commit -m "chore: remove one-time source importer"
-          git push origin HEAD:main
