@@ -1,4 +1,5 @@
 from pathlib import Path
+import zipfile
 
 from tools.verify_android_staging import verify_staging
 
@@ -35,3 +36,25 @@ def test_staging_verifier_rejects_stale_main(tmp_path: Path):
     errors = verify_staging(source, staging)
     assert any("hash mismatch for main.py" in error for error in errors)
     assert any("android.main" in error for error in errors)
+
+
+def test_apk_verifier_ignores_itself_when_scanning_for_forbidden_imports(tmp_path: Path):
+    from tools.verify_android_staging import verify_apk
+    source = tmp_path / "source"
+    payloads = {
+        "main.py": "from rpg_android_app import RPGEngineApp\n",
+        "rpg_android_app.py": "print(1)\n",
+        "rpg_android_file_picker.py": "print(2)\n",
+        "tools/verify_android_staging.py": "FORBIDDEN = 'android.main'\n",
+    }
+    for rel, data in payloads.items():
+        p = source / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(data, encoding="utf-8")
+
+    apk = tmp_path / "app.apk"
+    with zipfile.ZipFile(apk, "w") as archive:
+        for rel in payloads:
+            archive.writestr("assets/private/" + rel, (source / rel).read_bytes())
+
+    assert verify_apk(source, apk) == []
