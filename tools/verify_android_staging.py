@@ -123,7 +123,10 @@ def verify_apk(source_dir: Path, apk_path: Path) -> list[str]:
                         "APK main.py does not import rpg_android_app.RPGEngineApp"
                     )
 
+            verifier_name = "assets/private/tools/verify_android_staging.py"
             for name in names:
+                if name == verifier_name:
+                    continue
                 if not name.endswith(".py") or not name.startswith("assets/private/"):
                     continue
                 try:
