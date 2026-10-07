@@ -112,6 +112,9 @@ jobs:
           APK="$(find "$BIN_DIR" -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           "$VENV_DIR/bin/python" tools/verify_android_staging.py --source-dir . --apk "$APK"
+          AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
+          test -x "$AAPT"
+          "$VENV_DIR/bin/python" tools/verify_android_apk.py "$APK" --source-dir . --aapt "$AAPT"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
       - name: Verify APK metadata and provenance
