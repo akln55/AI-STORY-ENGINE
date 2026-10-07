@@ -65,3 +65,18 @@ The current verifier checks the final APK rather than Buildozer's internal stagi
 - Do not treat GGUF import as proof of on-device inference.
 - Do not treat an APK file existing as proof that the app works.
 - Keep verified / implemented / unproven / planned states explicitly separated.
+
+
+## CI execution discipline
+
+When a Test Suite run is triggered, do not finish the task immediately. A pending run is not a result. Continue with one small, independent verification or documentation task while it runs, then query the workflow status.
+
+- **success:** treat the run as evidence and continue to the next gate.
+- **failure:** inspect the first failing job/step/log, fix that root cause, and start the next run.
+- **cancelled:** do not treat it as evidence; determine whether workflow concurrency cancelled it.
+
+Group related changes before triggering the suite. Avoid a stream of commits that only cancel one another.
+
+## Android release gates
+
+APK creation is only the packaging gate. The release sequence is: source tests -> APK static verification -> ARM64 device startup/crash smoke -> gameplay/save/load smoke -> local-GGUF inference smoke. `tools/verify_android_apk.py` covers the static APK gate and `tools/android_apk_smoke.py` covers the real-device startup gate.
