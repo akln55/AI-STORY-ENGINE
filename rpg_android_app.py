@@ -15,6 +15,7 @@ from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.progressbar import ProgressBar
 from kivy.uix.screenmanager import Screen, ScreenManager, SlideTransition
 from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
@@ -23,6 +24,7 @@ from kivy.graphics import Color, RoundedRectangle, Line
 
 from engine import __version__
 from engine.app.controller import AppController
+from engine.ai.model_manager import ModelSpec
 
 
 BG = (0.082, 0.082, 0.082, 1)          # ChatGPT-like deep neutral
@@ -385,13 +387,16 @@ class AIScreen(BaseScreen):
         self.provider.bind(size=lambda *_: setattr(self.provider, "text_size", self.provider.size))
         root.add_widget(self.provider)
 
-        local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(220))
+        local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(270))
         local.add_widget(Label(text="Local GGUF", color=TEXT, font_size=sp(15), bold=True, halign="left"))
-        local.add_widget(Label(text="Modeller uygulamanın özel depolamasında tutulur. Boyut ve GGUF doğrulaması yapılır. Android-native llama.cpp runtime bir sonraki yerel inference aşamasıdır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
+        local.add_widget(Label(text="Modeller uygulamanın özel depolamasında tutulur. GGUF, boyut ve bütünlük doğrulaması yapılır. Android-native llama.cpp runtime cihazda yerel inference için kullanılır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
         row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
         pick = SoftButton(text="Model seç / içe aktar")
         pick.bind(on_release=lambda *_: self.app_ref.import_model())
         row.add_widget(pick)
+        download = SoftButton(text="Hugging Face model indir")
+        download.bind(on_release=lambda *_: self.open_model_download_dialog())
+        row.add_widget(download)
         local.add_widget(row)
         self.local_models = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None, height=dp(92))
         local.add_widget(self.local_models)
@@ -471,6 +476,78 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
+    def open_model_download_dialog(self):
+        if getattr(self.app_ref, "_model_download_in_progress", False):
+            self.app_ref.notify("Model indirme zaten devam ediyor.")
+            return
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(9))
+        box.add_widget(Label(text="Yalnızca açıkça belirtilen Hugging Face GGUF dosyası indirilir.", color=MUTED, font_size=sp(11)))
+        repo = PillInput(hint_text="Repository (örn. org/model)")
+        filename = PillInput(hint_text="GGUF dosya adı (örn. model.Q4_K_M.gguf)")
+        revision = PillInput(text="main", hint_text="Revision")
+        sha = PillInput(hint_text="Beklenen SHA-256 (opsiyonel)")
+        for widget in (repo, filename, revision, sha):
+            box.add_widget(widget)
+        progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(18))
+        status = Label(text="", color=MUTED, font_size=sp(10))
+        box.add_widget(progress)
+        box.add_widget(status)
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        cancel = SoftButton(text="İptal")
+        start = AccentButton(text="İndir")
+        actions.add_widget(cancel)
+        actions.add_widget(start)
+        box.add_widget(actions)
+        popup = Popup(title="Hugging Face GGUF indir", content=box, size_hint=(0.95, 0.82), background_color=SURFACE, auto_dismiss=False)
+        cancel.bind(on_release=lambda *_: popup.dismiss())
+
+        def worker():
+            try:
+                spec = ModelSpec(
+                    repo.text.strip(),
+                    filename.text.strip(),
+                    revision=revision.text.strip() or "main",
+                    expected_sha256=sha.text.strip() or None,
+                )
+                spec.validate()
+
+                def progress_callback(written, total):
+                    def update(*_):
+                        if total:
+                            progress.value = min(100, (written / total) * 100)
+                            status.text = f"{written / (1024 ** 3):.2f} / {total / (1024 ** 3):.2f} GiB"
+                        else:
+                            status.text = f"{written / (1024 ** 3):.2f} GiB indirildi"
+                    Clock.schedule_once(update, 0)
+
+                installed = self.app_ref.controller.download_local_model(
+                    spec, progress_callback=progress_callback
+                )
+                message = f"Model indirildi: {installed.name}"
+            except Exception as exc:
+                message = f"Model indirilemedi: {exc}"
+
+            def finish(*_):
+                self.app_ref._model_download_in_progress = False
+                popup.dismiss()
+                self.app_ref.notify(message)
+                self.refresh()
+
+            Clock.schedule_once(finish, 0)
+
+        def start_download(*_):
+            if not repo.text.strip() or not filename.text.strip():
+                status.text = "Repository ve GGUF dosya adı zorunlu."
+                return
+            self.app_ref._model_download_in_progress = True
+            start.disabled = True
+            cancel.disabled = True
+            status.text = "Model doğrulanıyor ve indiriliyor…"
+            Thread(target=worker, daemon=True).start()
+
+        start.bind(on_release=start_download)
+        popup.open()
+
     def activate_local_model(self, path):
         if getattr(self.app_ref, "_model_activation_in_progress", False):
             return
@@ -537,6 +614,7 @@ class RPGEngineApp(App):
         self._saf_import_in_progress = False
         self._model_import_in_progress = False
         self._model_activation_in_progress = False
+        self._model_download_in_progress = False
 
         try:
             self.controller = AppController.demo()
