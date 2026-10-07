@@ -129,6 +129,22 @@ def test_non_http_server_url_rejected():
         LlamaCppProcessConfig(server_url="ftp://127.0.0.1:8080")
 
 
+def test_remote_server_url_rejected():
+    for url in ("http://example.com:8080", "https://8.8.8.8:8080"):
+        with raises(LlamaCppProcessConfigError):
+            LlamaCppProcessConfig(server_url=url)
+
+
+def test_loopback_server_url_allowed():
+    for url in ("http://127.0.0.1:8080", "http://localhost:8080"):
+        assert LlamaCppProcessConfig(server_url=url).server_url == url
+
+
+def test_server_url_credentials_rejected():
+    with raises(LlamaCppProcessConfigError):
+        LlamaCppProcessConfig(server_url="http://user:secret@127.0.0.1:8080")
+
+
 def test_non_positive_timeout_rejected():
     with raises(LlamaCppProcessConfigError):
         LlamaCppProcessConfig(server_url="http://127.0.0.1:8080", timeout=0)
