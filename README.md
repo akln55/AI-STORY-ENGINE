@@ -5,7 +5,7 @@
 - Product release: **v1.1.4**
 - Canonical current handoff: `AI_START_HERE.md`
 - Canonical project history: `docs/PROJECT_HISTORY.md`
-- Verification: **477 passed, 0 failed**; compileall PASS; Android readiness PASS; mutation smoke 3/3; demo scenario validation PASS
+- Verification: **481 passed, 0 failed**; compileall PASS; Android readiness PASS; mutation smoke 3/3; demo scenario validation PASS
 - Android physical-device release proof: **not yet complete**
 
 Read `AI_START_HERE.md` first. For previous milestones, failures, decisions, and lessons learned, read `docs/PROJECT_HISTORY.md`.
