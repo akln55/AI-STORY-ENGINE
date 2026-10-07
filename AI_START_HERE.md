@@ -87,7 +87,7 @@ Initial model policy remains conservative: roughly **1.5B–3B instruct**, effic
 
 The v1.1.4 release package was independently re-verified after packaging:
 
-- **477 passed, 0 failed**
+- **481 passed, 0 failed**
 - `compileall`: **PASS**
 - Android readiness verifier: **PASS**
 - mutation smoke: **3/3 detected**
@@ -161,3 +161,9 @@ If CI fails, diagnose the first failing layer before changing application archit
 6. Relevant subsystem specification under `docs/` before modifying that subsystem.
 
 Technical specifications remain separate because they define contracts; historical/current-state duplication does not.
+
+## 11. Latest CI audit
+
+The latest CI failures were traced to three issues: a stale CI assertion, a self-match bug in the APK verifier, and an APK package-ID assertion from an older commit. The current build contract uses `package.domain = org` and `package.name = rpgengine`, so the expected generated identifier is `org.rpgengine`.
+
+The corrected verifier checks the final APK rather than trusting Buildozer's internal staging tree. Physical Android installation and local-GGUF inference are still separate release gates.
