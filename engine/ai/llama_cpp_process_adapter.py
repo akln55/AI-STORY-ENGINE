@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 
@@ -121,6 +122,14 @@ class LlamaCppProcessConfig:
         if not self.server_url.startswith(("http://", "https://")):
             raise LlamaCppProcessConfigError(
                 f"server_url must be an http(s) URL, got {self.server_url!r}")
+        parsed = urllib.parse.urlparse(self.server_url)
+        if parsed.username or parsed.password:
+            raise LlamaCppProcessConfigError("server_url must not contain credentials")
+        if parsed.hostname not in {"127.0.0.1", "localhost"}:
+            raise LlamaCppProcessConfigError(
+                "server_url must target the local llama-server loopback host")
+        if parsed.port is not None and not 1024 <= parsed.port <= 65535:
+            raise LlamaCppProcessConfigError("server_url port must be in the unprivileged range")
         if self.timeout <= 0:
             raise LlamaCppProcessConfigError("timeout must be positive")
 
