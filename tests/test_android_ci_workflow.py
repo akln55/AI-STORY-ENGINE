@@ -39,8 +39,8 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert '${{ env.BIN_DIR }}/*.apk' in text
     assert "package: name='org.rpgengine'" in text
     assert "p4a_commit=58d21141f17c889bf8585f5665921d72028f8831" in text
-    assert "package.domain = org" in spec
     spec = SPEC.read_text(encoding="utf-8")
+    assert "package.domain = org" in spec
     assert "build_dir = ./.ci/build-cache" in spec
     assert "bin_dir = ./.ci/bin" in spec
     assert "./android_native/arm64-v8a/llama-server.bin --version" not in text
