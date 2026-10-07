@@ -77,4 +77,5 @@ def test_test_only_workflow_is_read_only_and_action_pinned():
 def test_android_workflow_verifies_staged_source_before_apk_metadata():
     source = (ROOT / ".github" / "workflows" / "android-build.yml").read_text()
     assert "tools/verify_android_staging.py" in source
+    assert "tools/verify_android_apk.py" in source
     assert "rpg-engine-v1.1.4-android-debug" in source
