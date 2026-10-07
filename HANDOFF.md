@@ -80,3 +80,9 @@ Group related changes before triggering the suite. Avoid a stream of commits tha
 ## Android release gates
 
 APK creation is only the packaging gate. The release sequence is: source tests -> APK static verification -> ARM64 device startup/crash smoke -> gameplay/save/load smoke -> local-GGUF inference smoke. `tools/verify_android_apk.py` covers the static APK gate and `tools/android_apk_smoke.py` covers the real-device startup gate.
+
+## ZIP naming
+
+- Release ZIP filenames must stay short: `AI-ENGINE v1.x.xx.zip`.
+- Do not use long descriptive ZIP filenames unless there is a specific technical reason.
+- Use the current project/product version in the filename.
