@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Install, launch, and smoke-test the Android APK through ADB."""
+"""Install, launch, and smoke-test the Android APK through ADB.
+
+This requires a real ARM64 Android device (or a compatible ARM64 emulator)
+with USB debugging/ADB access. It intentionally fails closed when the app
+exits or Android reports a fatal exception during the startup window.
+"""
 from __future__ import annotations
 
 import argparse
@@ -36,10 +41,11 @@ def main() -> int:
 
     prefix = ["-s", args.serial] if args.serial else []
 
-    def adb(*parts: str, timeout: float = 30.0):
+    def adb(*parts: str, timeout: float = 30.0) -> subprocess.CompletedProcess[str]:
         return run_adb(args.adb, *prefix, *parts, timeout=timeout)
 
-    if adb("version").returncode:
+    version = adb("version")
+    if version.returncode:
         print("ANDROID DEVICE SMOKE: FAIL\n- adb is unavailable")
         return 1
 
@@ -58,7 +64,11 @@ def main() -> int:
         print((install.stdout + install.stderr).strip())
         return 1
 
-    launch = adb("shell", "am", "start", "-n", f"{PACKAGE}/{LAUNCH_COMPONENT}", timeout=30)
+    adb("shell", "am", "force-stop", PACKAGE, timeout=20)
+    launch = adb(
+        "shell", "am", "start", "-S", "-W", "-n",
+        f"{PACKAGE}/{LAUNCH_COMPONENT}", timeout=30,
+    )
     launch_output = (launch.stdout + "\n" + launch.stderr).strip()
     if launch.returncode or "Error type 3" in launch_output or (
         "Activity class" in launch_output and "does not exist" in launch_output
@@ -86,14 +96,16 @@ def main() -> int:
         "AndroidRuntime",
         "java.lang.RuntimeException",
     )
-    fatal = [line for line in log_text.splitlines() if any(marker in line for marker in fatal_markers)]
+    fatal = [
+        line for line in log_text.splitlines()
+        if any(marker in line for marker in fatal_markers)
+    ]
 
     if not package_running:
         print("ANDROID DEVICE SMOKE: FAIL")
         print("- app process did not remain alive during startup window")
         print(f"- logcat: {args.log}")
         return 1
-
     if fatal:
         print("ANDROID DEVICE SMOKE: FAIL")
         print("- Android reported a fatal startup exception")

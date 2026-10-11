@@ -40,7 +40,7 @@ Android entrypoint is `main.py -> rpg_android_app.py`. SAF helper is `rpg_androi
 
 ## Verified source/package baseline
 
-- `481 passed, 0 failed`
+- `483 passed, 0 failed`
 - Python `compileall`: PASS
 - Android readiness verifier: PASS
 - mutation smoke: `3/3`

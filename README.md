@@ -5,7 +5,7 @@
 - Product release: **v1.1.4**
 - Canonical current handoff: `AI_START_HERE.md`
 - Canonical project history: `docs/PROJECT_HISTORY.md`
-- Verification: **481 passed, 0 failed**; compileall PASS; Android readiness PASS; mutation smoke 3/3; demo scenario validation PASS
+- Verification: **483 passed, 0 failed**; compileall PASS; Android readiness PASS; mutation smoke 3/3; demo scenario validation PASS
 - Android physical-device release proof: **not yet complete**
 
 Read `AI_START_HERE.md` first. For previous milestones, failures, decisions, and lessons learned, read `docs/PROJECT_HISTORY.md`.
@@ -35,7 +35,7 @@ Player action
 
 ## Current verification
 
-The current v1.1.4 source/package baseline has **477 passing tests**, compileall PASS, Android readiness PASS, mutation smoke 3/3, and demo scenario validation PASS. Physical Android release behavior remains unproven until a real APK is built, installed, and exercised on hardware.
+The current v1.1.4 source/package baseline has **483 passing tests**, compileall PASS, Android readiness PASS, mutation smoke 3/3, and demo scenario validation PASS. Physical Android release behavior remains unproven until a real APK is built, installed, and exercised on hardware.
 
 ## Current development state
 
@@ -54,6 +54,8 @@ The deterministic engine, persistence/lifecycle hardening, local-AI/provider har
 | `docs/AI_SECURITY_SPEC.md` | AI security boundary |
 | `docs/AI_EXECUTION_POLICY.md` | AI transaction policy |
 | `docs/TESTING.md` | Test architecture and release checks |
+| `docs/ANDROID_BUILD.md` | Reproducible Android build contract and CI gates |
+| `docs/ANDROID_APK_SMOKE.md` | Static APK verification and real-device startup smoke |
 
 Technical specifications remain separate because they define contracts. Current-state and historical duplication has been removed.
 
