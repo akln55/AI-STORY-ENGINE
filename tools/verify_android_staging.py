@@ -11,8 +11,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 from pathlib import Path
-import sys
 import zipfile
+
+try:
+    from tools.android_apk_contents import (
+        VERIFIER_SCRIPTS, find_forbidden_imports, load_apk_private_files,
+    )
+except ModuleNotFoundError:  # Direct execution as: python tools/verify_android_staging.py
+    from android_apk_contents import (
+        VERIFIER_SCRIPTS, find_forbidden_imports, load_apk_private_files,
+    )
 
 CRITICAL_FILES = (
     "main.py",
@@ -66,19 +74,21 @@ def verify_staging(source_dir: Path, staging_dir: Path) -> list[str]:
             errors.append("staged main.py does not import rpg_android_app.RPGEngineApp")
 
     for path in staging_dir.rglob("*.py"):
-        if path.relative_to(staging_dir).as_posix() == "tools/verify_android_staging.py":
+        relative = path.relative_to(staging_dir).as_posix()
+        if relative in VERIFIER_SCRIPTS:
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            errors.append(f"staged Python file is not valid UTF-8: {path.relative_to(staging_dir)}")
+            errors.append(f"staged Python file is not valid UTF-8: {relative}")
             continue
-        for forbidden in FORBIDDEN_IMPORTS:
-            if forbidden in text:
-                errors.append(
-                    f"obsolete Android module reference '{forbidden}' in "
-                    f"{path.relative_to(staging_dir)}"
-                )
+        try:
+            forbidden_modules = find_forbidden_imports(text, FORBIDDEN_IMPORTS)
+        except SyntaxError as exc:
+            errors.append(f"staged Python file has invalid syntax: {relative}: {exc.msg}")
+            continue
+        for forbidden in forbidden_modules:
+            errors.append(f"obsolete Android module import '{forbidden}' in {relative}")
 
     return errors
 
@@ -94,55 +104,64 @@ def verify_apk(source_dir: Path, apk_path: Path) -> list[str]:
 
     try:
         with zipfile.ZipFile(apk_path) as apk:
-            names = set(apk.namelist())
+            private_files = load_apk_private_files(apk, errors)
+            if not private_files:
+                errors.append(
+                    "APK app-private payload is empty; expected assets/private.tar "
+                    "or individual assets/private files"
+                )
 
             for rel in CRITICAL_FILES:
                 source = source_dir / rel
-                packaged = f"assets/private/{rel}"
-
                 if not source.is_file():
                     errors.append(f"source critical file missing: {rel}")
                     continue
-                if packaged not in names:
-                    errors.append(f"APK critical file missing: {packaged}")
+                packaged_data = private_files.get(rel)
+                if packaged_data is None:
+                    errors.append(f"APK critical file missing from private payload: {rel}")
                     continue
 
                 source_hash = sha256(source)
-                packaged_hash = hashlib.sha256(apk.read(packaged)).hexdigest()
+                packaged_hash = hashlib.sha256(packaged_data).hexdigest()
                 if source_hash != packaged_hash:
                     errors.append(
                         f"APK/source hash mismatch for {rel}: "
                         f"source={source_hash} apk={packaged_hash}"
                     )
 
-            main = "assets/private/main.py"
-            if main in names:
-                main_text = apk.read(main).decode("utf-8")
-                if "from rpg_android_app import RPGEngineApp" not in main_text:
-                    errors.append(
-                        "APK main.py does not import rpg_android_app.RPGEngineApp"
-                    )
+            main_data = private_files.get("main.py")
+            if main_data is None:
+                errors.append("APK main.py is missing")
+            else:
+                try:
+                    main_text = main_data.decode("utf-8")
+                except UnicodeDecodeError:
+                    errors.append("APK main.py is not UTF-8")
+                else:
+                    if "from rpg_android_app import RPGEngineApp" not in main_text:
+                        errors.append(
+                            "APK main.py does not import rpg_android_app.RPGEngineApp"
+                        )
 
-            verifier_name = "assets/private/tools/verify_android_staging.py"
-            for name in names:
-                if name == verifier_name:
-                    continue
-                if not name.endswith(".py") or not name.startswith("assets/private/"):
+            for name, data in private_files.items():
+                if not name.endswith(".py") or name in VERIFIER_SCRIPTS:
                     continue
                 try:
-                    text = apk.read(name).decode("utf-8")
+                    text = data.decode("utf-8")
                 except UnicodeDecodeError:
-                    errors.append(f"APK Python file is not valid UTF-8: {name}")
+                    errors.append(f"APK Python file is not UTF-8: {name}")
                     continue
-                for forbidden in FORBIDDEN_IMPORTS:
-                    if forbidden in text:
-                        errors.append(
-                            f"obsolete Android module reference '{forbidden}' in {name}"
-                        )
-    except zipfile.BadZipFile as exc:
-        errors.append(f"invalid APK/ZIP: {exc}")
-    except OSError as exc:
-        errors.append(f"cannot read APK: {exc}")
+                try:
+                    forbidden_modules = find_forbidden_imports(text, FORBIDDEN_IMPORTS)
+                except SyntaxError as exc:
+                    errors.append(f"APK Python file has invalid syntax: {name}: {exc.msg}")
+                    continue
+                for forbidden in forbidden_modules:
+                    errors.append(
+                        f"obsolete Android module import '{forbidden}' in {name}"
+                    )
+    except (zipfile.BadZipFile, OSError) as exc:
+        errors.append(f"cannot read APK/ZIP: {exc}")
 
     return errors
 
@@ -163,7 +182,7 @@ def main() -> int:
             return 1
         print(f"ANDROID APK CONTENT: PASS ({args.apk.resolve()})")
         for rel in CRITICAL_FILES:
-            print(f"- {rel}: verified against assets/private/{rel}")
+            print(f"- {rel}: verified against APK private payload")
         return 0
 
     staging = args.build_dir / "android" / "app"

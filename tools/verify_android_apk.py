@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Static validation for a built RPG Engine Android APK."""
+"""Static validation for a built RPG Engine Android APK.
+
+This is deliberately separate from Android-device smoke testing. It answers:
+"Does the APK contain the expected application and native payload?" It does
+not claim that Android can successfully launch the application.
+"""
 from __future__ import annotations
 
 import argparse
@@ -8,11 +13,27 @@ from pathlib import Path
 import subprocess
 import zipfile
 
-CRITICAL_FILES = ("main.py", "rpg_android_app.py", "rpg_android_file_picker.py")
+try:
+    from tools.android_apk_contents import (
+        NATIVE_BINARY_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
+        load_apk_private_files,
+    )
+except ModuleNotFoundError:  # Direct execution as: python tools/verify_android_apk.py
+    from android_apk_contents import (
+        NATIVE_BINARY_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
+        load_apk_private_files,
+    )
+
+CRITICAL_FILES = (
+    "main.py",
+    "rpg_android_app.py",
+    "rpg_android_file_picker.py",
+)
 FORBIDDEN_IMPORTS = ("android.main", "android.file_picker")
+
 EXPECTED_PACKAGE = "org.rpgengine"
 EXPECTED_VERSION = "1.1.4"
-NATIVE_BINARY = "assets/private/android_native/arm64-v8a/llama-server.bin"
+NATIVE_BINARY = NATIVE_BINARY_PATH
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -42,53 +63,74 @@ def verify_apk(source_dir: Path, apk_path: Path, *, aapt: Path | None = None) ->
     try:
         with zipfile.ZipFile(apk_path) as apk:
             names = set(apk.namelist())
-            bad_paths = [n for n in names if Path(n).is_absolute() or ".." in Path(n).parts]
+            bad_paths = [
+                name for name in names
+                if name.startswith("/") or ".." in name.replace("\\", "/").split("/")
+            ]
             if bad_paths:
                 errors.append(f"APK contains unsafe paths: {bad_paths[:3]}")
 
+            private_files = load_apk_private_files(apk, errors)
+            if not private_files:
+                errors.append(
+                    "APK app-private payload is empty; expected assets/private.tar "
+                    "or individual assets/private files"
+                )
+
             for rel in CRITICAL_FILES:
                 source = source_dir / rel
-                packaged = f"assets/private/{rel}"
                 if not source.is_file():
                     errors.append(f"source critical file missing: {rel}")
                     continue
-                if packaged not in names:
-                    errors.append(f"APK critical file missing: {packaged}")
+                packaged_data = private_files.get(rel)
+                if packaged_data is None:
+                    errors.append(f"APK critical file missing from private payload: {rel}")
                     continue
                 source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
-                packaged_hash = _sha256_bytes(apk.read(packaged))
+                packaged_hash = _sha256_bytes(packaged_data)
                 if source_hash != packaged_hash:
-                    errors.append(f"APK/source hash mismatch for {rel}: source={source_hash} apk={packaged_hash}")
+                    errors.append(
+                        f"APK/source hash mismatch for {rel}: "
+                        f"source={source_hash} apk={packaged_hash}"
+                    )
 
-            main_name = "assets/private/main.py"
-            if main_name in names:
-                main_text = apk.read(main_name).decode("utf-8")
-                if "from rpg_android_app import RPGEngineApp" not in main_text:
-                    errors.append("APK main.py does not import rpg_android_app.RPGEngineApp")
-            else:
+            main_data = private_files.get("main.py")
+            if main_data is None:
                 errors.append("APK main.py is missing")
+            else:
+                try:
+                    main_text = main_data.decode("utf-8")
+                except UnicodeDecodeError:
+                    errors.append("APK main.py is not UTF-8")
+                else:
+                    if "from rpg_android_app import RPGEngineApp" not in main_text:
+                        errors.append("APK main.py does not import rpg_android_app.RPGEngineApp")
 
-            verifier_name = "assets/private/tools/verify_android_staging.py"
-            for name in names:
-                if name == verifier_name or not name.startswith("assets/private/") or not name.endswith(".py"):
+            for name, data in private_files.items():
+                if not name.endswith(".py") or name in VERIFIER_SCRIPTS:
                     continue
                 try:
-                    text = apk.read(name).decode("utf-8")
+                    text = data.decode("utf-8")
                 except UnicodeDecodeError:
                     errors.append(f"APK Python file is not UTF-8: {name}")
                     continue
-                for forbidden in FORBIDDEN_IMPORTS:
-                    if forbidden in text:
-                        errors.append(f"obsolete Android module reference {forbidden!r} in {name}")
+                try:
+                    forbidden_modules = find_forbidden_imports(text, FORBIDDEN_IMPORTS)
+                except SyntaxError as exc:
+                    errors.append(f"APK Python file has invalid syntax: {name}: {exc.msg}")
+                    continue
+                for forbidden in forbidden_modules:
+                    errors.append(
+                        f"obsolete Android module import {forbidden!r} in {name}"
+                    )
 
-            if NATIVE_BINARY not in names:
+            native = private_files.get(NATIVE_BINARY)
+            if native is None:
                 errors.append(f"packaged llama-server missing: {NATIVE_BINARY}")
-            else:
-                native = apk.read(NATIVE_BINARY)
-                if len(native) < 20 or native[:4] != b"\x7fELF" or native[4] != 2 or native[5] != 1:
-                    errors.append("packaged llama-server is not an ELF64 little-endian binary")
-                elif int.from_bytes(native[18:20], "little") != 183:
-                    errors.append("packaged llama-server is not AArch64")
+            elif len(native) < 20 or native[:4] != b"\x7fELF" or native[4] != 2 or native[5] != 1:
+                errors.append("packaged llama-server is not an ELF64 little-endian binary")
+            elif int.from_bytes(native[18:20], "little") != 183:
+                errors.append("packaged llama-server is not AArch64")
 
             if aapt is not None:
                 try:
@@ -119,11 +161,12 @@ def main() -> int:
     parser.add_argument("--aapt", type=Path)
     args = parser.parse_args()
 
-    if args.aapt is not None and not args.aapt.is_file():
-        print(f"ANDROID APK STATIC CHECK: FAIL\n- aapt not found: {args.aapt}")
+    aapt = args.aapt
+    if aapt is not None and not aapt.is_file():
+        print(f"ANDROID APK STATIC CHECK: FAIL\n- aapt not found: {aapt}")
         return 1
 
-    errors = verify_apk(args.source_dir, args.apk, aapt=args.aapt)
+    errors = verify_apk(args.source_dir, args.apk, aapt=aapt)
     if errors:
         print("ANDROID APK STATIC CHECK: FAIL")
         for error in errors:

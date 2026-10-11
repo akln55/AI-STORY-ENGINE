@@ -1,4 +1,6 @@
+from io import BytesIO
 from pathlib import Path
+import tarfile
 import zipfile
 
 from tools.verify_android_apk import verify_apk
@@ -49,3 +51,19 @@ def test_static_verifier_rejects_wrong_native_architecture(tmp_path: Path):
                 archive.writestr("assets/private/" + path.relative_to(source).as_posix(), path.read_bytes())
     errors = verify_apk(source, apk)
     assert any("not AArch64" in item for item in errors)
+
+
+def test_static_verifier_accepts_python_for_android_private_tar(tmp_path: Path):
+    source = tmp_path / "source"
+    _make_source(source)
+    tar_bytes = BytesIO()
+    with tarfile.open(fileobj=tar_bytes, mode="w") as payload:
+        for path in source.rglob("*"):
+            if path.is_file():
+                payload.add(path, arcname=path.relative_to(source).as_posix())
+
+    apk = tmp_path / "app.apk"
+    with zipfile.ZipFile(apk, "w") as archive:
+        archive.writestr("assets/private.tar", tar_bytes.getvalue())
+
+    assert verify_apk(source, apk) == []
