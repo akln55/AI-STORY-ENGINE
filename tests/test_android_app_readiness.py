@@ -119,3 +119,36 @@ def test_huggingface_catalog_is_available_from_ai_settings():
     assert 'def remote_model_files(self, repo_id: str)' in controller
     assert 'def show_remote_model_files(self, repo_id)' in source
     assert 'def search_huggingface_models(' in (ROOT / "engine/ai/model_manager.py").read_text()
+
+
+def test_void_panel_reference_is_applied_to_mobile_ui():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    assert "BG = (0.0, 0.0, 0.0, 1)" in source
+    assert "#111111" in source
+    assert 'ColorProperty(TEXT)' in source
+    assert 'radius = NumericProperty(dp(22))' in source
+    assert 'class RecentGamesScreen(BaseScreen)' in source
+    assert 'text="Yerel modeller · Local GGUF"' in source
+
+
+def test_ai_forms_are_labelled_and_catalog_errors_are_user_friendly():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    assert '_field_group("Sağlayıcı", self.api_provider' in ai
+    assert '_field_group("API endpoint", self.api_endpoint)' in ai
+    assert '_field_group("Model adı", self.api_model)' in ai
+    assert '_field_group("API anahtarı", self.api_key)' in ai
+    assert 'def _friendly_catalog_error(self, error)' in ai
+    assert 'text="Tekrar dene"' in ai
+    assert 'text="Hugging Face model kataloğu"' in ai
+    assert 'Arama başarısız: {error}' not in ai
+
+
+def test_notification_dialog_is_compact_and_wrapped():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    start = source.index("    def notify(self, text):")
+    end = source.index("    def _append", start)
+    notify = source[start:end]
+    assert '_aligned_label(' in notify
+    assert 'size_hint=(0.90, None), height=dp(178)' in notify
+    assert 'text="Tamam"' in notify
