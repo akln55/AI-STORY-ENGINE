@@ -600,7 +600,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(264), fill=SURFACE, radius=dp(22),
         )
         local.add_widget(_aligned_label(
-            text="Yerel modeller", color=TEXT, font_size=sp(17), bold=True,
+            text="Yerel modeller · Local GGUF", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         local.add_widget(_aligned_label(
@@ -628,7 +628,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(316), fill=SURFACE, radius=dp(22),
         )
         self.hf_catalog.add_widget(_aligned_label(
-            text="Hugging Face kataloğu", color=TEXT, font_size=sp(17), bold=True,
+            text="Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         self.hf_catalog.add_widget(_aligned_label(
