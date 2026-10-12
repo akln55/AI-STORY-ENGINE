@@ -213,7 +213,7 @@ def test_selecting_discovered_api_model_updates_live_adapter():
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
     source = (ROOT / "rpg_android_app.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
-    connect = ai[ai.index("    def connect_api(self):"):ai.index("    def open_model_download_dialog(self):")]
+    connect = ai[ai.index("    def connect_api(self):"):]
     probe_result = connect.index("result = check_api_connection(")
     configure = connect.index("self.app_ref.controller.set_gemini(api_key, model_name)")
     success_guard = connect.rfind("if success:", 0, configure)
