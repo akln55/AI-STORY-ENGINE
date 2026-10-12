@@ -870,7 +870,7 @@ class RPGEngineApp(App):
             for screen in (self.home, self.games, self.game, self.scenarios, self.ai, self.settings):
                 self.manager.add_widget(screen)
 
-            root = FloatLayout()
+            root = BoxLayout(orientation="vertical", spacing=0)
             root.add_widget(self.manager)
             root.add_widget(self._bottom_nav())
             self.manager.current = "home"
@@ -921,7 +921,7 @@ class RPGEngineApp(App):
     def _bottom_nav(self):
         # Plain text labels avoid tofu/missing-glyph boxes on Android fonts.
         nav = RoundedPanel(orientation="horizontal", padding=[dp(8), dp(6)], spacing=dp(6),
-                           size_hint=(1, None), height=dp(62), pos_hint={"x": 0, "y": 0.0},
+                           size_hint=(1, None), height=dp(62),
                            fill=(0.105, 0.105, 0.105, 0.98), radius=dp(22))
         for label, target in (("Oyun", "games"), ("Ana", "home"), ("Ayarlar", "settings")):
             b = GhostButton(text=label, font_size=sp(13))
