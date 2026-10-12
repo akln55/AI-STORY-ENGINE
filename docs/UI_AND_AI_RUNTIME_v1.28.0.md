@@ -15,7 +15,7 @@
 ---
 
 
-# CURRENT LOCAL AI STATUS — 2026-10-05
+# ORIGINAL STATUS SNAPSHOT — 2026-10-05 (HISTORICAL)
 
 This document defines the intended runtime boundary. The implementation remains partial:
 
