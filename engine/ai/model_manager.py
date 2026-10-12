@@ -432,7 +432,12 @@ def download_huggingface_model(
         try:
             with part.open("wb") as output:
                 while True:
-                    chunk = stream.read(_IO_CHUNK_SIZE)
+                    try:
+                        chunk = stream.read(_IO_CHUNK_SIZE)
+                    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                        raise ModelDownloadError(
+                            _safe_huggingface_error(exc, operation="download")
+                        ) from None
                     if not chunk:
                         break
                     written += len(chunk)
