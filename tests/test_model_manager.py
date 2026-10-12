@@ -465,3 +465,50 @@ def test_huggingface_download_sanitizes_network_failure(tmp_path):
         assert "private socket path" not in str(exc)
     else:
         raise AssertionError("expected sanitized model download error")
+
+
+
+def test_huggingface_download_sanitizes_midstream_timeout_and_cleans_partial(tmp_path):
+    import socket
+    from engine.ai.model_manager import ModelDownloadError
+
+    class BrokenResponse:
+        headers = {"Content-Length": "100"}
+
+        def __init__(self):
+            self.read_count = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self, size=-1):
+            self.read_count += 1
+            if self.read_count == 1:
+                return b"partial bytes"
+            raise socket.timeout("private socket path and internal socket detail")
+
+    response = BrokenResponse()
+
+    def opener(_request, timeout):
+        assert timeout == 60
+        return response
+
+    try:
+        download_huggingface_model(
+            ModelSpec("org/model", "model.gguf"),
+            tmp_path / "models",
+            opener=opener,
+        )
+    except ModelDownloadError as exc:
+        assert str(exc) == "Hugging Face connection timed out"
+        assert "private socket path" not in str(exc)
+        assert "internal socket detail" not in str(exc)
+    else:
+        raise AssertionError("expected sanitized mid-stream download timeout")
+
+    models_dir = tmp_path / "models"
+    assert not list(models_dir.glob("*.part"))
+    assert not list(models_dir.glob("*.gguf"))
