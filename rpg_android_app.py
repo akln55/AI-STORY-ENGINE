@@ -906,9 +906,11 @@ class AIScreen(BaseScreen):
 
 
     def show_remote_model_files(self, repo_id):
-        box = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
-        status = Label(text="GGUF dosyaları alınıyor…", color=MUTED, font_size=sp(12),
-                       size_hint_y=None, height=dp(38), halign="left")
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(8))
+        status = _aligned_label(
+            text="GGUF dosyaları yükleniyor…", color=MUTED, font_size=sp(12),
+            valign="top", size_hint_y=None, height=dp(62),
+        )
         box.add_widget(status)
         files_box = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
         files_box.bind(minimum_height=files_box.setter("height"))
@@ -933,19 +935,20 @@ class AIScreen(BaseScreen):
             def finish(*_):
                 files_box.clear_widgets()
                 if error is not None:
-                    status.text = f"Dosya listesi alınamadı: {error}"
+                    status.text = self._friendly_catalog_error(error)
                     return
                 if not files:
-                    status.text = "Bu depoda 3 GiB sınırına uygun GGUF dosyası bulunamadı."
+                    status.text = "Uygun GGUF dosyası bulunamadı. Bu depoda dosya olmayabilir veya dosyalar indirme sınırını aşıyor olabilir."
                     return
-                status.text = "Bir GGUF dosyası seç. Boyutu bilinmeyen dosyalar indirme sırasında da sınırlandırılır."
+                status.text = "İndirmek istediğin dosyayı seç. Dosya boyutu indirme öncesinde kontrol edilir."
                 for item in files:
                     size = f"{item.size_gib:.2f} GiB" if item.size_gib is not None else "Boyut doğrulanacak"
                     row = BoxLayout(orientation="horizontal", spacing=dp(8),
                                     size_hint_y=None, height=dp(56))
-                    info = Label(text=f"{item.filename}\n{size}", color=TEXT, font_size=sp(10),
-                                 halign="left", valign="middle")
-                    info.bind(size=lambda widget, *_: setattr(widget, "text_size", widget.size))
+                    info = _aligned_label(
+                        text=f"{item.filename}\n{size}", color=TEXT, font_size=sp(11),
+                        size_hint_y=None, height=dp(50),
+                    )
                     row.add_widget(info)
                     choose = AccentButton(text="Seç", size_hint_x=None, width=dp(68))
                     choose.bind(on_release=lambda *_a, file=item: (
@@ -963,16 +966,28 @@ class AIScreen(BaseScreen):
         if getattr(self.app_ref, "_model_download_in_progress", False):
             self.app_ref.notify("Model indirme zaten devam ediyor.")
             return
-        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(9))
-        box.add_widget(Label(text="Yalnızca açıkça belirtilen Hugging Face GGUF dosyası indirilir.", color=MUTED, font_size=sp(11)))
-        repo = PillInput(text=repo_id, hint_text="Repository (örn. org/model)")
-        filename = PillInput(text=filename, hint_text="GGUF dosya adı (örn. model.Q4_K_M.gguf)")
-        revision = PillInput(text="main", hint_text="Revision")
-        sha = PillInput(hint_text="Beklenen SHA-256 (opsiyonel)")
-        for widget in (repo, filename, revision, sha):
-            box.add_widget(widget)
-        progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(18))
-        status = Label(text="", color=MUTED, font_size=sp(10))
+        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(8))
+        box.add_widget(_aligned_label(
+            text="Yalnızca seçtiğin GGUF dosyası indirilir. Dosya boyutu ve bütünlüğü kontrol edilir.",
+            color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(42),
+        ))
+        repo = PillInput(text=repo_id, hint_text="Örn. organization/model")
+        filename = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
+        revision = PillInput(text="main", hint_text="main veya commit etiketi")
+        sha = PillInput(hint_text="İsteğe bağlı SHA-256")
+        for caption, widget in (
+            ("Hugging Face deposu", repo),
+            ("GGUF dosya adı", filename),
+            ("Sürüm", revision),
+            ("Bütünlük doğrulaması", sha),
+        ):
+            box.add_widget(_field_group(caption, widget))
+        progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(8))
+        status = _aligned_label(
+            text="İndirmeye hazır.", color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(34),
+        )
         box.add_widget(progress)
         box.add_widget(status)
         actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
@@ -981,7 +996,10 @@ class AIScreen(BaseScreen):
         actions.add_widget(cancel)
         actions.add_widget(start)
         box.add_widget(actions)
-        popup = Popup(title="Hugging Face GGUF indir", content=box, size_hint=(0.95, 0.82), background_color=SURFACE, auto_dismiss=False)
+        popup = Popup(
+            title="Model indir", content=box, size_hint=(0.94, 0.80),
+            background_color=SURFACE, separator_color=ACCENT, auto_dismiss=False,
+        )
         cancel.bind(on_release=lambda *_: popup.dismiss())
 
         def worker():
@@ -1066,12 +1084,12 @@ class AIScreen(BaseScreen):
         try:
             if self.api_provider.text == "Gemini":
                 self.app_ref.controller.set_gemini(api_key, model_name)
-                message = "Gemini bağlantı ayarı uygulandı."
+                message = "Gemini ayarları uygulandı. Bağlantı ilk istek gönderildiğinde kontrol edilir."
             else:
                 self.app_ref.controller.set_openai_compatible(
                     self.api_endpoint.text.strip(), api_key, model_name
                 )
-                message = "OpenAI-compatible bağlantı ayarı uygulandı."
+                message = "API ayarları uygulandı. Bağlantı ilk istek gönderildiğinde kontrol edilir."
             self.api_key.text = ""
             self.app_ref.notify(message)
             self.refresh()
