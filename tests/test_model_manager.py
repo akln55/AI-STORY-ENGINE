@@ -259,3 +259,45 @@ def test_model_spec_rejects_traversal_like_repository_ids():
             pass
         else:
             raise AssertionError(f"expected ModelSpecError for {repo_id!r}")
+
+
+
+def test_huggingface_connectivity_probe_uses_public_endpoint_without_download():
+    import json
+    from engine.ai.model_manager import check_huggingface_connection
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self, _size=-1):
+            return json.dumps([{"id": "Qwen/Qwen3-1.7B-GGUF"}]).encode()
+
+    def opener(request, timeout):
+        assert request.full_url == "https://huggingface.co/api/models?limit=1"
+        assert request.get_header("Authorization") is None
+        assert timeout == 8.0
+        return FakeResponse()
+
+    assert check_huggingface_connection(opener=opener) is None
+
+
+def test_huggingface_connectivity_probe_reports_dns_failure_without_url_or_secrets():
+    import urllib.error
+    from engine.ai.model_manager import ModelDiscoveryError, check_huggingface_connection
+
+    def opener(_request, timeout):
+        raise urllib.error.URLError(OSError("No address associated with hostname"))
+
+    try:
+        check_huggingface_connection(opener=opener)
+    except ModelDiscoveryError as exc:
+        assert str(exc) == "DNS resolution failed for huggingface.co"
+        assert "https://" not in str(exc)
+    else:
+        raise AssertionError("expected ModelDiscoveryError for DNS failure")
