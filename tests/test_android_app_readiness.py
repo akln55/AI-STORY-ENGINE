@@ -179,3 +179,14 @@ def test_gameplay_does_not_force_android_soft_keyboard_on_navigation():
     gameplay = source[start:end]
     assert "self.input.focus()" not in gameplay
     assert 'getattr(self.app_ref, "_lifecycle_stopping", False)' in gameplay
+
+
+def test_api_settings_include_a_non_generation_connectivity_probe():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    connectivity = (ROOT / "engine/ai/connectivity.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    assert "from engine.ai.connectivity import APIConnectionError, check_api_connection" in source
+    assert 'text="Ayarları uygula ve test et"' in ai
+    assert "check_api_connection(" in ai
+    assert "Thread(target=worker, daemon=True).start()" in ai
+    assert "does not generate text" in connectivity
