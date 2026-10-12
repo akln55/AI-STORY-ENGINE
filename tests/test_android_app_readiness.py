@@ -199,3 +199,12 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     assert 'self.api_models_picker.values = model_ids[:20]' in ai
     assert 'self.api_model.text = selected' in ai
     assert 'self.api_panel.height = dp(512)' in ai
+
+
+def test_selecting_discovered_api_model_updates_live_adapter():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    callback = ai[ai.index("    def _choose_api_model"):ai.index("    def refresh(self):")]
+    assert 'adapter = getattr(self.app_ref.controller.session, "adapter", None)' in callback
+    assert 'adapter.model = selected' in callback
+    assert 'self.api_status.text = f"Model seçildi: {selected}"' in callback
