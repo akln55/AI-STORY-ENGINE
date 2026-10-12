@@ -118,3 +118,35 @@ def test_accent_button_has_explicit_contrasting_text_color():
     assert _has_kwargs_default(init, "color"), (
         "Primary action text color must also be set explicitly per instance."
     )
+
+
+def test_message_bubbles_distinguish_player_from_narration_and_improve_readability():
+    bubble = _class_node("MessageBubble")
+    init = _init_method(bubble)
+    init_source = ast.get_source_segment(APP_SOURCE.read_text(encoding="utf-8"), init) or ""
+
+    assert 'text="SEN" if role == "player" else "ANLATI"' in init_source
+    assert 'self.fill = SURFACE_2 if role == "player" else SURFACE' in init_source
+    assert "font_size=sp(16)" in init_source, (
+        "Story and chat text should use a more readable mobile font size."
+    )
+
+
+def test_gameplay_composer_disables_duplicate_submissions_while_busy():
+    gameplay = _class_node("GameplayScreen")
+    method_names = {
+        node.name for node in gameplay.body if isinstance(node, ast.FunctionDef)
+    }
+    assert "set_busy" in method_names
+    submit = next(
+        node for node in gameplay.body
+        if isinstance(node, ast.FunctionDef) and node.name == "submit"
+    )
+    submit_source = ast.get_source_segment(APP_SOURCE.read_text(encoding="utf-8"), submit) or ""
+    assert "self.set_busy(True)" in submit_source
+    assert "self.send_button.disabled = bool(busy)" in (
+        ast.get_source_segment(
+            APP_SOURCE.read_text(encoding="utf-8"),
+            next(node for node in gameplay.body if isinstance(node, ast.FunctionDef) and node.name == "set_busy")
+        ) or ""
+    )

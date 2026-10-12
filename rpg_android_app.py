@@ -292,10 +292,29 @@ class MessageBubble(RoundedPanel):
         kwargs.setdefault("outline", BORDER)
         super().__init__(**kwargs)
         self.role = role
+        self.fill = SURFACE_2 if role == "player" else SURFACE
+        self.outline = (
+            (ACCENT[0], ACCENT[1], ACCENT[2], 0.35)
+            if role == "player" else BORDER
+        )
+        self._role_label = Label(
+            text="SEN" if role == "player" else "ANLATI",
+            color=ACCENT if role == "player" else MUTED,
+            font_size=sp(9),
+            bold=True,
+            halign="left",
+            valign="middle",
+            size_hint_y=None,
+            height=dp(14),
+        )
+        self._role_label.bind(
+            size=lambda widget, *_: setattr(widget, "text_size", widget.size)
+        )
+        self.add_widget(self._role_label)
         self._label = Label(
             text=text,
             color=TEXT,
-            font_size=sp(15),
+            font_size=sp(16),
             halign="left",
             valign="top",
             size_hint_y=None,
@@ -348,9 +367,11 @@ class GameplayScreen(BaseScreen):
         self.input = PillInput(hint_text="Ne yapmak istiyorsun?", size_hint_x=1)
         self.input.bind(on_text_validate=lambda *_: self.submit())
         composer.add_widget(self.input)
-        send = AccentButton(text="Gönder", size_hint_x=None, width=dp(86), font_size=sp(11))
-        send.bind(on_release=lambda *_: self.submit())
-        composer.add_widget(send)
+        self.send_button = AccentButton(
+            text="Gönder", size_hint_x=None, width=dp(86), font_size=sp(11)
+        )
+        self.send_button.bind(on_release=lambda *_: self.submit())
+        composer.add_widget(self.send_button)
         root.add_widget(composer)
         self.add_widget(root)
         self._typing_bubble = None
@@ -432,12 +453,19 @@ class GameplayScreen(BaseScreen):
                 pass
             self._typing_bubble = None
 
+    def set_busy(self, busy):
+        self.send_button.disabled = bool(busy)
+        self.send_button.text = "Bekle…" if busy else "Gönder"
+        self.input.disabled = bool(busy)
+        self.input.hint_text = "Yanıt hazırlanıyor…" if busy else "Ne yapmak istiyorsun?"
+
     def submit(self):
         text = self.input.text.strip()
         if not text or self.app_ref.busy or getattr(self.app_ref, "_lifecycle_stopping", False):
             return
         self.input.text = ""
         self.app_ref.busy = True
+        self.set_busy(True)
         self.add_message(text, role="player")
         self.show_typing()
         Thread(target=self.app_ref._submit_worker, args=(text,), daemon=True).start()
@@ -1529,6 +1557,7 @@ class RPGEngineApp(App):
 
     def _finish_submit(self, result):
         self.busy = False
+        self.game.set_busy(False)
         # Persistence is deliberately independent from presentation animation.
         if self.controller.dirty:
             self._autosave("turn")
