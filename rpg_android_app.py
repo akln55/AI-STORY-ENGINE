@@ -807,8 +807,18 @@ class AIScreen(BaseScreen):
             self.api_status.color = MUTED
 
     def _choose_api_model(self, _spinner, selected):
-        if selected and selected in self.api_models_picker.values:
-            self.api_model.text = selected
+        if not selected or selected not in self.api_models_picker.values:
+            return
+        self.api_model.text = selected
+        # The connection probe initially configures the adapter with the
+        # manually entered model. Selecting a discovered model must update the
+        # live adapter too, otherwise the UI would claim a model is selected
+        # while gameplay keeps sending requests to the old one.
+        adapter = getattr(self.app_ref.controller.session, "adapter", None)
+        if adapter is not None and hasattr(adapter, "model"):
+            adapter.model = selected
+            self.api_status.text = f"Model seçildi: {selected}"
+            self.api_status.color = ACCENT
 
     def refresh(self):
         self.provider.text = self.app_ref.controller.provider_name
