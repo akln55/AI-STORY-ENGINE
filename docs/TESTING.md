@@ -25,7 +25,7 @@ The current test workflow runs:
    python tools/mutation_smoke.py
    ```
 
-Latest completed source-only run for the current application code: **524 passed in 10.09s**, compileall PASS, Android readiness PASS (`version=1.1.4, target_api=36, SAF=enabled`), mutation smoke **3/3 detected**.
+Latest recorded source-only run at commit `4f13ef3106d621bab616f87696d4b3436bc51c60`: **535 passed in 8.38s** ([CI evidence](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38306455458)), compileall PASS, Android readiness PASS (`version=1.1.4, target_api=36, SAF=enabled`), mutation smoke **3/3 detected**. This count is a dated snapshot; use the current Actions run for code changes after that revision.
 
 The Android build workflow also reruns source tests before building the pinned native llama.cpp server and APK.
 
