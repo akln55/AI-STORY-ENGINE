@@ -472,20 +472,40 @@ class AIScreen(BaseScreen):
         self.provider.bind(size=lambda *_: setattr(self.provider, "text_size", self.provider.size))
         content.add_widget(self.provider)
 
-        local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(270))
-        local.add_widget(Label(text="Local GGUF", color=TEXT, font_size=sp(15), bold=True, halign="left"))
-        local.add_widget(Label(text="Modeller uygulamanın özel depolamasında tutulur. GGUF, boyut ve bütünlük doğrulaması yapılır. Android-native llama.cpp runtime cihazda yerel inference için kullanılır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
-        row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
-        pick = SoftButton(text="Model seç / içe aktar")
+        local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(250))
+        local.add_widget(Label(text="Kurulu yerel modeller", color=TEXT, font_size=sp(15), bold=True, halign="left"))
+        local.add_widget(Label(text="Model dosyaları uygulamanın özel alanında tutulur. Yalnızca doğrulanan GGUF modelleri çalıştırılır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
+        row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        pick = SoftButton(text="GGUF içe aktar")
         pick.bind(on_release=lambda *_: self.app_ref.import_model())
         row.add_widget(pick)
-        download = SoftButton(text="Hugging Face model indir")
-        download.bind(on_release=lambda *_: self.open_model_download_dialog())
-        row.add_widget(download)
+        advanced = SoftButton(text="Elle indir")
+        advanced.bind(on_release=lambda *_: self.open_model_download_dialog())
+        row.add_widget(advanced)
         local.add_widget(row)
         self.local_models = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None, height=dp(92))
         local.add_widget(self.local_models)
         content.add_widget(local)
+
+        self.hf_catalog = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8),
+                                       size_hint_y=None, height=dp(190))
+        self.hf_catalog.add_widget(Label(text="Hugging Face model kataloğu", color=TEXT,
+                                         font_size=sp(15), bold=True, halign="left",
+                                         size_hint_y=None, height=dp(24)))
+        search_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
+        self.hf_search = PillInput(hint_text="Model ara (örn. Qwen 1.5B GGUF)")
+        search_row.add_widget(self.hf_search)
+        search_button = AccentButton(text="Ara", size_hint_x=None, width=dp(76))
+        search_button.bind(on_release=lambda *_: self.search_remote_models())
+        search_row.add_widget(search_button)
+        self.hf_catalog.add_widget(search_row)
+        self.hf_results = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
+        self.hf_results.bind(minimum_height=self.hf_results.setter("height"))
+        self.hf_results.add_widget(Label(text="Bir model adı yazıp Ara'ya bas.", color=MUTED,
+                                         font_size=sp(11), halign="left",
+                                         size_hint_y=None, height=dp(30)))
+        self.hf_catalog.add_widget(self.hf_results)
+        content.add_widget(self.hf_catalog)
 
         api = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(282))
         api.add_widget(Label(text="API sağlayıcısı", color=TEXT, font_size=sp(15), bold=True, halign="left"))
@@ -561,14 +581,130 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
-    def open_model_download_dialog(self):
+    def search_remote_models(self):
+        query = self.hf_search.text.strip()
+        if not query:
+            self.app_ref.notify("Önce aramak istediğin model adını yaz.")
+            return
+        token = getattr(self, "_hf_search_token", 0) + 1
+        self._hf_search_token = token
+        self.hf_results.clear_widgets()
+        self.hf_results.add_widget(Label(text="Hugging Face aranıyor…", color=MUTED,
+                                         font_size=sp(12), halign="left",
+                                         size_hint_y=None, height=dp(32)))
+        self.hf_catalog.height = dp(190)
+
+        def worker():
+            try:
+                models = self.app_ref.controller.search_remote_models(query, limit=8)
+                error = None
+            except Exception as exc:
+                models = []
+                error = exc
+
+            def finish(*_):
+                if token != self._hf_search_token:
+                    return
+                self.hf_results.clear_widgets()
+                if error is not None:
+                    self.hf_results.add_widget(Label(
+                        text=f"Arama başarısız: {error}",
+                        color=MUTED, font_size=sp(11), halign="left", valign="top",
+                        size_hint_y=None, height=dp(56)))
+                    self.hf_catalog.height = dp(210)
+                    return
+                if not models:
+                    self.hf_results.add_widget(Label(
+                        text="Sonuç bulunamadı. Daha kısa bir ad veya 'GGUF' ile tekrar ara.",
+                        color=MUTED, font_size=sp(11), halign="left", valign="top",
+                        size_hint_y=None, height=dp(48)))
+                    self.hf_catalog.height = dp(205)
+                    return
+                visible = models[:6]
+                for model in visible:
+                    card = RoundedPanel(orientation="horizontal", padding=dp(8), spacing=dp(8),
+                                        size_hint_y=None, height=dp(62))
+                    info = BoxLayout(orientation="vertical", spacing=dp(2))
+                    name = Label(text=model.repo_id, color=TEXT, font_size=sp(11),
+                                 bold=True, halign="left", valign="middle")
+                    name.bind(size=lambda widget, *_: setattr(widget, "text_size", widget.size))
+                    info.add_widget(name)
+                    info.add_widget(Label(
+                        text=f"{model.downloads:,} indirme · {model.likes:,} beğeni",
+                        color=MUTED, font_size=sp(10), halign="left"))
+                    card.add_widget(info)
+                    files_button = SoftButton(text="GGUF seç", size_hint_x=None, width=dp(88))
+                    files_button.bind(on_release=lambda *_a, repo=model.repo_id: self.show_remote_model_files(repo))
+                    card.add_widget(files_button)
+                    self.hf_results.add_widget(card)
+                self.hf_catalog.height = dp(150 + len(visible) * 70)
+
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
+
+    def show_remote_model_files(self, repo_id):
+        box = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
+        status = Label(text="GGUF dosyaları alınıyor…", color=MUTED, font_size=sp(12),
+                       size_hint_y=None, height=dp(38), halign="left")
+        box.add_widget(status)
+        files_box = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
+        files_box.bind(minimum_height=files_box.setter("height"))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        scroll.add_widget(files_box)
+        box.add_widget(scroll)
+        close = SoftButton(text="Kapat", size_hint_y=None, height=dp(42))
+        box.add_widget(close)
+        popup = Popup(title=repo_id, content=box, size_hint=(0.96, 0.78),
+                      background_color=SURFACE)
+        close.bind(on_release=lambda *_: popup.dismiss())
+        popup.open()
+
+        def worker():
+            try:
+                files = self.app_ref.controller.remote_model_files(repo_id)
+                error = None
+            except Exception as exc:
+                files = []
+                error = exc
+
+            def finish(*_):
+                files_box.clear_widgets()
+                if error is not None:
+                    status.text = f"Dosya listesi alınamadı: {error}"
+                    return
+                if not files:
+                    status.text = "Bu depoda 3 GiB sınırına uygun GGUF dosyası bulunamadı."
+                    return
+                status.text = "Bir GGUF dosyası seç. Boyutu bilinmeyen dosyalar indirme sırasında da sınırlandırılır."
+                for item in files:
+                    size = f"{item.size_gib:.2f} GiB" if item.size_gib is not None else "Boyut doğrulanacak"
+                    row = BoxLayout(orientation="horizontal", spacing=dp(8),
+                                    size_hint_y=None, height=dp(56))
+                    info = Label(text=f"{item.filename}\n{size}", color=TEXT, font_size=sp(10),
+                                 halign="left", valign="middle")
+                    info.bind(size=lambda widget, *_: setattr(widget, "text_size", widget.size))
+                    row.add_widget(info)
+                    choose = AccentButton(text="Seç", size_hint_x=None, width=dp(68))
+                    choose.bind(on_release=lambda *_a, file=item: (
+                        popup.dismiss(),
+                        self.open_model_download_dialog(repo_id, file.filename, file.size_bytes)
+                    ))
+                    row.add_widget(choose)
+                    files_box.add_widget(row)
+
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
+
+    def open_model_download_dialog(self, repo_id="", filename="", expected_size_bytes=None):
         if getattr(self.app_ref, "_model_download_in_progress", False):
             self.app_ref.notify("Model indirme zaten devam ediyor.")
             return
         box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(9))
         box.add_widget(Label(text="Yalnızca açıkça belirtilen Hugging Face GGUF dosyası indirilir.", color=MUTED, font_size=sp(11)))
-        repo = PillInput(hint_text="Repository (örn. org/model)")
-        filename = PillInput(hint_text="GGUF dosya adı (örn. model.Q4_K_M.gguf)")
+        repo = PillInput(text=repo_id, hint_text="Repository (örn. org/model)")
+        filename = PillInput(text=filename, hint_text="GGUF dosya adı (örn. model.Q4_K_M.gguf)")
         revision = PillInput(text="main", hint_text="Revision")
         sha = PillInput(hint_text="Beklenen SHA-256 (opsiyonel)")
         for widget in (repo, filename, revision, sha):
@@ -592,6 +728,7 @@ class AIScreen(BaseScreen):
                     repo.text.strip(),
                     filename.text.strip(),
                     revision=revision.text.strip() or "main",
+                    expected_size_bytes=expected_size_bytes,
                     expected_sha256=sha.text.strip() or None,
                 )
                 spec.validate()
@@ -656,13 +793,24 @@ class AIScreen(BaseScreen):
         Thread(target=worker, daemon=True).start()
 
     def connect_api(self):
+        api_key = self.api_key.text.strip()
+        model_name = self.api_model.text.strip()
+        if not api_key:
+            self.app_ref.notify("API anahtarı gerekli.")
+            return
+        if not model_name:
+            self.app_ref.notify("Model adı gerekli.")
+            return
         try:
             if self.api_provider.text == "Gemini":
-                self.app_ref.controller.set_gemini(self.api_key.text, self.api_model.text)
-                message = "Gemini yapılandırıldı."
+                self.app_ref.controller.set_gemini(api_key, model_name)
+                message = "Gemini bağlantı ayarı uygulandı."
             else:
-                self.app_ref.controller.set_openai_compatible(self.api_endpoint.text, self.api_key.text, self.api_model.text)
-                message = "OpenAI-compatible API yapılandırıldı."
+                self.app_ref.controller.set_openai_compatible(
+                    self.api_endpoint.text.strip(), api_key, model_name
+                )
+                message = "OpenAI-compatible bağlantı ayarı uygulandı."
+            self.api_key.text = ""
             self.app_ref.notify(message)
             self.refresh()
         except Exception as exc:
