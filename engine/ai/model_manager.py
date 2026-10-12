@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+import json
 import re
 import urllib.parse
 from typing import Callable, Iterable
@@ -60,6 +61,27 @@ class ModelFormatError(ModelManagerError):
 
 class ModelDownloadError(ModelManagerError):
     """Raised for network/download failures."""
+
+
+class ModelDiscoveryError(ModelManagerError):
+    """Raised when Hugging Face model discovery fails."""
+
+
+@dataclass(frozen=True)
+class HuggingFaceModel:
+    repo_id: str
+    downloads: int = 0
+    likes: int = 0
+
+
+@dataclass(frozen=True)
+class HuggingFaceGGUFFile:
+    filename: str
+    size_bytes: int | None = None
+
+    @property
+    def size_gib(self) -> float | None:
+        return None if self.size_bytes is None else self.size_bytes / BYTES_PER_GIB
 
 
 @dataclass(frozen=True)
@@ -190,6 +212,100 @@ def install_imported_model(
     except Exception:
         part.unlink(missing_ok=True)
         raise
+
+
+def search_huggingface_models(
+    query: str, *, limit: int = 12, opener: Callable[..., object] | None = None
+) -> list[HuggingFaceModel]:
+    """Search public Hugging Face repositories tagged for GGUF models.
+
+    Search results are metadata only. A repository is never downloaded until
+    the user explicitly selects a GGUF file and confirms the download.
+    """
+    cleaned = query.strip()
+    if not cleaned:
+        raise ModelSpecError("enter a model name or search term")
+    if not 1 <= limit <= 30:
+        raise ModelSpecError("model search limit must be between 1 and 30")
+    params = urllib.parse.urlencode({
+        "search": cleaned,
+        "filter": "gguf",
+        "sort": "downloads",
+        "direction": "-1",
+        "limit": str(limit),
+    })
+    url = f"https://huggingface.co/api/models?{params}"
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/json"}
+    )
+    urlopen = opener or urllib.request.urlopen
+    try:
+        with urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        raise ModelDiscoveryError(f"Hugging Face search failed: {exc}") from exc
+    if not isinstance(payload, list):
+        raise ModelDiscoveryError("Hugging Face returned an unexpected model list")
+    results = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        repo_id = item.get("id")
+        if not isinstance(repo_id, str) or not _REPO_ID_RE.fullmatch(repo_id):
+            continue
+        results.append(HuggingFaceModel(
+            repo_id=repo_id,
+            downloads=max(0, int(item.get("downloads") or 0)),
+            likes=max(0, int(item.get("likes") or 0)),
+        ))
+    return results
+
+
+def list_huggingface_gguf_files(
+    repo_id: str, *, opener: Callable[..., object] | None = None,
+    max_bytes: int = HARD_MAX_MODEL_BYTES,
+) -> list[HuggingFaceGGUFFile]:
+    """List GGUF files for a validated public repository, excluding known oversized files."""
+    if not _REPO_ID_RE.fullmatch(repo_id):
+        raise ModelSpecError("invalid Hugging Face repo id")
+    encoded_repo = urllib.parse.quote(repo_id, safe="/")
+    request = urllib.request.Request(
+        f"https://huggingface.co/api/models/{encoded_repo}?blobs=true",
+        headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/json"},
+    )
+    urlopen = opener or urllib.request.urlopen
+    try:
+        with urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        raise ModelDiscoveryError(f"Could not read Hugging Face repository: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ModelDiscoveryError("Hugging Face returned an unexpected repository response")
+    siblings = payload.get("siblings", [])
+    if not isinstance(siblings, list):
+        raise ModelDiscoveryError("Hugging Face repository file list is invalid")
+    files = []
+    for item in siblings:
+        if not isinstance(item, dict):
+            continue
+        filename = item.get("rfilename")
+        if not isinstance(filename, str) or not filename.lower().endswith(GGUF_SUFFIX):
+            continue
+        raw_size = item.get("size")
+        if raw_size is None and isinstance(item.get("lfs"), dict):
+            raw_size = item["lfs"].get("size")
+        try:
+            size = int(raw_size) if raw_size is not None else None
+        except (TypeError, ValueError):
+            size = None
+        if size is not None and (size <= 0 or size > max_bytes):
+            continue
+        files.append(HuggingFaceGGUFFile(filename=filename, size_bytes=size))
+    return sorted(files, key=lambda item: (
+        item.size_bytes is None,
+        item.size_bytes if item.size_bytes is not None else max_bytes,
+        item.filename.lower(),
+    ))
 
 
 def download_huggingface_model(
