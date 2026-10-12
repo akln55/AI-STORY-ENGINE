@@ -26,6 +26,7 @@ from kivy.graphics import Color, RoundedRectangle, Line
 from engine import __version__
 from engine.app.controller import AppController
 from engine.ai.model_manager import ModelSpec
+from engine.ai.connectivity import APIConnectionError, check_api_connection
 
 
 # Adapted from the supplied "Void Panel Utilitarian" reference:
@@ -713,7 +714,7 @@ class AIScreen(BaseScreen):
 
         api = RoundedPanel(
             orientation="vertical", padding=dp(14), spacing=dp(8),
-            size_hint_y=None, height=dp(424), fill=SURFACE, radius=dp(22),
+            size_hint_y=None, height=dp(470), fill=SURFACE, radius=dp(22),
         )
         api.add_widget(_aligned_label(
             text="API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
@@ -741,11 +742,16 @@ class AIScreen(BaseScreen):
         api.add_widget(self.api_endpoint_field)
         api.add_widget(_field_group("Model adı", self.api_model))
         api.add_widget(_field_group("API anahtarı", self.api_key))
-        connect = AccentButton(
-            text="API ayarlarını uygula", size_hint_y=None, height=dp(46),
+        self.api_status = _aligned_label(
+            text="Henüz bağlantı testi yapılmadı.", color=MUTED, font_size=sp(11),
+            valign="top", size_hint_y=None, height=dp(32),
         )
-        connect.bind(on_release=lambda *_: self.connect_api())
-        api.add_widget(connect)
+        api.add_widget(self.api_status)
+        self.api_connect_button = AccentButton(
+            text="Ayarları uygula ve test et", size_hint_y=None, height=dp(46),
+        )
+        self.api_connect_button.bind(on_release=lambda *_: self.connect_api())
+        api.add_widget(self.api_connect_button)
         content.add_widget(api)
         content.add_widget(_aligned_label(
             text="API anahtarı cihazda kalıcı olarak saklanmaz; yalnızca bu oturumda kullanılır. "
@@ -1117,26 +1123,64 @@ class AIScreen(BaseScreen):
     def connect_api(self):
         api_key = self.api_key.text.strip()
         model_name = self.api_model.text.strip()
+        provider = self.api_provider.text
+        endpoint = self.api_endpoint.text.strip()
         if not api_key:
-            self.app_ref.notify("API anahtarı gerekli.")
+            self.api_status.text = "API anahtarı gerekli."
+            self.api_status.color = DANGER
             return
         if not model_name:
-            self.app_ref.notify("Model adı gerekli.")
+            self.api_status.text = "Model adı gerekli."
+            self.api_status.color = DANGER
             return
         try:
-            if self.api_provider.text == "Gemini":
+            if provider == "Gemini":
                 self.app_ref.controller.set_gemini(api_key, model_name)
-                message = "Gemini ayarları uygulandı. Bağlantı ilk istek gönderildiğinde kontrol edilir."
             else:
-                self.app_ref.controller.set_openai_compatible(
-                    self.api_endpoint.text.strip(), api_key, model_name
-                )
-                message = "API ayarları uygulandı. Bağlantı ilk istek gönderildiğinde kontrol edilir."
-            self.api_key.text = ""
-            self.app_ref.notify(message)
-            self.refresh()
+                self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
         except Exception as exc:
-            self.app_ref.notify(f"API ayarı başarısız: {exc}")
+            self.api_status.text = f"Ayarlar uygulanamadı: {exc}"
+            self.api_status.color = DANGER
+            return
+
+        # The adapter retains the key in memory for game requests. The input
+        # control is cleared immediately; the probe uses this local variable and
+        # never records the credential or includes it in error text.
+        self.api_key.text = ""
+        self.provider.text = self.app_ref.controller.provider_name
+        self.api_status.text = "Bağlantı kontrol ediliyor…"
+        self.api_status.color = MUTED
+        self.api_connect_button.disabled = True
+        token = getattr(self, "_api_probe_token", 0) + 1
+        self._api_probe_token = token
+
+        def worker():
+            try:
+                result = check_api_connection(
+                    provider,
+                    endpoint=endpoint,
+                    api_key=api_key,
+                    timeout=12.0,
+                )
+                message = result.message
+                success = True
+            except APIConnectionError as exc:
+                message = str(exc)
+                success = False
+            except Exception:
+                message = "Bağlantı kontrolü başarısız oldu. Endpoint ve ağ bağlantısını kontrol et."
+                success = False
+
+            def finish(*_):
+                if token != self._api_probe_token:
+                    return
+                self.api_status.text = message
+                self.api_status.color = ACCENT if success else DANGER
+                self.api_connect_button.disabled = False
+
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
 
 
 class SettingsScreen(BaseScreen):
