@@ -295,11 +295,16 @@ class MessageBubble(RoundedPanel):
         self.fill = SURFACE_2 if role == "player" else SURFACE
         self.outline = (
             (ACCENT[0], ACCENT[1], ACCENT[2], 0.35)
-            if role == "player" else BORDER
+            if role == "player" else DANGER if role == "error" else BORDER
         )
+        role_caption = {
+            "player": ("➤  SEN", ACCENT),
+            "error": ("⚠  HATA", DANGER),
+        }
+        caption, caption_color = role_caption.get(role, ("◉  ANLATI", MUTED))
         self._role_label = Label(
-            text="➤  SEN" if role == "player" else "◉  ANLATI",
-            color=ACCENT if role == "player" else MUTED,
+            text=caption,
+            color=caption_color,
             font_size=sp(9),
             bold=True,
             halign="left",
@@ -435,8 +440,8 @@ class GameplayScreen(BaseScreen):
         self.clear_messages()
         self.add_message(text, role="npc", animate=False)
 
-    def append(self, text):
-        return self.add_message(text, role="npc", animate=True)
+    def append(self, text, role="npc"):
+        return self.add_message(text, role=role, animate=True)
 
     def show_typing(self):
         self.remove_typing()
@@ -1619,11 +1624,15 @@ class RPGEngineApp(App):
     def _submit_worker(self, text):
         try:
             result = self.controller.submit(text)
+            error = False
         except Exception as exc:
-            result = f"[İşlem başarısız: {exc}]"
-        Clock.schedule_once(lambda *_: self._finish_submit(result), 0)
+            # Keep provider details and credentials out of the visible chat.
+            result = "İstek tamamlanamadı. API ayarlarını ve bağlantını kontrol edip tekrar dene."
+            error = True
+            self._record_gameplay_error("turn_submission", exc)
+        Clock.schedule_once(lambda *_: self._finish_submit(result, error=error), 0)
 
-    def _finish_submit(self, result):
+    def _finish_submit(self, result, error=False):
         self.busy = False
         self.game.set_busy(False)
         # Persistence is deliberately independent from presentation animation.
@@ -1634,7 +1643,7 @@ class RPGEngineApp(App):
             if self.controller.dirty:
                 self._autosave("deferred")
         self.game.remove_typing()
-        self.game.append(result)
+        self.game.append(result, role="error" if error else "npc")
         self.game.refresh()
         self.home.refresh()
         if self._lifecycle_stopping:
