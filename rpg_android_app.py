@@ -25,7 +25,7 @@ from kivy.graphics import Color, RoundedRectangle, Line
 
 from engine import __version__
 from engine.app.controller import AppController
-from engine.ai.model_manager import ModelSpec
+from engine.ai.model_manager import ModelSpec, check_huggingface_connection
 from engine.ai.connectivity import APIConnectionError, check_api_connection
 
 
@@ -750,6 +750,21 @@ class AIScreen(BaseScreen):
         search_row.add_widget(search_button)
         self.hf_catalog.add_widget(search_row)
 
+        connection_row = BoxLayout(
+            orientation="horizontal", size_hint_y=None, height=dp(38), spacing=dp(8),
+        )
+        self.hf_connection_button = SoftButton(
+            text="Bağlantıyı test et", size_hint_x=None, width=dp(142), font_size=sp(11),
+        )
+        self.hf_connection_button.bind(on_release=lambda *_: self.test_huggingface_connection())
+        connection_row.add_widget(self.hf_connection_button)
+        self.hf_connection_status = _aligned_label(
+            text="İnternet/DNS erişimini kontrol et.", color=MUTED, font_size=sp(10),
+            size_hint_y=None, height=dp(38),
+        )
+        connection_row.add_widget(self.hf_connection_status)
+        self.hf_catalog.add_widget(connection_row)
+
         for presets in (("Qwen", "Llama"), ("Phi", "Gemma")):
             preset_row = BoxLayout(
                 orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(34),
@@ -938,16 +953,52 @@ class AIScreen(BaseScreen):
     def _friendly_catalog_error(self, error):
         raw = str(error).lower()
         if any(value in raw for value in (
-            "no address associated", "name or service not known",
+            "dns resolution failed", "no address associated", "name or service not known",
             "temporary failure in name resolution", "nodename nor servname",
-            "urlopen error", "network is unreachable",
+            "getaddrinfo failed",
         )):
-            return "Hugging Face'e ulaşılamadı. İnternet veya DNS bağlantını kontrol edip yeniden dene."
+            return (
+                "DNS hatası: huggingface.co adresi çözümlenemedi. Wi-Fi/mobil veriyi, "
+                "Özel DNS ayarını ve VPN/reklam engelleyiciyi kontrol et; sonra tekrar dene."
+            )
+        if "network is unreachable" in raw or "no route to host" in raw:
+            return "Ağa erişilemiyor. Uçak modunu kapatıp Wi-Fi veya mobil veriyi kontrol et."
+        if "ssl" in raw or "certificate" in raw or "tls" in raw:
+            return "Güvenli bağlantı kurulamadı. Cihazın tarih/saatini ve ağ filtrelerini kontrol et."
         if "timed out" in raw or "timeout" in raw:
-            return "İstek zaman aşımına uğradı. Bağlantını kontrol edip tekrar dene."
+            return "İstek zaman aşımına uğradı. Bağlantıyı kontrol edip tekrar dene."
         if "401" in raw or "403" in raw:
             return "Bu depoya erişilemiyor olabilir. Herkese açık bir model seçmeyi dene."
-        return "Model kataloğu şu anda açılamadı. Biraz sonra tekrar deneyebilirsin."
+        if "429" in raw:
+            return "Hugging Face geçici istek sınırına ulaştı. Biraz bekleyip tekrar dene."
+        return "Hugging Face kataloğu açılamadı. Bağlantıyı test et; sonra aramayı yeniden dene."
+
+    def test_huggingface_connection(self):
+        if getattr(self, "_hf_probe_running", False):
+            return
+        self._hf_probe_running = True
+        self.hf_connection_button.disabled = True
+        self.hf_connection_status.text = "Hugging Face bağlantısı kontrol ediliyor…"
+        self.hf_connection_status.color = MUTED
+
+        def worker():
+            try:
+                check_huggingface_connection(timeout=8.0)
+                message = "Bağlantı başarılı."
+                success = True
+            except Exception as exc:
+                message = self._friendly_catalog_error(exc)
+                success = False
+
+            def finish(*_):
+                self._hf_probe_running = False
+                self.hf_connection_button.disabled = False
+                self.hf_connection_status.text = message
+                self.hf_connection_status.color = ACCENT if success else DANGER
+
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
 
     def search_remote_models(self):
         query = self.hf_search.text.strip()
@@ -961,7 +1012,7 @@ class AIScreen(BaseScreen):
             text=f"“{query}” aranıyor…", color=MUTED, font_size=sp(12),
             size_hint_y=None, height=dp(30),
         ))
-        self.hf_catalog.height = dp(316)
+        self.hf_catalog.height = dp(354)
 
         def worker():
             try:
@@ -993,7 +1044,7 @@ class AIScreen(BaseScreen):
                     retry.bind(on_release=lambda *_: self.search_remote_models())
                     panel.add_widget(retry)
                     self.hf_results.add_widget(panel)
-                    self.hf_catalog.height = dp(378)
+                    self.hf_catalog.height = dp(416)
                     return
                 if not models:
                     panel = RoundedPanel(
@@ -1010,7 +1061,7 @@ class AIScreen(BaseScreen):
                         size_hint_y=None, height=dp(34),
                     ))
                     self.hf_results.add_widget(panel)
-                    self.hf_catalog.height = dp(354)
+                    self.hf_catalog.height = dp(392)
                     return
                 visible = models[:6]
                 for model in visible:
