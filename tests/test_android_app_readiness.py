@@ -152,3 +152,30 @@ def test_notification_dialog_is_compact_and_wrapped():
     assert '_aligned_label(' in notify
     assert 'size_hint=(0.90, None), height=dp(178)' in notify
     assert 'text="Tamam"' in notify
+
+
+def test_android_declares_network_permissions_for_huggingface_and_api():
+    spec = (ROOT / "buildozer.spec").read_text()
+    assert "android.permissions = INTERNET, ACCESS_NETWORK_STATE" in spec
+
+
+def test_first_gameplay_entry_initializes_the_world_log_and_lifecycle_state():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    build = source[source.index("    def build(self):"):source.index("    def _bottom_nav(self):")]
+    open_game = source[source.index("    def open_gameplay(self):"):source.index("    def open_scenarios(self):")]
+    initial = source[source.index("    def _initial_game(self):"):source.index("    def save(self):")]
+    assert "self._lifecycle_stopping = False" in build
+    assert "self._gameplay_initialized = False" in build
+    assert 'if not getattr(self, "_gameplay_initialized", False)' in open_game
+    assert 'self._initial_game()' in open_game
+    assert 'self.controller.submit("look")' in initial
+    assert "def _record_gameplay_error(self, stage, exc)" in initial
+
+
+def test_gameplay_does_not_force_android_soft_keyboard_on_navigation():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    start = source.index("class GameplayScreen")
+    end = source.index("class RecentGamesScreen")
+    gameplay = source[start:end]
+    assert "self.input.focus()" not in gameplay
+    assert 'getattr(self.app_ref, "_lifecycle_stopping", False)' in gameplay
