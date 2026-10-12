@@ -8,7 +8,7 @@ source.dir = .
 source.include_exts = py,md,json,txt,kv,db,rpgscenario,gguf,bin
 source.exclude_dirs = .git,.venv,__pycache__,.pytest_cache,tests,saves,bin,.buildozer,dist,build
 version = 1.1.4
-requirements = python3,kivy==2.3.1
+requirements = python3,kivy==2.3.1,certifi
 orientation = portrait
 fullscreen = 0
 android.api = 36
