@@ -128,7 +128,7 @@ def test_void_panel_reference_is_applied_to_mobile_ui():
     assert 'ColorProperty(TEXT)' in source
     assert 'radius = NumericProperty(dp(22))' in source
     assert 'class RecentGamesScreen(BaseScreen)' in source
-    assert 'text="Yerel modeller · Local GGUF"' in source
+    assert 'text="◇  Yerel modeller · Local GGUF"' in source
 
 
 def test_ai_forms_are_labelled_and_catalog_errors_are_user_friendly():
@@ -140,7 +140,7 @@ def test_ai_forms_are_labelled_and_catalog_errors_are_user_friendly():
     assert '_field_group("API anahtarı", self.api_key)' in ai
     assert 'def _friendly_catalog_error(self, error)' in ai
     assert 'text="Tekrar dene"' in ai
-    assert 'text="Hugging Face model kataloğu"' in ai
+    assert 'text="⌕  Hugging Face model kataloğu"' in ai
     assert 'Arama başarısız: {error}' not in ai
 
 
@@ -181,12 +181,20 @@ def test_gameplay_does_not_force_android_soft_keyboard_on_navigation():
     assert 'getattr(self.app_ref, "_lifecycle_stopping", False)' in gameplay
 
 
+def test_api_provider_picker_exposes_openai_compatible_and_uses_custom_endpoint():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    assert 'values=("OpenAI", "Gemini", "OpenAI-compatible")' in ai
+    assert 'self.api_endpoint.hint_text = "Örn. https://api.provider.com/v1"' in ai
+    assert 'self.api_endpoint.text = ""' in ai
+
+
 def test_api_settings_include_a_non_generation_connectivity_probe():
     source = (ROOT / "rpg_android_app.py").read_text()
     connectivity = (ROOT / "engine/ai/connectivity.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
     assert "from engine.ai.connectivity import APIConnectionError, check_api_connection" in source
-    assert 'text="Ayarları uygula ve test et"' in ai
+    assert 'text="✓  Ayarları uygula ve test et"' in ai
     assert "check_api_connection(" in ai
     assert "Thread(target=worker, daemon=True).start()" in ai
     assert "does not generate text" in connectivity
