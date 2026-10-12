@@ -298,7 +298,7 @@ class MessageBubble(RoundedPanel):
             if role == "player" else BORDER
         )
         self._role_label = Label(
-            text="SEN" if role == "player" else "ANLATI",
+            text="➤  SEN" if role == "player" else "◉  ANLATI",
             color=ACCENT if role == "player" else MUTED,
             font_size=sp(9),
             bold=True,
