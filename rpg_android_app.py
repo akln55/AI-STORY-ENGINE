@@ -728,7 +728,7 @@ class AIScreen(BaseScreen):
 
         self.hf_catalog = RoundedPanel(
             orientation="vertical", padding=dp(14), spacing=dp(8),
-            size_hint_y=None, height=dp(316), fill=SURFACE, radius=dp(22),
+            size_hint_y=None, height=dp(354), fill=SURFACE, radius=dp(22),
         )
         self.hf_catalog.add_widget(_aligned_label(
             text="Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
