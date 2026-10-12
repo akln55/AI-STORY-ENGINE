@@ -301,3 +301,49 @@ def test_huggingface_connectivity_probe_reports_dns_failure_without_url_or_secre
         assert "https://" not in str(exc)
     else:
         raise AssertionError("expected ModelDiscoveryError for DNS failure")
+
+
+
+def test_default_https_opener_uses_verified_ssl_context(monkeypatch):
+    import ssl
+    import engine.ai.model_manager as module
+
+    captured = {}
+
+    def fake_urlopen(request, *, timeout, context):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        captured["context"] = context
+        return object()
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", fake_urlopen)
+    result = module._open_url(
+        module.urllib.request.Request("https://huggingface.co/api/models?limit=1"),
+        timeout=3.5,
+    )
+    assert result is not None
+    assert captured["timeout"] == 3.5
+    assert captured["request"].full_url.startswith("https://huggingface.co/")
+    assert isinstance(captured["context"], ssl.SSLContext)
+    assert captured["context"].check_hostname is True
+    assert captured["context"].verify_mode == ssl.CERT_REQUIRED
+
+
+def test_injected_https_opener_remains_usable_without_network():
+    import engine.ai.model_manager as module
+
+    seen = {}
+
+    def fake_opener(request, *, timeout):
+        seen["url"] = request.full_url
+        seen["timeout"] = timeout
+        return "fixture-response"
+
+    result = module._open_url(
+        module.urllib.request.Request("https://huggingface.co/api/models"),
+        timeout=2,
+        opener=fake_opener,
+    )
+    assert result == "fixture-response"
+    assert seen["timeout"] == 2
+    assert seen["url"] == "https://huggingface.co/api/models"
