@@ -380,3 +380,37 @@ def test_huggingface_file_listing_uses_shared_verified_transport(monkeypatch):
     assert seen["url"] == "https://huggingface.co/api/models/org/model?blobs=true"
     assert seen["timeout"] == 20
     assert seen["opener"] is None
+
+
+
+def test_huggingface_connectivity_probe_sanitizes_tls_certificate_failure():
+    import ssl
+    from engine.ai.model_manager import ModelDiscoveryError, check_huggingface_connection
+
+    def opener(_request, timeout):
+        raise ssl.SSLCertVerificationError("certificate verify failed: private-path-detail")
+
+    try:
+        check_huggingface_connection(opener=opener)
+    except ModelDiscoveryError as exc:
+        assert str(exc) == "TLS certificate/handshake failed"
+        assert "private-path-detail" not in str(exc)
+        assert "https://" not in str(exc)
+    else:
+        raise AssertionError("expected ModelDiscoveryError for TLS failure")
+
+
+def test_huggingface_connectivity_probe_sanitizes_timeout():
+    import socket
+    from engine.ai.model_manager import ModelDiscoveryError, check_huggingface_connection
+
+    def opener(_request, timeout):
+        raise socket.timeout("internal socket detail")
+
+    try:
+        check_huggingface_connection(opener=opener)
+    except ModelDiscoveryError as exc:
+        assert str(exc) == "Hugging Face connection timed out"
+        assert "internal socket detail" not in str(exc)
+    else:
+        raise AssertionError("expected ModelDiscoveryError for timeout")
