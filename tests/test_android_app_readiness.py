@@ -190,3 +190,12 @@ def test_api_settings_include_a_non_generation_connectivity_probe():
     assert "check_api_connection(" in ai
     assert "Thread(target=worker, daemon=True).start()" in ai
     assert "does not generate text" in connectivity
+
+
+def test_api_connection_test_exposes_discovered_models_for_selection():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    assert 'self.api_models_picker = Spinner(' in ai
+    assert 'self.api_models_picker.values = model_ids[:20]' in ai
+    assert 'self.api_model.text = selected' in ai
+    assert 'self.api_panel.height = dp(512)' in ai
