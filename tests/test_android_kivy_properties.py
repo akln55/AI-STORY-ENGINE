@@ -150,3 +150,15 @@ def test_gameplay_composer_disables_duplicate_submissions_while_busy():
             next(node for node in gameplay.body if isinstance(node, ast.FunctionDef) and node.name == "set_busy")
         ) or ""
     )
+
+
+def test_message_bubble_height_includes_role_caption():
+    bubble = _class_node("MessageBubble")
+    height_method = next(
+        node for node in bubble.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_sync_height"
+    )
+    source = ast.get_source_segment(
+        APP_SOURCE.read_text(encoding="utf-8"), height_method
+    ) or ""
+    assert "self._label.texture_size[1] + dp(34)" in source

@@ -339,7 +339,8 @@ class MessageBubble(RoundedPanel):
         self._label.text_size = (width, None)
 
     def _sync_height(self, *_):
-        self.height = max(dp(44), self._label.texture_size[1] + dp(20))
+        # Account for the role caption as well as the body and panel padding.
+        self.height = max(dp(48), self._label.texture_size[1] + dp(34))
 
 
 class GameplayScreen(BaseScreen):
