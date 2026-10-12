@@ -286,3 +286,17 @@ Only these should be treated as active external product gates unless code/tests 
 7. complete any remaining product UX polish discovered by real-device QA.
 
 No historical checkpoint below this line is an alternative current state.
+
+
+## 2026-10-12 — API settings, chat diagnostics, and Android build gate
+
+This entry records the latest source/UI iteration. Current implementation evidence lives in `AI_START_HERE.md`; this chronology must not override later code or CI results.
+
+- Added a Hugging Face connectivity probe with bounded timeout and classified reachability/TLS/HTTP diagnostics. The probe is separate from model search and does not download a model.
+- Expanded the Android API provider selector to OpenAI, Gemini, and OpenAI-compatible custom endpoints, with provider-aware model defaults and endpoint hints.
+- Added compact markers to AI settings and gameplay chat, including distinct player, narration, and error roles.
+- Changed gameplay submission failures to show a generic, separate error bubble instead of story narration; raw exception text is not shown to the player, while internal diagnostics are recorded through the existing error logger.
+- Added/updated regression tests for provider selection, role markers, and safe gameplay failure presentation.
+- Latest source-only CI: **524 passed in 10.09s**; `compileall` PASS; Android readiness PASS (`version=1.1.4, target_api=36, SAF=enabled`); mutation smoke **3/3 detected**.
+- Android build workflow #122: source tests and pinned llama.cpp cross-build passed; APK packaging, metadata/provenance verification, and artifact upload must be confirmed from the final workflow result.
+- Physical-device startup/gameplay and local-GGUF inference remain unproven until device smoke evidence is collected.

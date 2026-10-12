@@ -1,41 +1,41 @@
-# App Readiness Checklist — v1.27.0
+# App Readiness Checklist — current status
 
-## Code/package readiness
+## Source/package contract
 
-- [x] Android entrypoint is root `main.py` → `rpg_android_app.RPGEngineApp`
-- [x] Engine version and Buildozer version synchronized
+- [x] Android entrypoint is root `main.py` -> `rpg_android_app.RPGEngineApp`
+- [x] Engine/app version synchronized at `1.1.4`
 - [x] Kivy pinned to 2.3.1
-- [x] Target API 36
+- [x] Target API 36; minimum API 26; arm64-v8a
 - [x] Legacy external-storage permission removed
 - [x] Android scenario import uses SAF
 - [x] App-private save storage
-- [x] Pause/stop autosave handling
-- [x] Deferred autosave after an in-flight turn
+- [x] Pause/stop autosave and deferred autosave during in-flight turns
 - [x] Android readiness verifier
-- [x] 432 dependency-free tests
+- [x] Source CI: 524 tests passed
 - [x] `compileall`
-- [x] Scenario validation
+- [x] Mutation smoke: 3/3 detected
+- [x] Provider-aware AI settings and Hugging Face connectivity diagnostics
+- [x] Gameplay errors separated from story narration
 
-## Environment/device verification
+## Current Android build run
 
-- [ ] Buildozer installed on Linux/macOS/WSL
-- [ ] Android SDK installed
-- [ ] Android NDK installed
-- [ ] API 36 platform/build tools installed
-- [ ] Debug APK successfully built
-- [ ] APK installs on a real device/emulator
-- [ ] First-launch smoke test
-- [ ] Save/load smoke test
-- [ ] Background/foreground autosave test
-- [ ] SAF scenario import test
-- [ ] Invalid scenario error-path test
-- [ ] Gemini provider test with a real key
-- [ ] Long-session mobile smoke test
+- [x] Source tests in Android build workflow
+- [x] Pinned llama.cpp native cross-build
+- [ ] APK debug build
+- [ ] Final APK metadata/staging provenance verification
+- [ ] APK SHA-256 and provenance artifact upload
 
-The unchecked items require an Android build environment or real device and are intentionally not claimed as verified by the source-only sandbox.
+Current run: [Android build #122](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38297334671). Refresh these boxes only after the workflow reports its final result.
 
+## Device verification (not yet proven)
 
-### v1.28.2 startup fix
-- Android app entry moved from `android.main` to `rpg_android_app`.
-- SAF helper moved from `android.file_picker` to `rpg_android_file_picker`.
-- Root `main.py` imports the application entry directly.
+- [ ] APK installs on a compatible ARM64 device/emulator
+- [ ] First-launch/startup smoke test
+- [ ] Gameplay turn completes normally
+- [ ] Save/load and background/foreground autosave
+- [ ] SAF scenario import and invalid-scenario error path
+- [ ] API provider configuration/connectivity
+- [ ] Local GGUF activation and real inference
+- [ ] Long-session stability and performance/thermal/memory checks
+
+Source tests do not establish that an APK installs or works on a physical device. Do not mark the release Android-verified before device evidence exists.

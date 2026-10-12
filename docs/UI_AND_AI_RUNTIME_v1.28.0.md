@@ -1,3 +1,19 @@
+> **Historical document notice (updated 2026-10-12):** This file retains its original v1.28.0 design context. The initial status statements below are historical and must not be used as current implementation evidence. For current status, read `AI_START_HERE.md` and `docs/PROJECT_HISTORY.md`.
+
+## Current implementation snapshot — 2026-10-12
+
+- Local GGUF import and app-private storage lifecycle: implemented in source.
+- Android-native `llama-server` lifecycle boundary and pinned CI cross-build script: implemented; successful packaging and physical-device inference must be verified separately.
+- Hugging Face catalog search and a separate reachability diagnostic: implemented. The connectivity test does not download model files.
+- AI provider UI: Local GGUF, Gemini, OpenAI, and OpenAI-compatible custom endpoint/model.
+- API connection test/model discovery: implemented in the settings flow.
+- Gameplay chat: player/narration/error role markers, busy-state feedback, progressive presentation, and safe distinct error presentation.
+- Latest source verification: 524 tests passed; compileall, Android readiness, and mutation smoke passed.
+- Current Android build #122: source tests and native cross-build passed; APK packaging and artifact verification were still in progress at the time this snapshot was written.
+- Physical Android installation and real local-GGUF inference: not yet verified.
+
+---
+
 
 # CURRENT LOCAL AI STATUS — 2026-10-05
 
@@ -56,3 +72,4 @@ This release therefore intentionally does not claim that local GGUF inference is
 - Initial local model policy: approximately 1.5B–3B instruct models, efficient 4-bit/Q4 variants, ~2 GB preferred file size ceiling and ~3 GB provisional maximum pending benchmarking.
 - UI: dark/gray ChatGPT-like, soft rounded surfaces; player text right-aligned; NPC/other speakers left-aligned; distinct bubbles/cards for each speaker.
 - Progressive AI text is a presentation animation only and is independent of save/state semantics.
+

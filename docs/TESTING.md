@@ -2,69 +2,68 @@
 
 ## Purpose
 
-The project uses layered verification. A green unit suite alone is not considered sufficient release evidence.
+Verification is layered. A green unit suite alone is not sufficient release evidence. Report the exact run/result rather than copying old counts into current documentation.
 
-## Required layers
+## Source CI contract
 
-1. **Pytest suite** — primary test execution when pytest is available.
+The current test workflow runs:
+
+1. **Full pytest suite**
    ```bash
-   python -m pytest -q
+   python -m pytest -q tests
    ```
-2. **Dependency-free runner** — validates that the same `test_*` functions can execute without pytest, which is important for Android/Termux-compatible environments.
+2. **Python compilation**
    ```bash
-   python tools/run_tests.py
+   python -m compileall -q .
    ```
-3. **Mutation smoke test** — deliberately introduces three known-bad mutations into critical validation code and requires targeted regression tests to detect them.
+3. **Android readiness contract**
+   ```bash
+   python tools/verify_android_readiness.py
+   ```
+4. **Mutation smoke**
    ```bash
    python tools/mutation_smoke.py
    ```
-   This is a test-health signal, not a replacement for full mutation-testing software.
-4. **Compilation check**
-   ```bash
-   python -m compileall -q engine tests tools
-   ```
-5. **Scenario validation**
-   ```bash
-   python tools/validate_scenario.py scenarios/demo-bootstrap
-   ```
-6. **Fresh-package verification** — extract the release ZIP into a clean directory and repeat the required checks there. This catches missing files, stale generated artifacts, and packaging-only failures.
 
-## Dependency-free runner contract
+Latest completed source-only run for the current application code: **524 passed in 10.09s**, compileall PASS, Android readiness PASS (`version=1.1.4, target_api=36, SAF=enabled`), mutation smoke **3/3 detected**.
 
-`tools/run_tests.py` is intentionally small. It must fail when:
+The Android build workflow also reruns source tests before building the pinned native llama.cpp server and APK.
 
-- a test module cannot import;
-- a test raises an exception;
-- a fixture name cannot be resolved;
-- a test is asynchronous (unsupported by this runner);
-- a test returns a value instead of using assertions;
-- zero tests are collected.
+## Additional local/release checks
 
-The runner is not intended to emulate pytest. It provides a deterministic bare-Python execution path for this project's plain test functions and simple fixtures.
+These checks are useful when the task or release contract requires them; they are not all part of every source-only CI run:
+
+- Dependency-free runner:
+  ```bash
+  python tools/run_tests.py
+  ```
+- Demo scenario validation:
+  ```bash
+  python tools/validate_scenario.py scenarios/demo-bootstrap
+  ```
+- Clean release archive verification:
+  ```bash
+  python tools/release_verify.py RPG_ENGINE_vX.Y.Z.zip
+  ```
+
+The dependency-free runner must fail on import errors, exceptions, unresolved fixtures, unsupported async tests, accidental return values, and zero collected tests. Mutation smoke is a targeted test-health signal, not a replacement for full mutation testing.
 
 ## Test-health principles
 
-- Critical engine rules require both positive and negative tests.
-- Atomicity requires a test that proves rejected batches do not partially mutate state.
-- Security/authority boundaries require tests that prove forbidden mutation paths fail.
-- Long-session tests periodically run invariants and persistence checks.
-- Mutation smoke tests should be expanded whenever a new critical validation boundary is introduced.
-- Release claims must report the exact command and result; do not copy an old test count into current documentation.
+- Critical engine rules need positive and negative tests.
+- Atomicity needs proof that rejected batches do not partially mutate state.
+- Security/authority boundaries need tests proving forbidden mutation paths fail.
+- Long-session tests should periodically check invariants and persistence.
+- New critical validation boundaries should add regression coverage and, where appropriate, mutation checks.
 
-## Current v1.24.1 verification target
+## Android release gates
 
-The test-system hardening milestone adds stricter dependency-free runner behavior, runner regression tests, and mutation smoke coverage. The release gate remains: pytest + stdlib runner + mutation smoke + compile + scenario validation + clean-package verification.
+1. Source tests and static readiness checks.
+2. Native llama.cpp cross-build.
+3. APK packaging.
+4. Final APK metadata, staging provenance, and SHA-256 verification.
+5. Artifact upload with provenance.
+6. ARM64 device startup/crash smoke.
+7. Gameplay, save/load/autosave, SAF import, and local-GGUF inference smoke.
 
-## Release verifier
-
-A release archive can be independently verified from a fresh extraction:
-
-```text
-python tools/release_verify.py RPG_ENGINE_vX.Y.Z.zip
-```
-
-The verifier checks ZIP path safety, version synchronization, compileall, the
-stdlib runner, mutation smoke, scenario validation, and pytest when available.
-A release is not considered verified unless the required checks pass.
-
-Mutation smoke is a separate final gate: `python tools/mutation_smoke.py`. It is intentionally not nested inside `release_verify.py` because it launches its own temporary pytest subprocesses.
+An APK build is not physical-device verification. Keep source, artifact, and device evidence distinct.

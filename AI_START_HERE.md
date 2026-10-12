@@ -2,22 +2,21 @@
 
 **Canonical current handoff:** this file  
 **Canonical historical record:** `docs/PROJECT_HISTORY.md`  
-**Current product release:** **v1.1.4**  
-**Stage 5 status:** documentation/history consolidation complete; no functional version bump.
+**Product release:** `v1.1.4`  
+**Last source verification:** 524 tests passed; compileall, Android readiness, and mutation smoke passed.  
+**Current Android build:** GitHub Actions Android build #122 is in progress; do not claim APK success until metadata/provenance verification and artifact upload finish.
 
-> **Rule:** This file describes only the current state. Do not use old checkpoint, handoff, roadmap, or release-note files as current-state evidence. Historical implementation decisions and milestones are consolidated in `docs/PROJECT_HISTORY.md`.
+> This file describes current state only. Older checkpoint/version documents are historical evidence, not current-state authority.
 
 ## 1. Product identity
 
-RPG Engine is a deterministic, local-first text RPG for Android. It is a game/simulation engine, not a prose chatbot.
-
-The authority chain is:
+RPG Engine is a deterministic, local-first text RPG for Android, not a prose chatbot. The engine owns truth; AI proposes narration and structured effects only.
 
 ```text
 Player action
   -> parser / deterministic rules
   -> authoritative GameState
-  -> bounded memory/scenario/NPC context
+  -> bounded memory, scenario, and NPC context
   -> AI proposal
   -> validation/security gate
   -> atomic state mutation
@@ -25,145 +24,101 @@ Player action
   -> persistence
 ```
 
-**AI is never authoritative.** It cannot directly write GameState, saves, databases, scenario canon, or files.
+AI cannot directly write authoritative GameState, saves, databases, scenario canon, or arbitrary files.
 
-## 2. Current Android target
+## 2. Android target and entrypoint
 
-- Android: standalone APK; no Termux/Python requirement for end users
-- min API: **26**
-- target API: **36**
-- ABI: **arm64-v8a**
-- Kivy: **2.3.1**
-- Buildozer: **1.6.0**
-- python-for-android: **v2026.05.09** / `58d21141f17c889bf8585f5665921d72028f8831`
-- Android NDK: **29.0.14206865**
-- Primary device for real-device validation: **Redmi Note 12 Pro 4G**
-- Android entrypoint boundary: `main.py -> rpg_android_app.py`
-- SAF helper: `rpg_android_file_picker.py`
+- Standalone Android APK; no end-user Termux/Python requirement.
+- Minimum API: **26**; target API: **36**.
+- ABI: **arm64-v8a**.
+- Kivy: **2.3.1**; Buildozer: **1.6.0**.
+- python-for-android: **v2026.05.09**, commit `58d21141f17c889bf8585f5665921d72028f8831`.
+- Android NDK: **29.0.14206865**.
+- Native llama.cpp: **v0.6.0**, commit `d81235049384534c167caea52b85a694f6103d14`.
+- Entrypoint: `main.py -> rpg_android_app.py`.
+- SAF helper: `rpg_android_file_picker.py`.
+- Physical validation target: Redmi Note 12 Pro 4G.
 
 Never restore `android.main` or `android.file_picker`.
 
-## 3. Current AI product contract
+## 3. AI providers and local runtime
 
-Hybrid AI is mandatory at the product level:
+The UI exposes these provider paths:
+- **Local GGUF** — import/select a model into app-private storage.
+- **Gemini** — Google API provider.
+- **OpenAI** — OpenAI API provider.
+- **OpenAI-compatible** — custom compatible endpoint and model ID.
 
-- Local GGUF
-- Google Gemini API
-- OpenAI API
+The Hugging Face catalog search is separate from connectivity diagnostics. The connection test probes reachability and does not download a model. API connectivity/model discovery and gameplay generation are separate operations.
 
-Once a compatible local model is installed, gameplay must remain possible offline. External web/research access is a separate capability and is off by default.
+### Implemented in source
 
-### Local AI status
+- GGUF import through Android SAF and app-private model storage.
+- GGUF integrity/structure validation and model-manager lifecycle.
+- `AIAdapter` boundary and development adapters.
+- Android-native `llama-server` lifecycle code and pinned CI cross-build script.
+- Provider selection and endpoint/model configuration.
+- API connectivity/model discovery controls.
+- Hugging Face catalog search and connection diagnostics.
+- Bounded/sanitized provider diagnostics.
+- Chat role bubbles, progressive text presentation, busy-state handling, and separate user-facing gameplay error bubbles.
 
-**Implemented:**
-- GGUF import through Android SAF
-- app-private model storage lifecycle
-- model integrity/structure validation
-- AIAdapter boundary
-- development llama.cpp adapters
-- Android-native `llama-server` lifecycle code
-- provider selection including Gemini
-- provider/network hardening
+### Still unproven or incomplete
 
-**Still not proven:**
-- CI-produced native `llama-server` successfully packaged into a final APK
-- real-device GGUF inference
-- device performance/thermal/memory benchmark
-- fully in-app model catalog/downloader
+- A successful, fully verified APK artifact from the current Android build run.
+- Installation/launch on physical ARM64 Android hardware.
+- Real local GGUF inference and performance/thermal/memory measurements on the target phone.
+- A complete in-app model-management experience beyond current catalog/search/import capabilities.
 
-Initial model policy remains conservative: roughly **1.5B–3B instruct**, efficient 4-bit variants, ~2 GB preferred and ~3 GB provisional maximum until real-device benchmarking.
+Initial local-model policy remains conservative: roughly **1.5B–3B instruct**, efficient 4-bit variants, around 2 GB preferred and around 3 GB provisional maximum until device benchmarks exist.
 
-## 4. Current UI contract
+## 4. Current source verification
 
-- dark/gray ChatGPT-like hierarchy
-- rounded surfaces/controls
-- player messages right-aligned
-- NPC/other speakers left-aligned
-- separate speaker bubbles
-- NPC responses use progressive text reveal as **presentation only**
-- text animation must not control save/persistence semantics
+Latest test-only CI run: [run #122 — Android build workflow source revision](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38297334671) is the packaging workflow; source-only test evidence for the current code is [test run](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38297202291).
 
-## 5. Current verified source state
+- **524 tests passed** in 10.09 seconds.
+- `python -m compileall -q .`: PASS.
+- Android readiness: PASS (`version=1.1.4, target_api=36, SAF=enabled`).
+- Mutation smoke: **3/3 detected**.
 
-The v1.1.4 release package was independently re-verified after packaging:
+This does not prove that an APK was successfully packaged or that Android runtime behavior works.
 
-- **481 passed, 0 failed**
-- `compileall`: **PASS**
-- Android readiness verifier: **PASS**
-- mutation smoke: **3/3 detected**
-- demo scenario validation: **PASS** — 3 locations / 2 NPCs / 3 items / 2 quests / 1 lore
-- release verification on the clean ZIP: **PASS**
+## 5. Release gates
 
-Release ZIP used for this handoff:
+1. Source tests and static checks.
+2. Native llama.cpp cross-build.
+3. Build APK.
+4. Verify final APK metadata, source/staging provenance, and SHA-256.
+5. Upload APK and provenance artifacts.
+6. Install/launch on ARM64 Android and retain startup logs.
+7. Verify gameplay, save/load/autosave, SAF scenario import, provider configuration, and local-GGUF inference.
 
-`RPG_ENGINE_v1.1.4_UI_UX_RELEASE_HARDENED.zip`
+Only call the app Android-verified after the relevant device gates pass.
 
-SHA-256:
+## 6. Current UI contract
 
-`b0c47286e3bfae623922b26f875d43a38e7f33d81c5f521e9eb47e456235e456`
+- Dark neutral hierarchy, rounded surfaces/controls, muted secondary text.
+- Primary actions have explicit contrast and visible pressed/disabled states.
+- Player messages are right-aligned; narration/NPC messages are left-aligned.
+- Chat role markers distinguish `SEN`, `ANLATI`, and `HATA`.
+- Busy state prevents duplicate submissions.
+- Progressive text reveal is presentation-only and must not control save/state semantics.
+- Operational/provider failures must not be rendered as story narration or expose raw exception details to the player.
 
-## 6. What is proven vs. unproven
+## 7. Non-negotiable rules
 
-### Proven at source/package level
-
-- deterministic engine and validation boundary
-- persistence/autosave/lifecycle hardening
-- GGUF lifecycle and provider hardening
-- Android startup diagnostics and staged-source verification
-- current UI/message presentation implementation
-- automated regression suite and clean-package verification
-
-### Not proven yet
-
-- a successful real GitHub Actions Android APK build execution
-- installation and launch on the Redmi Note 12 Pro 4G
-- scenario import/play/save-load/autosave on physical Android hardware
-- real local GGUF inference on physical Android hardware
-- final performance, thermal, and memory behavior on the target phone
-
-Therefore: **source/package verified, Android release not yet physically verified.**
-
-## 7. Current delivery strategy
-
-1. GitHub Actions/Linux CI is the primary build route.
-2. Colab is fallback/debug tooling, not the release path.
-3. Test-only CI is the low-cost gate before Android/NDK builds.
-4. Android staging provenance must be verified before trusting APK metadata.
-5. After the first successful CI APK, run the physical-device verification matrix.
-6. Only after device proof should Android/local-AI support be called release-complete.
-
-## 8. Immediate next engineering gate
-
-Stage 5 documentation cleanup is complete. The next engineering task is **external proof**, not another architecture rewrite:
-
-**GitHub Actions test/build execution -> APK provenance inspection -> physical-device QA -> local-GGUF device inference/benchmark.**
-
-If CI fails, diagnose the first failing layer before changing application architecture.
-
-## 9. Non-negotiable regression rules
-
-- Do not reintroduce `android.main` / `android.file_picker`.
-- Do not give AI direct state/file/DB/save authority.
-- Do not treat a file existing as proof that an APK works.
+- AI is an untrusted proposer, never the authority over game state.
+- No secrets, API keys, model binaries, APKs, build caches, signing material, local saves, or secret `.env` files in Git.
 - Do not treat GGUF import as proof of on-device inference.
-- Do not delete persistent build cache on every retry without evidence of corruption.
-- Do not commit API keys, tokens, passwords, signing material, model files, local saves, APKs, build caches, or secret `.env` files.
-- Do not silently change settled architecture/security decisions.
-- Report verified and unverified status separately.
+- Do not treat an APK existing as proof the app launches.
+- Keep implemented, source-verified, artifact-verified, device-verified, and planned states separate.
+- If CI fails, inspect the first failing layer/log before changing architecture.
 
-## 10. Reading order for a new AI/developer
+## 8. Reading order
 
-1. **This file** — current state and next action.
-2. `docs/PROJECT_HISTORY.md` — one chronological record of prior milestones, decisions, failures, and lessons.
-3. `docs/ARCHITECTURE.md` — current system architecture.
-4. `docs/CONSTITUTION.md` — project rules.
-5. `docs/TESTING.md` — verification expectations.
-6. Relevant subsystem specification under `docs/` before modifying that subsystem.
-
-Technical specifications remain separate because they define contracts; historical/current-state duplication does not.
-
-## 11. Latest CI audit
-
-The latest CI failures were traced to three issues: a stale CI assertion, a self-match bug in the APK verifier, and an APK package-ID assertion from an older commit. The current build contract uses `package.domain = org` and `package.name = rpgengine`, so the expected generated identifier is `org.rpgengine`.
-
-The corrected verifier checks the final APK rather than trusting Buildozer's internal staging tree. Physical Android installation and local-GGUF inference are still separate release gates.
+1. This file — current state and next gate.
+2. `docs/PROJECT_HISTORY.md` — chronological history and lessons.
+3. `docs/ARCHITECTURE.md` — architecture and gameplay loop.
+4. `docs/CONSTITUTION.md` — binding rules.
+5. `docs/TESTING.md` and `docs/ANDROID_BUILD.md` — verification/release gates.
+6. The relevant subsystem specification before changing that subsystem.
