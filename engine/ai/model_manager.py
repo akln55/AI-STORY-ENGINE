@@ -289,7 +289,8 @@ def list_huggingface_gguf_files(
         if not isinstance(item, dict):
             continue
         filename = item.get("rfilename")
-        if not isinstance(filename, str) or not filename.lower().endswith(GGUF_SUFFIX):
+        if (not isinstance(filename, str) or Path(filename).name != filename
+                or not filename.lower().endswith(GGUF_SUFFIX)):
             continue
         raw_size = item.get("size")
         if raw_size is None and isinstance(item.get("lfs"), dict):
