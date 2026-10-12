@@ -563,62 +563,153 @@ class AIScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="ai", **kwargs)
         root = ScrollView(do_scroll_x=False, bar_width=dp(3))
-        content = BoxLayout(orientation="vertical", padding=[dp(18), dp(18), dp(18), dp(24)], spacing=dp(12), size_hint_y=None)
+        content = BoxLayout(
+            orientation="vertical", padding=[dp(20), dp(20), dp(20), dp(28)],
+            spacing=dp(12), size_hint_y=None,
+        )
         content.bind(minimum_height=content.setter("height"))
-        content.add_widget(self._heading("AI Modelleri", "PocketPal mantığı: modeli seç, indir/import et, sonra aktif et."))
+        content.add_widget(self._heading(
+            "Yapay zekâ",
+            "Yerel model veya API sağlayıcısı seç. Model adlarını bilmen gerekmiyor; kataloğu kullanabilirsin.",
+        ))
 
-        self.provider = Label(text="Aktif sağlayıcı: Demo / AI kapalı", color=TEXT, font_size=sp(16), bold=True, size_hint_y=None, height=dp(32), halign="left")
-        self.provider.bind(size=lambda *_: setattr(self.provider, "text_size", self.provider.size))
-        content.add_widget(self.provider)
+        provider_panel = RoundedPanel(
+            orientation="horizontal", padding=dp(14), spacing=dp(10),
+            size_hint_y=None, height=dp(68), fill=SURFACE, radius=dp(18),
+        )
+        status_dot = RoundedPanel(
+            orientation="vertical", size_hint=(None, None), size=(dp(10), dp(10)),
+            fill=ACCENT, outline=ACCENT, radius=dp(6),
+        )
+        provider_panel.add_widget(status_dot)
+        provider_info = BoxLayout(orientation="vertical", spacing=dp(3))
+        provider_info.add_widget(_aligned_label(
+            text="AKTİF SAĞLAYICI", color=MUTED, font_size=sp(10), bold=True,
+            size_hint_y=None, height=dp(18),
+        ))
+        self.provider = _aligned_label(
+            text="Demo / AI kapalı", color=TEXT, font_size=sp(14), bold=True,
+            size_hint_y=None, height=dp(24),
+        )
+        provider_info.add_widget(self.provider)
+        provider_panel.add_widget(provider_info)
+        content.add_widget(provider_panel)
 
-        local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(250))
-        local.add_widget(Label(text="Kurulu yerel modeller · Local GGUF", color=TEXT, font_size=sp(15), bold=True, halign="left"))
-        local.add_widget(Label(text="Model dosyaları uygulamanın özel alanında tutulur. Yalnızca doğrulanan GGUF modelleri çalıştırılır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
-        row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        local = RoundedPanel(
+            orientation="vertical", padding=dp(14), spacing=dp(8),
+            size_hint_y=None, height=dp(264), fill=SURFACE, radius=dp(22),
+        )
+        local.add_widget(_aligned_label(
+            text="Yerel modeller", color=TEXT, font_size=sp(17), bold=True,
+            size_hint_y=None, height=dp(26),
+        ))
+        local.add_widget(_aligned_label(
+            text="GGUF dosyaları telefonda, uygulamanın özel alanında tutulur.",
+            color=MUTED, font_size=sp(12), valign="top",
+            size_hint_y=None, height=dp(34),
+        ))
+        local_actions = BoxLayout(orientation="horizontal", spacing=dp(8),
+                                  size_hint_y=None, height=dp(44))
         pick = SoftButton(text="GGUF içe aktar")
         pick.bind(on_release=lambda *_: self.app_ref.import_model())
-        row.add_widget(pick)
+        local_actions.add_widget(pick)
         advanced = SoftButton(text="Elle indir")
         advanced.bind(on_release=lambda *_: self.open_model_download_dialog())
-        row.add_widget(advanced)
-        local.add_widget(row)
-        self.local_models = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None, height=dp(92))
+        local_actions.add_widget(advanced)
+        local.add_widget(local_actions)
+        self.local_models = BoxLayout(
+            orientation="vertical", spacing=dp(5), size_hint_y=None, height=dp(94),
+        )
         local.add_widget(self.local_models)
         content.add_widget(local)
 
-        self.hf_catalog = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8),
-                                       size_hint_y=None, height=dp(190))
-        self.hf_catalog.add_widget(Label(text="Hugging Face model kataloğu", color=TEXT,
-                                         font_size=sp(15), bold=True, halign="left",
-                                         size_hint_y=None, height=dp(24)))
-        search_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
-        self.hf_search = PillInput(hint_text="Model ara (örn. Qwen 1.5B GGUF)")
+        self.hf_catalog = RoundedPanel(
+            orientation="vertical", padding=dp(14), spacing=dp(8),
+            size_hint_y=None, height=dp(316), fill=SURFACE, radius=dp(22),
+        )
+        self.hf_catalog.add_widget(_aligned_label(
+            text="Hugging Face kataloğu", color=TEXT, font_size=sp(17), bold=True,
+            size_hint_y=None, height=dp(26),
+        ))
+        self.hf_catalog.add_widget(_aligned_label(
+            text="Bir model ailesi seç veya arama yap. Dosya seçmeden hiçbir şey indirilmez.",
+            color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(34),
+        ))
+        search_row = BoxLayout(
+            orientation="horizontal", size_hint_y=None, height=dp(46), spacing=dp(8),
+        )
+        self.hf_search = PillInput(hint_text="Model veya aile ara")
+        self.hf_search.bind(on_text_validate=lambda *_: self.search_remote_models())
         search_row.add_widget(self.hf_search)
         search_button = AccentButton(text="Ara", size_hint_x=None, width=dp(76))
         search_button.bind(on_release=lambda *_: self.search_remote_models())
         search_row.add_widget(search_button)
         self.hf_catalog.add_widget(search_row)
-        self.hf_results = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
+
+        for presets in (("Qwen", "Llama"), ("Phi", "Gemma")):
+            preset_row = BoxLayout(
+                orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(34),
+            )
+            for query in presets:
+                preset = SoftButton(text=query, font_size=sp(12))
+                preset.bind(on_release=lambda *_a, value=query: self._search_preset(value))
+                preset_row.add_widget(preset)
+            self.hf_catalog.add_widget(preset_row)
+
+        self.hf_results = BoxLayout(
+            orientation="vertical", spacing=dp(6), size_hint_y=None,
+        )
         self.hf_results.bind(minimum_height=self.hf_results.setter("height"))
-        self.hf_results.add_widget(Label(text="Bir model adı yazıp Ara'ya bas.", color=MUTED,
-                                         font_size=sp(11), halign="left",
-                                         size_hint_y=None, height=dp(30)))
+        self.hf_results.add_widget(_aligned_label(
+            text="Önerilen ailelerden birini seçerek başla.",
+            color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(28),
+        ))
         self.hf_catalog.add_widget(self.hf_results)
         content.add_widget(self.hf_catalog)
 
-        api = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(282))
-        api.add_widget(Label(text="API sağlayıcısı", color=TEXT, font_size=sp(15), bold=True, halign="left"))
-        self.api_provider = Spinner(text="OpenAI", values=("OpenAI", "Gemini"), size_hint_y=None, height=dp(42))
+        api = RoundedPanel(
+            orientation="vertical", padding=dp(14), spacing=dp(8),
+            size_hint_y=None, height=dp(424), fill=SURFACE, radius=dp(22),
+        )
+        api.add_widget(_aligned_label(
+            text="API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
+            size_hint_y=None, height=dp(26),
+        ))
+        self.api_provider = Spinner(
+            text="OpenAI", values=("OpenAI", "Gemini"),
+            size_hint_y=None, height=dp(44), font_size=sp(14),
+            background_normal="", background_down="",
+            background_color=SURFACE_2, color=TEXT,
+        )
         self.api_provider.bind(text=lambda *_: self._provider_changed())
-        self.api_endpoint = PillInput(text="https://api.openai.com/v1", hint_text="Endpoint")
-        self.api_model = PillInput(text="gpt-4.1-mini", hint_text="Model")
-        self.api_key = PillInput(password=True, hint_text="API key")
-        api.add_widget(self.api_provider); api.add_widget(self.api_endpoint); api.add_widget(self.api_model); api.add_widget(self.api_key)
-        connect = AccentButton(text="API'ye bağlan", size_hint_y=None, height=dp(46))
+        api.add_widget(_field_group("Sağlayıcı", self.api_provider, height=dp(68)))
+
+        self.api_endpoint = PillInput(
+            text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
+        )
+        self.api_model = PillInput(
+            text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
+        )
+        self.api_key = PillInput(
+            hint_text="API anahtarını buraya yapıştır", password=True,
+        )
+        api.add_widget(_field_group("API endpoint", self.api_endpoint))
+        api.add_widget(_field_group("Model adı", self.api_model))
+        api.add_widget(_field_group("API anahtarı", self.api_key))
+        connect = AccentButton(
+            text="API ayarlarını uygula", size_hint_y=None, height=dp(46),
+        )
         connect.bind(on_release=lambda *_: self.connect_api())
         api.add_widget(connect)
         content.add_widget(api)
-        content.add_widget(Label(text="Gemini doğrudan desteklenir. API anahtarı yalnızca çalışma belleğinde tutulur; ağ endpoint'i yalnızca OpenAI-compatible sağlayıcı için kullanılır.", color=MUTED, font_size=sp(11), halign="left"))
+        content.add_widget(_aligned_label(
+            text="API anahtarı cihazda kalıcı olarak saklanmaz; yalnızca bu oturumda kullanılır. "
+                 "Bağlantı, oyun içinde ilk istek gönderildiğinde doğrulanır.",
+            color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(44),
+        ))
         self._provider_changed()
         root.add_widget(content)
         self.add_widget(root)
