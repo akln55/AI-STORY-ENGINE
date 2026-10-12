@@ -1198,7 +1198,9 @@ class AIScreen(BaseScreen):
             def finish(*_):
                 if token != self._api_probe_token:
                     return
-                if success:
+                apply_success = success
+                final_message = message
+                if apply_success:
                     try:
                         if provider == "Gemini":
                             self.app_ref.controller.set_gemini(api_key, model_name)
@@ -1206,13 +1208,13 @@ class AIScreen(BaseScreen):
                             self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
                         self.provider.text = self.app_ref.controller.provider_name
                     except Exception as exc:
-                        success = False
-                        message = f"Ayarlar uygulanamadı: {exc}"
-                self.api_status.text = message
-                self.api_status.color = ACCENT if success else DANGER
+                        apply_success = False
+                        final_message = f"Ayarlar uygulanamadı: {exc}"
+                self.api_status.text = final_message
+                self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
-                if success and model_ids:
+                if apply_success and model_ids:
                     self.api_models_picker.values = model_ids[:20]
                     self.api_models_picker.text = "Bulunan modelleri seç"
                     self.api_models_picker.height = dp(42)
@@ -1222,8 +1224,8 @@ class AIScreen(BaseScreen):
                     self.api_models_picker.text = "Model listesi bulunamadı"
                     self.api_models_picker.height = 0
                     self.api_panel.height = dp(470)
-                if success and model_ids:
-                    self.api_status.text = message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
+                if apply_success and model_ids:
+                    self.api_status.text = final_message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
 
             Clock.schedule_once(finish, 0)
 
