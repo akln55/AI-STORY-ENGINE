@@ -703,7 +703,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(264), fill=SURFACE, radius=dp(22),
         )
         local.add_widget(_aligned_label(
-            text="Yerel modeller · Local GGUF", color=TEXT, font_size=sp(17), bold=True,
+            text="◇  Yerel modeller · Local GGUF", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         local.add_widget(_aligned_label(
@@ -731,7 +731,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(354), fill=SURFACE, radius=dp(22),
         )
         self.hf_catalog.add_widget(_aligned_label(
-            text="Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
+            text="⌕  Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         self.hf_catalog.add_widget(_aligned_label(
@@ -745,7 +745,7 @@ class AIScreen(BaseScreen):
         self.hf_search = PillInput(hint_text="Model veya aile ara")
         self.hf_search.bind(on_text_validate=lambda *_: self.search_remote_models())
         search_row.add_widget(self.hf_search)
-        search_button = AccentButton(text="Ara", size_hint_x=None, width=dp(76))
+        search_button = AccentButton(text="⌕  Ara", size_hint_x=None, width=dp(82))
         search_button.bind(on_release=lambda *_: self.search_remote_models())
         search_row.add_widget(search_button)
         self.hf_catalog.add_widget(search_row)
@@ -754,7 +754,7 @@ class AIScreen(BaseScreen):
             orientation="horizontal", size_hint_y=None, height=dp(38), spacing=dp(8),
         )
         self.hf_connection_button = SoftButton(
-            text="Bağlantıyı test et", size_hint_x=None, width=dp(142), font_size=sp(11),
+            text="↻  Bağlantıyı test et", size_hint_x=None, width=dp(142), font_size=sp(11),
         )
         self.hf_connection_button.bind(on_release=lambda *_: self.test_huggingface_connection())
         connection_row.add_widget(self.hf_connection_button)
@@ -792,11 +792,11 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(470), fill=SURFACE, radius=dp(22),
         )
         api.add_widget(_aligned_label(
-            text="API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
+            text="⚙  API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         self.api_provider = Spinner(
-            text="OpenAI", values=("OpenAI", "Gemini"),
+            text="OpenAI", values=("OpenAI", "Gemini", "OpenAI-compatible"),
             size_hint_y=None, height=dp(44), font_size=sp(14),
             background_normal="", background_down="",
             background_color=SURFACE_2, color=TEXT,
@@ -818,12 +818,12 @@ class AIScreen(BaseScreen):
         api.add_widget(_field_group("Model adı", self.api_model))
         api.add_widget(_field_group("API anahtarı", self.api_key))
         self.api_status = _aligned_label(
-            text="Henüz bağlantı testi yapılmadı.", color=MUTED, font_size=sp(11),
+            text="API bağlantısını test ederek modeli doğrula.", color=MUTED, font_size=sp(11),
             valign="top", size_hint_y=None, height=dp(32),
         )
         api.add_widget(self.api_status)
         self.api_models_picker = Spinner(
-            text="Model listesi testten sonra görünür", values=(),
+            text="Bağlantı testinden sonra model seç", values=(),
             size_hint_y=None, height=0, font_size=sp(12),
             background_normal="", background_down="",
             background_color=SURFACE_2, color=TEXT,
@@ -831,7 +831,7 @@ class AIScreen(BaseScreen):
         self.api_models_picker.bind(text=self._choose_api_model)
         api.add_widget(self.api_models_picker)
         self.api_connect_button = AccentButton(
-            text="Ayarları uygula ve test et", size_hint_y=None, height=dp(46),
+            text="✓  Ayarları uygula ve test et", size_hint_y=None, height=dp(46),
         )
         self.api_connect_button.bind(on_release=lambda *_: self.connect_api())
         api.add_widget(self.api_connect_button)
@@ -863,14 +863,21 @@ class AIScreen(BaseScreen):
         super().show(); self.refresh()
 
     def _provider_changed(self):
-        gemini = self.api_provider.text == "Gemini"
+        provider = self.api_provider.text
+        gemini = provider == "Gemini"
+        compatible = provider == "OpenAI-compatible"
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
         self.api_endpoint_field.opacity = 0.55 if gemini else 1.0
-        if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini"}:
-            self.api_model.text = "gemini-3.6-flash"
-        elif not gemini and self.api_model.text.strip() == "gemini-3.6-flash":
+        if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini", "gemini-3.6-flash"}:
+            self.api_model.text = "gemini-2.5-flash"
+        elif provider == "OpenAI" and self.api_model.text.strip() in {"", "gemini-3.6-flash", "gemini-2.5-flash"}:
             self.api_model.text = "gpt-4.1-mini"
+        elif compatible and self.api_model.text.strip() in {"", "gpt-4.1-mini", "gemini-3.6-flash", "gemini-2.5-flash"}:
+            self.api_model.text = ""
+            self.api_model.hint_text = "Sağlayıcının model kimliği"
+        elif not compatible:
+            self.api_model.hint_text = "Örn. gpt-4.1-mini"
         if hasattr(self, "api_models_picker"):
             self.api_models_picker.values = ()
             self.api_models_picker.text = "Model listesi testten sonra görünür"
