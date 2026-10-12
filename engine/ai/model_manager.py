@@ -101,7 +101,8 @@ class ModelSpec:
     display_name: str = ""
 
     def validate(self, *, hard_max_bytes: int = HARD_MAX_MODEL_BYTES) -> None:
-        if not _REPO_ID_RE.fullmatch(self.repo_id):
+        if (not _REPO_ID_RE.fullmatch(self.repo_id)
+                or any(part in {".", ".."} for part in self.repo_id.split("/"))):
             raise ModelSpecError(f"invalid Hugging Face repo id: {self.repo_id!r}")
         if not self.revision or self.revision.startswith(("/", "\\")):
             raise ModelSpecError("invalid model revision")
@@ -251,7 +252,8 @@ def search_huggingface_models(
         if not isinstance(item, dict):
             continue
         repo_id = item.get("id")
-        if not isinstance(repo_id, str) or not _REPO_ID_RE.fullmatch(repo_id):
+        if (not isinstance(repo_id, str) or not _REPO_ID_RE.fullmatch(repo_id)
+                or any(part in {".", ".."} for part in repo_id.split("/"))):
             continue
         results.append(HuggingFaceModel(
             repo_id=repo_id,
@@ -266,7 +268,8 @@ def list_huggingface_gguf_files(
     max_bytes: int = HARD_MAX_MODEL_BYTES,
 ) -> list[HuggingFaceGGUFFile]:
     """List GGUF files for a validated public repository, excluding known oversized files."""
-    if not _REPO_ID_RE.fullmatch(repo_id):
+    if (not _REPO_ID_RE.fullmatch(repo_id)
+            or any(part in {".", ".."} for part in repo_id.split("/"))):
         raise ModelSpecError("invalid Hugging Face repo id")
     encoded_repo = urllib.parse.quote(repo_id, safe="/")
     request = urllib.request.Request(
