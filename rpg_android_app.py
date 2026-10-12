@@ -695,7 +695,8 @@ class AIScreen(BaseScreen):
         self.api_key = PillInput(
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
-        api.add_widget(_field_group("API endpoint", self.api_endpoint))
+        self.api_endpoint_field = _field_group("API endpoint", self.api_endpoint)
+        api.add_widget(self.api_endpoint_field)
         api.add_widget(_field_group("Model adı", self.api_model))
         api.add_widget(_field_group("API anahtarı", self.api_key))
         connect = AccentButton(
@@ -715,9 +716,15 @@ class AIScreen(BaseScreen):
         self.add_widget(root)
 
     def _heading(self, title, subtitle):
-        box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(76))
-        box.add_widget(Label(text=title, color=TEXT, font_size=sp(27), bold=True, halign="left"))
-        box.add_widget(Label(text=subtitle, color=MUTED, font_size=sp(12), halign="left"))
+        box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(82), spacing=dp(5))
+        box.add_widget(_aligned_label(
+            text=title, color=TEXT, font_size=sp(28), bold=True,
+            size_hint_y=None, height=dp(40),
+        ))
+        box.add_widget(_aligned_label(
+            text=subtitle, color=MUTED, font_size=sp(12), valign="top",
+            size_hint_y=None, height=dp(36),
+        ))
         return box
 
     def show(self):
@@ -726,16 +733,20 @@ class AIScreen(BaseScreen):
     def _provider_changed(self):
         gemini = self.api_provider.text == "Gemini"
         self.api_endpoint.disabled = gemini
-        self.api_endpoint.opacity = 0.45 if gemini else 1.0
+        self.api_endpoint.opacity = 0.4 if gemini else 1.0
+        self.api_endpoint_field.opacity = 0.55 if gemini else 1.0
         if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini"}:
             self.api_model.text = "gemini-3.6-flash"
         elif not gemini and self.api_model.text.strip() == "gemini-3.6-flash":
             self.api_model.text = "gpt-4.1-mini"
 
     def refresh(self):
-        self.provider.text = f"Aktif sağlayıcı: {self.app_ref.controller.provider_name}"
+        self.provider.text = self.app_ref.controller.provider_name
         self.local_models.clear_widgets()
-        self.local_models.add_widget(Label(text="Modeller taranıyor…", color=MUTED, font_size=sp(11), halign="left"))
+        self.local_models.add_widget(_aligned_label(
+            text="Modeller kontrol ediliyor…", color=MUTED, font_size=sp(11),
+            size_hint_y=None, height=dp(28),
+        ))
         token = getattr(self, "_model_refresh_token", 0) + 1
         self._model_refresh_token = token
 
@@ -752,17 +763,26 @@ class AIScreen(BaseScreen):
                     return
                 self.local_models.clear_widgets()
                 if error is not None:
-                    self.local_models.add_widget(Label(text=f"Model listesi okunamadı: {error}", color=MUTED, font_size=sp(11), halign="left"))
+                    self.local_models.add_widget(_aligned_label(
+                        text="Model listesi okunamadı.", color=MUTED, font_size=sp(11),
+                        size_hint_y=None, height=dp(28),
+                    ))
                     return
                 if not models:
-                    self.local_models.add_widget(Label(text="Kurulu model: yok", color=MUTED, font_size=sp(11), halign="left"))
+                    self.local_models.add_widget(_aligned_label(
+                        text="Henüz yerel model yok.", color=MUTED, font_size=sp(11),
+                        size_hint_y=None, height=dp(28),
+                    ))
                     return
                 for model in models[:3]:
-                    row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(28))
-                    label = Label(text=f"{model.name} · {model.size_gib:.2f} GiB", color=MUTED, font_size=sp(10), halign="left")
-                    label.text_size = (None, None)
+                    row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(32))
+                    label = _aligned_label(
+                        text=f"{model.name} · {model.size_gib:.2f} GiB",
+                        color=TEXT, font_size=sp(10), size_hint_y=None, height=dp(32),
+                    )
                     row.add_widget(label)
-                    button = SoftButton(text="Etkinleştir", size_hint_x=None, width=dp(105), size_hint_y=None, height=dp(28))
+                    button = SoftButton(text="Etkinleştir", size_hint_x=None, width=dp(106),
+                                        size_hint_y=None, height=dp(32), font_size=sp(11))
                     button.bind(on_release=lambda *_a, path=str(model.path): self.activate_local_model(path))
                     row.add_widget(button)
                     self.local_models.add_widget(row)
@@ -771,18 +791,37 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
+    def _search_preset(self, query):
+        self.hf_search.text = query
+        self.search_remote_models()
+
+    def _friendly_catalog_error(self, error):
+        raw = str(error).lower()
+        if any(value in raw for value in (
+            "no address associated", "name or service not known",
+            "temporary failure in name resolution", "nodename nor servname",
+            "urlopen error", "network is unreachable",
+        )):
+            return "Hugging Face'e ulaşılamadı. İnternet veya DNS bağlantını kontrol edip yeniden dene."
+        if "timed out" in raw or "timeout" in raw:
+            return "İstek zaman aşımına uğradı. Bağlantını kontrol edip tekrar dene."
+        if "401" in raw or "403" in raw:
+            return "Bu depoya erişilemiyor olabilir. Herkese açık bir model seçmeyi dene."
+        return "Model kataloğu şu anda açılamadı. Biraz sonra tekrar deneyebilirsin."
+
     def search_remote_models(self):
         query = self.hf_search.text.strip()
         if not query:
-            self.app_ref.notify("Önce aramak istediğin model adını yaz.")
+            self.app_ref.notify("Bir model ailesi seç veya arama alanına bir kelime yaz.")
             return
         token = getattr(self, "_hf_search_token", 0) + 1
         self._hf_search_token = token
         self.hf_results.clear_widgets()
-        self.hf_results.add_widget(Label(text="Hugging Face aranıyor…", color=MUTED,
-                                         font_size=sp(12), halign="left",
-                                         size_hint_y=None, height=dp(32)))
-        self.hf_catalog.height = dp(190)
+        self.hf_results.add_widget(_aligned_label(
+            text=f"“{query}” aranıyor…", color=MUTED, font_size=sp(12),
+            size_hint_y=None, height=dp(30),
+        ))
+        self.hf_catalog.height = dp(316)
 
         def worker():
             try:
@@ -797,41 +836,74 @@ class AIScreen(BaseScreen):
                     return
                 self.hf_results.clear_widgets()
                 if error is not None:
-                    self.hf_results.add_widget(Label(
-                        text=f"Arama başarısız: {error}",
-                        color=MUTED, font_size=sp(11), halign="left", valign="top",
-                        size_hint_y=None, height=dp(56)))
-                    self.hf_catalog.height = dp(210)
+                    panel = RoundedPanel(
+                        orientation="vertical", padding=dp(10), spacing=dp(6),
+                        size_hint_y=None, height=dp(100), fill=SURFACE_2, radius=dp(14),
+                    )
+                    panel.add_widget(_aligned_label(
+                        text="Kataloğa bağlanılamadı", color=TEXT, font_size=sp(13), bold=True,
+                        size_hint_y=None, height=dp(24),
+                    ))
+                    panel.add_widget(_aligned_label(
+                        text=self._friendly_catalog_error(error), color=MUTED, font_size=sp(11),
+                        valign="top", size_hint_y=None, height=dp(40),
+                    ))
+                    retry = SoftButton(text="Tekrar dene", size_hint_y=None, height=dp(34),
+                                       font_size=sp(11))
+                    retry.bind(on_release=lambda *_: self.search_remote_models())
+                    panel.add_widget(retry)
+                    self.hf_results.add_widget(panel)
+                    self.hf_catalog.height = dp(378)
                     return
                 if not models:
-                    self.hf_results.add_widget(Label(
-                        text="Sonuç bulunamadı. Daha kısa bir ad veya 'GGUF' ile tekrar ara.",
-                        color=MUTED, font_size=sp(11), halign="left", valign="top",
-                        size_hint_y=None, height=dp(48)))
-                    self.hf_catalog.height = dp(205)
+                    panel = RoundedPanel(
+                        orientation="vertical", padding=dp(10), spacing=dp(4),
+                        size_hint_y=None, height=dp(78), fill=SURFACE_2, radius=dp(14),
+                    )
+                    panel.add_widget(_aligned_label(
+                        text="Eşleşme bulunamadı", color=TEXT, font_size=sp(13), bold=True,
+                        size_hint_y=None, height=dp(24),
+                    ))
+                    panel.add_widget(_aligned_label(
+                        text="Qwen, Llama, Phi veya Gemma aramalarını deneyebilirsin.",
+                        color=MUTED, font_size=sp(11), valign="top",
+                        size_hint_y=None, height=dp(34),
+                    ))
+                    self.hf_results.add_widget(panel)
+                    self.hf_catalog.height = dp(354)
                     return
                 visible = models[:6]
                 for model in visible:
-                    card = RoundedPanel(orientation="horizontal", padding=dp(8), spacing=dp(8),
-                                        size_hint_y=None, height=dp(62))
+                    card = RoundedPanel(
+                        orientation="horizontal", padding=dp(9), spacing=dp(8),
+                        size_hint_y=None, height=dp(64), fill=SURFACE_2, radius=dp(14),
+                    )
                     info = BoxLayout(orientation="vertical", spacing=dp(2))
-                    name = Label(text=model.repo_id, color=TEXT, font_size=sp(11),
-                                 bold=True, halign="left", valign="middle")
-                    name.bind(size=lambda widget, *_: setattr(widget, "text_size", widget.size))
+                    name = _aligned_label(
+                        text=model.repo_id, color=TEXT, font_size=sp(11), bold=True,
+                        size_hint_y=None, height=dp(34),
+                    )
                     info.add_widget(name)
-                    info.add_widget(Label(
+                    info.add_widget(_aligned_label(
                         text=f"{model.downloads:,} indirme · {model.likes:,} beğeni",
-                        color=MUTED, font_size=sp(10), halign="left"))
+                        color=MUTED, font_size=sp(10), size_hint_y=None, height=dp(16),
+                    ))
                     card.add_widget(info)
-                    files_button = SoftButton(text="GGUF seç", size_hint_x=None, width=dp(88))
-                    files_button.bind(on_release=lambda *_a, repo=model.repo_id: self.show_remote_model_files(repo))
+                    files_button = SoftButton(
+                        text="GGUF seç", size_hint_x=None, width=dp(88),
+                        font_size=sp(11),
+                    )
+                    files_button.bind(
+                        on_release=lambda *_a, repo=model.repo_id: self.show_remote_model_files(repo)
+                    )
                     card.add_widget(files_button)
                     self.hf_results.add_widget(card)
-                self.hf_catalog.height = dp(150 + len(visible) * 70)
+                self.hf_catalog.height = dp(270 + len(visible) * 70)
 
             Clock.schedule_once(finish, 0)
 
         Thread(target=worker, daemon=True).start()
+
 
     def show_remote_model_files(self, repo_id):
         box = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
