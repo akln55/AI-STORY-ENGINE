@@ -327,7 +327,9 @@ class GameplayScreen(BaseScreen):
     def show(self):
         super().show()
         self.refresh()
-        Clock.schedule_once(lambda *_: self.input.focus(), 0.05)
+        # Keep the Android keyboard closed on entry. The player taps the composer
+        # when ready; forcing focus during a screen transition can cause unstable
+        # soft-keyboard behavior on some Android builds.
 
     def refresh(self):
         self.turn.text = f"Tur {self.app_ref.controller.turn}"
@@ -400,7 +402,7 @@ class GameplayScreen(BaseScreen):
 
     def submit(self):
         text = self.input.text.strip()
-        if not text or self.app_ref.busy or self.app_ref._lifecycle_stopping:
+        if not text or self.app_ref.busy or getattr(self.app_ref, "_lifecycle_stopping", False):
             return
         self.input.text = ""
         self.app_ref.busy = True
@@ -1228,6 +1230,8 @@ class RPGEngineApp(App):
         Window.clearcolor = BG
         Window.softinput_mode = "below_target"
         self.busy = False
+        self._lifecycle_stopping = False
+        self._gameplay_initialized = False
         self._autosave_pending = False
         self._saf_import_in_progress = False
         self._model_import_in_progress = False
@@ -1342,6 +1346,11 @@ class RPGEngineApp(App):
     def open_home(self): self.go("home")
     def open_game(self): self.go("games")
     def open_gameplay(self):
+        # The home screen can be opened before any scenario has ever been played.
+        # Initialize the deterministic look/status log once instead of presenting
+        # an empty chat surface or relying on an implicit previous game.
+        if not getattr(self, "_gameplay_initialized", False):
+            self._initial_game()
         self.go("gameplay")
     def open_scenarios(self): self.go("scenarios")
     def open_ai(self): self.go("ai")
@@ -1414,8 +1423,32 @@ class RPGEngineApp(App):
                 pass
 
     def _initial_game(self):
-        self.game.set_log("RPG Engine\n" + self.controller.submit("look"))
+        try:
+            opening = self.controller.submit("look")
+        except Exception as exc:
+            self._record_gameplay_error("initial_world_view", exc)
+            opening = (
+                "Dünya görünümü yüklenemedi. Ana menüye dönüp yeniden deneyebilirsin.\n"
+                f"Tanı: {type(exc).__name__}"
+            )
+            self._gameplay_initialized = False
+        else:
+            self._gameplay_initialized = True
+        self.game.set_log("RPG Engine\n" + opening)
         self.game.refresh()
+        return self._gameplay_initialized
+
+    def _record_gameplay_error(self, stage, exc):
+        try:
+            target = self._diagnostic_dir() / "gameplay_error.log"
+            import traceback
+            target.write_text(
+                f"stage={stage}\nerror={type(exc).__name__}: {exc}\n\n"
+                + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
 
     def save(self):
         try:
@@ -1428,6 +1461,7 @@ class RPGEngineApp(App):
         try:
             self.controller.load()
             self.game.set_log("Kayıt yüklendi.\n" + self.controller.submit("status"))
+            self._gameplay_initialized = True
             self.game.refresh(); self.home.refresh()
         except Exception as exc:
             self.notify(f"Kayıt yüklenemedi: {exc}")
@@ -1479,8 +1513,9 @@ class RPGEngineApp(App):
         try:
             pack = self.controller.load_installed_scenario(scenario_id)
             self.controller.start_scenario(pack)
+            self._gameplay_initialized = False
             self._record_recent_scenario(pack.scenario_id, pack.name)
-            self._initial_game(); self.open_gameplay()
+            self.open_gameplay()
         except Exception as exc:
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
