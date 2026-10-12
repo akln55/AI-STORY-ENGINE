@@ -487,3 +487,58 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(_IO_CHUNK_SIZE), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def check_huggingface_connection(
+    *, timeout: float = 8.0, opener: Callable[..., object] | None = None
+) -> None:
+    """Probe the public Hub model-list endpoint without authentication or downloads.
+
+    Raises ModelDiscoveryError with a sanitized category-specific diagnostic.
+    This checks DNS/TLS/HTTP reachability only; it does not guarantee that every
+    model repository or large file is accessible.
+    """
+    if timeout <= 0:
+        raise ModelSpecError("connection timeout must be positive")
+    request = urllib.request.Request(
+        "https://huggingface.co/api/models?limit=1",
+        headers={
+            "User-Agent": "RPG-Engine/1.1",
+            "Accept": "application/json",
+        },
+    )
+    urlopen = opener or urllib.request.urlopen
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            status_value = getattr(response, "status", None)
+            status = int(status_value if status_value is not None else response.getcode())
+            if not 200 <= status < 300:
+                raise ModelDiscoveryError(f"Hugging Face returned HTTP {status}")
+            body = response.read(65536)
+            payload = json.loads(body.decode("utf-8")) if body else []
+    except urllib.error.HTTPError as exc:
+        if exc.code == 429:
+            raise ModelDiscoveryError("Hugging Face rate limit reached (HTTP 429)") from None
+        raise ModelDiscoveryError(f"Hugging Face returned HTTP {exc.code}") from None
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        raw = str(reason).lower()
+        if any(term in raw for term in (
+            "no address associated", "name or service not known",
+            "temporary failure in name resolution", "nodename nor servname",
+            "getaddrinfo failed",
+        )):
+            message = "DNS resolution failed for huggingface.co"
+        elif "timed out" in raw or "timeout" in raw:
+            message = "Hugging Face connection timed out"
+        elif "network is unreachable" in raw or "no route to host" in raw:
+            message = "Network is unreachable"
+        elif "ssl" in raw or "certificate" in raw or "tls" in raw:
+            message = "TLS certificate/handshake failed"
+        else:
+            message = "Could not reach Hugging Face"
+        raise ModelDiscoveryError(message) from None
+    except (UnicodeDecodeError, ValueError):
+        raise ModelDiscoveryError("Hugging Face returned invalid JSON") from None
+    if not isinstance(payload, list):
+        raise ModelDiscoveryError("Hugging Face returned an unexpected response")
