@@ -21,6 +21,7 @@ from hashlib import sha256
 from pathlib import Path
 import json
 import re
+import ssl
 import urllib.parse
 from typing import Callable, Iterable
 import urllib.error
@@ -37,6 +38,23 @@ _IO_CHUNK_SIZE = 1024 * 1024
 
 _REPO_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _HEX_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+
+
+def _open_url(request, *, timeout: float, opener=None):
+    """Open HTTPS with an explicit CA bundle on Android and desktop.
+
+    python-for-android does not always expose the host OS CA paths to Python's
+    ssl module. Prefer certifi's maintained bundle when installed; never disable
+    certificate verification. The injectable opener keeps network tests offline.
+    """
+    if opener is not None:
+        return opener(request, timeout=timeout)
+    try:
+        import certifi
+        context = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        context = ssl.create_default_context()
+    return urllib.request.urlopen(request, timeout=timeout, context=context)
 
 
 class ModelManagerError(Exception):
@@ -233,7 +251,6 @@ def search_huggingface_models(
     if not 1 <= limit <= 30:
         raise ModelSpecError("model search limit must be between 1 and 30")
 
-    urlopen = opener or urllib.request.urlopen
 
     def request_models(*, filter_gguf: bool) -> list[dict]:
         params = {
@@ -252,7 +269,7 @@ def search_huggingface_models(
             }
         )
         try:
-            with urlopen(request, timeout=20) as response:
+            with _open_url(request, timeout=20, opener=opener) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             raise ModelDiscoveryError(f"Hugging Face search failed: {exc}") from exc
@@ -376,7 +393,7 @@ def download_huggingface_model(
     )
     urlopen = opener or urllib.request.urlopen
     try:
-        response = urlopen(request, timeout=60)
+        response = _open_url(request, timeout=60, opener=opener)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise ModelDownloadError(f"Hugging Face download failed: {exc}") from exc
 
@@ -509,7 +526,7 @@ def check_huggingface_connection(
     )
     urlopen = opener or urllib.request.urlopen
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with _open_url(request, timeout=timeout, opener=opener) as response:
             status_value = getattr(response, "status", None)
             status = int(status_value if status_value is not None else response.getcode())
             if not 200 <= status < 300:
