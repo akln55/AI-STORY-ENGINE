@@ -348,13 +348,13 @@ class GameplayScreen(BaseScreen):
         super().__init__(app, name="gameplay", **kwargs)
         root = BoxLayout(orientation="vertical", padding=[dp(12), dp(10), dp(12), dp(10)], spacing=dp(8))
         top = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        back = GhostButton(text="Geri", size_hint_x=None, width=dp(62), font_size=sp(12))
+        back = GhostButton(text="‹  Geri", size_hint_x=None, width=dp(72), font_size=sp(12))
         back.bind(on_release=lambda *_: self.app_ref.open_home())
         top.add_widget(back)
         self.title = Label(text="Oyun", color=TEXT, font_size=sp(18), bold=True, halign="left")
         self.title.bind(size=lambda *_: setattr(self.title, "text_size", self.title.size))
         top.add_widget(self.title)
-        self.turn = _aligned_label(text="Tur 0", color=MUTED, font_size=sp(11), size_hint_x=None, width=dp(58))
+        self.turn = _aligned_label(text="◷  Tur 0", color=MUTED, font_size=sp(11), size_hint_x=None, width=dp(66))
         top.add_widget(self.turn)
         root.add_widget(top)
 
@@ -369,7 +369,7 @@ class GameplayScreen(BaseScreen):
         self.input.bind(on_text_validate=lambda *_: self.submit())
         composer.add_widget(self.input)
         self.send_button = AccentButton(
-            text="Gönder", size_hint_x=None, width=dp(86), font_size=sp(11)
+            text="↑  Gönder", size_hint_x=None, width=dp(92), font_size=sp(11)
         )
         self.send_button.bind(on_release=lambda *_: self.submit())
         composer.add_widget(self.send_button)
@@ -456,7 +456,7 @@ class GameplayScreen(BaseScreen):
 
     def set_busy(self, busy):
         self.send_button.disabled = bool(busy)
-        self.send_button.text = "Bekle…" if busy else "Gönder"
+        self.send_button.text = "…  Bekle" if busy else "↑  Gönder"
         self.input.disabled = bool(busy)
         self.input.hint_text = "Yanıt hazırlanıyor…" if busy else "Ne yapmak istiyorsun?"
 
@@ -807,6 +807,7 @@ class AIScreen(BaseScreen):
         self.api_endpoint = PillInput(
             text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
         )
+        self._last_api_provider = "OpenAI"
         self.api_model = PillInput(
             text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
         )
@@ -864,8 +865,16 @@ class AIScreen(BaseScreen):
 
     def _provider_changed(self):
         provider = self.api_provider.text
+        previous_provider = getattr(self, "_last_api_provider", "OpenAI")
         gemini = provider == "Gemini"
         compatible = provider == "OpenAI-compatible"
+        if compatible and previous_provider != "OpenAI-compatible":
+            self.api_endpoint.text = ""
+            self.api_endpoint.hint_text = "Örn. https://api.provider.com/v1"
+        elif provider == "OpenAI" and previous_provider == "OpenAI-compatible":
+            self.api_endpoint.text = "https://api.openai.com/v1"
+            self.api_endpoint.hint_text = "https://api.openai.com/v1"
+        self._last_api_provider = provider
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
         self.api_endpoint_field.opacity = 0.55 if gemini else 1.0
