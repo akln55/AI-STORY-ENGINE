@@ -3,8 +3,8 @@
 **Canonical current handoff:** this file  
 **Canonical historical record:** `docs/PROJECT_HISTORY.md`  
 **Product release:** `v1.1.4`  
-**Last source verification:** 524 tests passed; compileall, Android readiness, and mutation smoke passed.  
-**Current Android build:** GitHub Actions Android build #122 is in progress; do not claim APK success until metadata/provenance verification and artifact upload finish.
+**Last verified source CI for application code (commit `4f13ef3106d621bab616f87696d4b3436bc51c60`): [535 tests passed](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38306455458); compileall, Android readiness, and mutation smoke passed. The later changes so far are documentation-only.  
+**Current Android build:** check the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml) for the newest run. Older build #122 is historical and does not validate the recent model-download/UI fixes; APK metadata/provenance verification and artifact upload must complete before claiming packaging success.
 
 > This file describes current state only. Older checkpoint/version documents are historical evidence, not current-state authority.
 
@@ -74,7 +74,7 @@ Initial local-model policy remains conservative: roughly **1.5B–3B instruct**,
 
 ## 4. Current source verification
 
-Latest test-only CI run: [run #122 — Android build workflow source revision](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38297334671) is the packaging workflow; source-only test evidence for the current code is [test run](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38297202291).
+Recorded source-only evidence for the reviewed application code is [CI run 38306455458](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38306455458), at commit `4f13ef3106d621bab616f87696d4b3436bc51c60` (535 tests). For the current APK state, use the [Android build workflow run list](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml); older run #122 predates the latest review fixes.
 
 - **524 tests passed** in 10.09 seconds.
 - `python -m compileall -q .`: PASS.
