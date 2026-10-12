@@ -125,7 +125,7 @@ def test_message_bubbles_distinguish_player_from_narration_and_improve_readabili
     init = _init_method(bubble)
     init_source = ast.get_source_segment(APP_SOURCE.read_text(encoding="utf-8"), init) or ""
 
-    assert 'text="SEN" if role == "player" else "ANLATI"' in init_source
+    assert 'text="➤  SEN" if role == "player" else "◉  ANLATI"' in init_source
     assert 'self.fill = SURFACE_2 if role == "player" else SURFACE' in init_source
     assert "font_size=sp(16)" in init_source, (
         "Story and chat text should use a more readable mobile font size."
