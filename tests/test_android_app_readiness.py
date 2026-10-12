@@ -93,3 +93,19 @@ def test_presentation_animation_is_not_the_persistence_gate():
 def test_stage_four_version_is_consistent():
     assert "1.1.4" in (ROOT / "engine/__init__.py").read_text()
     assert "version = 1.1.4" in (ROOT / "buildozer.spec").read_text()
+
+
+def test_bottom_navigation_has_only_three_text_tabs_and_recent_games_screen():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    assert '("Oyun", "games"), ("Ana", "home"), ("Ayarlar", "settings")' in source
+    assert 'class RecentGamesScreen(BaseScreen)' in source
+    assert 'text="+ Senaryo"' in source
+    assert 'class GameplayScreen(BaseScreen)' in source
+    assert 'JsonStore(str(recent_path))' in source
+
+
+def test_ai_settings_content_is_scrollable_on_small_android_screens():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    assert 'root = ScrollView(do_scroll_x=False' in ai
+    assert 'content.bind(minimum_height=content.setter("height"))' in ai
