@@ -46,7 +46,7 @@ def test_gemini_connection_probe_uses_api_key_header_without_url_credentials():
         headers = {key.lower(): value for key, value in request.header_items()}
         assert headers["x-goog-api-key"] == "test-only-secret"
         assert "test-only-secret" not in request.full_url
-        return FakeResponse({"models": [{"name": "models/example"}]})
+        return FakeResponse({"models": [{"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent"]}]})
 
     result = check_api_connection(
         "Gemini", api_key="test-only-secret", opener=opener,
