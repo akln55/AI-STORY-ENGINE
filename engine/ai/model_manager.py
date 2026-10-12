@@ -40,6 +40,30 @@ _REPO_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _HEX_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
+def _safe_huggingface_error(exc: BaseException, *, operation: str) -> str:
+    """Return a stable user-facing network diagnostic without raw exception data."""
+    reason = getattr(exc, "reason", exc)
+    if isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError):
+        return "Hugging Face connection timed out"
+    raw = str(reason).lower()
+    if any(term in raw for term in (
+        "no address associated", "name or service not known",
+        "temporary failure in name resolution", "nodename nor servname",
+        "getaddrinfo failed",
+    )):
+        return "DNS resolution failed for huggingface.co"
+    if "network is unreachable" in raw or "no route to host" in raw:
+        return "Network is unreachable"
+    if any(term in raw for term in ("ssl", "certificate", "tls")):
+        return "TLS certificate/handshake failed"
+    return {
+        "search": "Could not search Hugging Face models",
+        "listing": "Could not read Hugging Face repository",
+        "download": "Could not download model from Hugging Face",
+        "connection": "Could not reach Hugging Face",
+    }.get(operation, "Could not reach Hugging Face")
+
+
 def _open_url(request, *, timeout: float, opener=None):
     """Open HTTPS with an explicit CA bundle on Android and desktop.
 
@@ -271,8 +295,10 @@ def search_huggingface_models(
         try:
             with _open_url(request, timeout=20, opener=opener) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-            raise ModelDiscoveryError(f"Hugging Face search failed: {exc}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise ModelDiscoveryError(_safe_huggingface_error(exc, operation="search")) from None
+        except (UnicodeDecodeError, ValueError):
+            raise ModelDiscoveryError("Hugging Face returned invalid model data") from None
         if not isinstance(payload, list):
             raise ModelDiscoveryError("Hugging Face returned an unexpected model list")
         return [item for item in payload if isinstance(item, dict)]
@@ -334,8 +360,10 @@ def list_huggingface_gguf_files(
     try:
         with _open_url(request, timeout=20, opener=opener) as response:
             payload = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-        raise ModelDiscoveryError(f"Could not read Hugging Face repository: {exc}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise ModelDiscoveryError(_safe_huggingface_error(exc, operation="listing")) from None
+    except (UnicodeDecodeError, ValueError):
+        raise ModelDiscoveryError("Hugging Face returned invalid repository data") from None
     if not isinstance(payload, dict):
         raise ModelDiscoveryError("Hugging Face returned an unexpected repository response")
     siblings = payload.get("siblings", [])
@@ -393,7 +421,7 @@ def download_huggingface_model(
     try:
         response = _open_url(request, timeout=60, opener=opener)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise ModelDownloadError(f"Hugging Face download failed: {exc}") from exc
+        raise ModelDownloadError(_safe_huggingface_error(exc, operation="download")) from None
 
     with response as stream:
         header = stream.headers.get("Content-Length") if hasattr(stream, "headers") else None
