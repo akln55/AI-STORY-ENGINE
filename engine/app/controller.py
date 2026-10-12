@@ -29,6 +29,8 @@ from engine.ai.model_manager import (
     download_huggingface_model,
     install_imported_model,
     list_installed_models,
+    list_huggingface_gguf_files,
+    search_huggingface_models,
     validate_model_file,
 )
 from engine.ai.openai_compatible_adapter import OpenAICompatibleAdapter
@@ -119,6 +121,12 @@ class AppController:
         return download_huggingface_model(
             spec, default_model_storage_dir(), progress_callback=progress_callback
         )
+
+    def search_remote_models(self, query: str, *, limit: int = 12):
+        return search_huggingface_models(query, limit=limit)
+
+    def remote_model_files(self, repo_id: str):
+        return list_huggingface_gguf_files(repo_id)
 
     def set_local_model(self, model_path: str, *, n_ctx: int = 4096, max_tokens: int = 512,
                         temperature: float = 0.7, n_gpu_layers: int = 0) -> None:
