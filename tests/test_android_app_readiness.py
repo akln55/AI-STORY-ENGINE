@@ -87,7 +87,20 @@ def test_presentation_animation_is_not_the_persistence_gate():
     finish = source[source.index("    def _finish_submit"):source.index("    def _initial_game")]
     assert 'self._autosave("turn")' in finish
     assert "self.game.remove_typing()" in finish
-    assert "self.game.append(result)" in finish
+    assert 'self.game.append(result, role="error" if error else "npc")' in finish
+
+
+def test_gameplay_failures_are_separate_from_story_and_do_not_expose_raw_errors():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    worker = source[source.index("    def _submit_worker"):source.index("    def _finish_submit")]
+    finish = source[source.index("    def _finish_submit"):source.index("    def _initial_game")]
+    bubble = source[source.index("class MessageBubble"):source.index("class GameplayScreen")]
+
+    assert "self._record_gameplay_error(\"turn_submission\", exc)" in worker
+    assert "API ayarlarını ve bağlantını kontrol edip tekrar dene." in worker
+    assert "f\"[İşlem başarısız: {exc}]\"" not in worker
+    assert 'self.game.append(result, role="error" if error else "npc")' in finish
+    assert '"error": ("⚠  HATA", DANGER)' in bubble
 
 
 def test_stage_four_version_is_consistent():
