@@ -101,11 +101,14 @@ class PillInput(TextInput):
     foreground_color = ColorProperty(TEXT)
     hint_text_color = ColorProperty(MUTED)
     cursor_color = ColorProperty(ACCENT)
-    font_size = sp(14)
-    multiline = False
 
     def __init__(self, **kwargs):
+        # Inherited Kivy properties must be set on instances, not replaced by
+        # plain class attributes. Replacing font_size/multiline here breaks
+        # Kivy's Property metaclass during app startup on Android.
         kwargs.setdefault("padding", [dp(15), dp(12)])
+        kwargs.setdefault("font_size", sp(14))
+        kwargs.setdefault("multiline", False)
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_active", "")
         super().__init__(**kwargs)
@@ -122,10 +125,14 @@ class PillInput(TextInput):
 
 class BodyLabel(Label):
     color = ColorProperty(TEXT)
-    font_size = sp(15)
-    halign = "left"
-    valign = "middle"
-    text_size = (None, None)
+
+    def __init__(self, **kwargs):
+        # These are inherited Kivy properties, so keep defaults per instance.
+        kwargs.setdefault("font_size", sp(15))
+        kwargs.setdefault("halign", "left")
+        kwargs.setdefault("valign", "middle")
+        kwargs.setdefault("text_size", (None, None))
+        super().__init__(**kwargs)
 
 
 class BaseScreen(Screen):
