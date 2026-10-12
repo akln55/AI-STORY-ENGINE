@@ -13,7 +13,6 @@ secret/
 *.jks
 *.keystore
 *.p8
-*.p12
 *.mobileprovision
 *.provisionprofile
 *.secret
