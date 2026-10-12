@@ -6,7 +6,7 @@
 - **Current handoff:** [`AI_START_HERE.md`](AI_START_HERE.md)
 - **Project history:** [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md)
 - **Latest source CI:** **524 passed**; Python compile check PASS; Android readiness PASS; mutation smoke **3/3 detected**
-- **Android debug APK:** GitHub Actions build #122 is running; APK metadata/provenance verification and artifact upload are not yet confirmed.
+- **Android APK status:** use the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml) for the latest run. Do not treat older build #122 as evidence for the current review fixes; the artifact must pass metadata/provenance checks.
 - **Physical Android verification:** not yet complete.
 
 Read `AI_START_HERE.md` first. It describes current state only. Historical milestones and retired assumptions belong in `docs/PROJECT_HISTORY.md`.
@@ -46,7 +46,7 @@ AI never receives direct authority to mutate GameState, saves, databases, scenar
 
 ## Verification boundaries
 
-The latest test-only workflow passed 524 tests in 10.09 seconds. It also passed `compileall`, Android readiness (`version=1.1.4, target_api=36, SAF=enabled`), and mutation smoke (3/3 detected). These are source-level checks, not proof of a successful APK or physical-device behavior.
+At commit `4f13ef3106d621bab616f87696d4b3436bc51c60`, the source CI passed **535 tests in 8.38 seconds**, `compileall`, Android readiness (`version=1.1.4, target_api=36, SAF=enabled`), and mutation smoke (3/3 detected). These are source-level checks, not proof of a successful APK or physical-device behavior. Consult the linked workflows for the current state.
 
 Release gates remain separate:
 
