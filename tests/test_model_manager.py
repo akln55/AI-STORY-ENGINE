@@ -347,3 +347,36 @@ def test_injected_https_opener_remains_usable_without_network():
     assert result == "fixture-response"
     assert seen["timeout"] == 2
     assert seen["url"] == "https://huggingface.co/api/models"
+
+
+
+def test_huggingface_file_listing_uses_shared_verified_transport(monkeypatch):
+    import json
+    import engine.ai.model_manager as module
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "siblings": [{"rfilename": "model.Q4_K_M.gguf", "size": 1024}]
+            }).encode()
+
+    seen = {}
+
+    def fake_open_url(request, *, timeout, opener=None):
+        seen["url"] = request.full_url
+        seen["timeout"] = timeout
+        seen["opener"] = opener
+        return FakeResponse()
+
+    monkeypatch.setattr(module, "_open_url", fake_open_url)
+    files = module.list_huggingface_gguf_files("org/model")
+    assert [item.filename for item in files] == ["model.Q4_K_M.gguf"]
+    assert seen["url"] == "https://huggingface.co/api/models/org/model?blobs=true"
+    assert seen["timeout"] == 20
+    assert seen["opener"] is None
