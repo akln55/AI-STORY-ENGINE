@@ -473,7 +473,7 @@ class AIScreen(BaseScreen):
         content.add_widget(self.provider)
 
         local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(250))
-        local.add_widget(Label(text="Kurulu yerel modeller", color=TEXT, font_size=sp(15), bold=True, halign="left"))
+        local.add_widget(Label(text="Kurulu yerel modeller · Local GGUF", color=TEXT, font_size=sp(15), bold=True, halign="left"))
         local.add_widget(Label(text="Model dosyaları uygulamanın özel alanında tutulur. Yalnızca doğrulanan GGUF modelleri çalıştırılır.", color=MUTED, font_size=sp(11), halign="left", valign="top"))
         row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
         pick = SoftButton(text="GGUF içe aktar")
