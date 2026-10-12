@@ -24,6 +24,7 @@ class APIConnectionResult:
     status_code: int
     available_models: int | None
     message: str
+    model_ids: tuple[str, ...] = ()
 
 
 def _network_error_message(exc: BaseException) -> str:
@@ -122,16 +123,35 @@ def check_api_connection(
         raise APIConnectionError("Sunucu yanıt verdi ancak geçerli JSON döndürmedi.") from None
 
     model_count = None
+    model_ids: list[str] = []
     if isinstance(payload, dict):
         collection = payload.get("data")
         if not isinstance(collection, list):
             collection = payload.get("models")
         if isinstance(collection, list):
             model_count = len(collection)
-    suffix = f" · {model_count} model bulundu" if model_count is not None else ""
+            for item in collection:
+                if not isinstance(item, dict):
+                    continue
+                model_id = item.get("id") or item.get("name")
+                if not isinstance(model_id, str) or not model_id.strip():
+                    continue
+                if label == "Gemini":
+                    supported = item.get("supportedGenerationMethods")
+                    if isinstance(supported, list) and "generateContent" not in supported:
+                        continue
+                    if model_id.startswith("models/"):
+                        model_id = model_id[len("models/"):]
+                if model_id not in model_ids:
+                    model_ids.append(model_id)
+                if len(model_ids) >= 30:
+                    break
+    offered_count = len(model_ids) if model_ids else model_count
+    suffix = f" · {offered_count} model bulundu" if offered_count is not None else ""
     return APIConnectionResult(
         provider=label,
         status_code=status,
-        available_models=model_count,
+        available_models=offered_count,
         message=f"{label} bağlantısı başarılı{suffix}.",
+        model_ids=tuple(model_ids),
     )
