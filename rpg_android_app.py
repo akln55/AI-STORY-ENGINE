@@ -1219,6 +1219,7 @@ class RPGEngineApp(App):
             root.add_widget(self.manager)
             root.add_widget(self._bottom_nav())
             self.manager.current = "home"
+            self._update_nav_state()
             self._record_recent_scenario("demo-bootstrap", "Demo dünyası")
             Clock.schedule_once(lambda *_: self.home.refresh(), 0)
             return root
@@ -1264,20 +1265,37 @@ class RPGEngineApp(App):
             return root
 
     def _bottom_nav(self):
-        # Plain text labels avoid tofu/missing-glyph boxes on Android fonts.
-        nav = RoundedPanel(orientation="horizontal", padding=[dp(8), dp(6)], spacing=dp(6),
-                           size_hint=(1, None), height=dp(62),
-                           fill=(0.105, 0.105, 0.105, 0.98), radius=dp(22))
+        # Text-first labels are reliable with the fonts packaged by Android.
+        nav = RoundedPanel(
+            orientation="horizontal", padding=[dp(8), dp(6)], spacing=dp(6),
+            size_hint=(1, None), height=dp(62),
+            fill=FOOTER_SURFACE, radius=dp(24),
+        )
+        self.nav_buttons = {}
         for label, target in (("Oyun", "games"), ("Ana", "home"), ("Ayarlar", "settings")):
-            b = GhostButton(text=label, font_size=sp(13))
-            b.bind(on_release=lambda *_a, t=target: self.go(t))
-            nav.add_widget(b)
+            button = GhostButton(text=label, font_size=sp(13), radius=dp(20))
+            button.bind(on_release=lambda *_a, t=target: self.go(t))
+            nav.add_widget(button)
+            self.nav_buttons[target] = button
         return nav
 
+    def _update_nav_state(self):
+        current = self.manager.current
+        active = (
+            "games" if current in {"games", "gameplay", "scenarios"}
+            else "settings" if current == "ai"
+            else current
+        )
+        for target, button in getattr(self, "nav_buttons", {}).items():
+            selected = target == active
+            button.fill = SURFACE_2 if selected else (0, 0, 0, 0)
+            button.color = TEXT if selected else MUTED
+
     def go(self, screen):
-        self.manager.transition.direction = "right" if screen == "home" else "left"
+        self.manager.transition.direction = "right" if screen in {"home", "games"} else "left"
         self.manager.current = screen
         target = self.manager.get_screen(screen)
+        self._update_nav_state()
         if hasattr(target, "show"):
             target.show()
 
@@ -1309,9 +1327,22 @@ class RPGEngineApp(App):
             self.games.refresh()
 
     def notify(self, text):
-        popup = Popup(title="RPG Engine", content=Label(text=text, color=TEXT, padding=[dp(14), dp(14)]), size_hint=(0.88, 0.28), background_color=SURFACE)
+        body = BoxLayout(
+            orientation="vertical", padding=[dp(16), dp(12)], spacing=dp(10),
+        )
+        message = _aligned_label(
+            text=str(text), color=TEXT, font_size=sp(14), valign="middle",
+        )
+        body.add_widget(message)
+        dismiss = AccentButton(text="Tamam", size_hint_y=None, height=dp(42))
+        body.add_widget(dismiss)
+        popup = Popup(
+            title="RPG Engine", content=body, size_hint=(0.90, None), height=dp(178),
+            background_color=SURFACE, separator_color=ACCENT, auto_dismiss=True,
+        )
+        dismiss.bind(on_release=lambda *_: popup.dismiss())
         popup.open()
-        Clock.schedule_once(lambda *_: popup.dismiss(), 2.4)
+        Clock.schedule_once(lambda *_: popup.dismiss(), 5.0)
 
     def _append(self, text):
         self.game.append(text)
