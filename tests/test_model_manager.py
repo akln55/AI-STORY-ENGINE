@@ -414,3 +414,54 @@ def test_huggingface_connectivity_probe_sanitizes_timeout():
         assert "internal socket detail" not in str(exc)
     else:
         raise AssertionError("expected ModelDiscoveryError for timeout")
+
+
+
+def test_huggingface_search_sanitizes_network_failure():
+    import socket
+    from engine.ai.model_manager import ModelDiscoveryError
+
+    def opener(_request, timeout):
+        raise socket.timeout("private socket path and internal socket detail")
+
+    try:
+        search_huggingface_models("Qwen", opener=opener)
+    except ModelDiscoveryError as exc:
+        assert str(exc) == "Hugging Face connection timed out"
+        assert "private socket path" not in str(exc)
+    else:
+        raise AssertionError("expected sanitized model search error")
+
+
+def test_huggingface_file_listing_sanitizes_tls_failure():
+    import ssl
+    from engine.ai.model_manager import ModelDiscoveryError
+
+    def opener(_request, timeout):
+        raise ssl.SSLCertVerificationError("private certificate store path")
+
+    try:
+        list_huggingface_gguf_files("org/model", opener=opener)
+    except ModelDiscoveryError as exc:
+        assert str(exc) == "TLS certificate/handshake failed"
+        assert "private certificate store path" not in str(exc)
+    else:
+        raise AssertionError("expected sanitized repository listing error")
+
+
+def test_huggingface_download_sanitizes_network_failure(tmp_path):
+    import socket
+    from engine.ai.model_manager import ModelDownloadError
+
+    def opener(_request, timeout):
+        raise socket.timeout("private socket path and internal socket detail")
+
+    try:
+        download_huggingface_model(
+            ModelSpec("org/model", "model.gguf"), tmp_path / "models", opener=opener
+        )
+    except ModelDownloadError as exc:
+        assert str(exc) == "Hugging Face connection timed out"
+        assert "private socket path" not in str(exc)
+    else:
+        raise AssertionError("expected sanitized model download error")
