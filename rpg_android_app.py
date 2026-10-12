@@ -101,11 +101,11 @@ class PillInput(TextInput):
     foreground_color = ColorProperty(TEXT)
     hint_text_color = ColorProperty(MUTED)
     cursor_color = ColorProperty(ACCENT)
-    padding = [dp(15), dp(12)]
     font_size = sp(14)
     multiline = False
 
     def __init__(self, **kwargs):
+        kwargs.setdefault("padding", [dp(15), dp(12)])
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_active", "")
         super().__init__(**kwargs)
