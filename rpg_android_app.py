@@ -256,8 +256,8 @@ class MessageBubble(RoundedPanel):
         kwargs.setdefault("padding", [dp(14), dp(10), dp(14), dp(10)])
         kwargs.setdefault("size_hint_y", None)
         kwargs.setdefault("radius", dp(18))
-        kwargs.setdefault("fill", (0.14, 0.14, 0.14, 1) if role == "npc" else (0.10, 0.20, 0.17, 1))
-        kwargs.setdefault("outline", (0.23, 0.23, 0.23, 1))
+        kwargs.setdefault("fill", SURFACE if role == "npc" else SURFACE_2)
+        kwargs.setdefault("outline", BORDER)
         super().__init__(**kwargs)
         self.role = role
         self._label = Label(
@@ -296,13 +296,13 @@ class GameplayScreen(BaseScreen):
         super().__init__(app, name="gameplay", **kwargs)
         root = BoxLayout(orientation="vertical", padding=[dp(12), dp(10), dp(12), dp(10)], spacing=dp(8))
         top = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        back = GhostButton(text="‹", size_hint_x=None, width=dp(46), font_size=sp(28))
+        back = GhostButton(text="Geri", size_hint_x=None, width=dp(62), font_size=sp(12))
         back.bind(on_release=lambda *_: self.app_ref.open_home())
         top.add_widget(back)
         self.title = Label(text="Oyun", color=TEXT, font_size=sp(18), bold=True, halign="left")
         self.title.bind(size=lambda *_: setattr(self.title, "text_size", self.title.size))
         top.add_widget(self.title)
-        self.turn = Label(text="Turn 0", color=MUTED, font_size=sp(12), size_hint_x=None, width=dp(70))
+        self.turn = _aligned_label(text="Tur 0", color=MUTED, font_size=sp(11), size_hint_x=None, width=dp(58))
         top.add_widget(self.turn)
         root.add_widget(top)
 
@@ -316,7 +316,7 @@ class GameplayScreen(BaseScreen):
         self.input = PillInput(hint_text="Ne yapmak istiyorsun?", size_hint_x=1)
         self.input.bind(on_text_validate=lambda *_: self.submit())
         composer.add_widget(self.input)
-        send = AccentButton(text="↑", size_hint_x=None, width=dp(48), font_size=sp(20))
+        send = AccentButton(text="Gönder", size_hint_x=None, width=dp(86), font_size=sp(11))
         send.bind(on_release=lambda *_: self.submit())
         composer.add_widget(send)
         root.add_widget(composer)
@@ -330,8 +330,8 @@ class GameplayScreen(BaseScreen):
         Clock.schedule_once(lambda *_: self.input.focus(), 0.05)
 
     def refresh(self):
-        self.turn.text = f"Turn {self.app_ref.controller.turn}"
-        self.title.text = self.app_ref.controller.scenario_id
+        self.turn.text = f"Tur {self.app_ref.controller.turn}"
+        self.title.text = self.app_ref.current_campaign_name()
 
     def _scroll_bottom(self, *_):
         self.scroll.scroll_y = 0
@@ -519,22 +519,37 @@ class RecentGamesScreen(BaseScreen):
 class ScenariosScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="scenarios", **kwargs)
-        self.list_box = BoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
-        self.list_box.bind(minimum_height=self.list_box.setter("height"))
-        scroll = ScrollView(do_scroll_x=False, bar_width=0)
-        scroll.add_widget(self.list_box)
-        root = BoxLayout(orientation="vertical", padding=[dp(18), dp(18), dp(18), dp(12)], spacing=dp(12))
-        root.add_widget(self._heading("Senaryolar", "Kurulu dünyalar ve .rpgscenario paketleri"))
-        import_btn = AccentButton(text="＋  Senaryo içe aktar", size_hint_y=None, height=dp(48))
+        root = BoxLayout(
+            orientation="vertical", padding=[dp(20), dp(20), dp(20), dp(12)],
+            spacing=dp(12),
+        )
+        root.add_widget(self._heading(
+            "Senaryolar",
+            "Kurulu dünyalar ve içe aktarabileceğin .rpgscenario paketleri.",
+        ))
+        import_btn = AccentButton(
+            text="+ Senaryo içe aktar", size_hint_y=None, height=dp(46),
+        )
         import_btn.bind(on_release=lambda *_: self.app_ref.import_scenario())
         root.add_widget(import_btn)
+
+        self.list_box = BoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
+        self.list_box.bind(minimum_height=self.list_box.setter("height"))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        scroll.add_widget(self.list_box)
         root.add_widget(scroll)
         self.add_widget(root)
 
     def _heading(self, title, subtitle):
-        box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(76))
-        box.add_widget(Label(text=title, color=TEXT, font_size=sp(27), bold=True, halign="left"))
-        box.add_widget(Label(text=subtitle, color=MUTED, font_size=sp(12), halign="left"))
+        box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(74), spacing=dp(5))
+        box.add_widget(_aligned_label(
+            text=title, color=TEXT, font_size=sp(28), bold=True,
+            size_hint_y=None, height=dp(40),
+        ))
+        box.add_widget(_aligned_label(
+            text=subtitle, color=MUTED, font_size=sp(12), valign="top",
+            size_hint_y=None, height=dp(30),
+        ))
         return box
 
     def show(self):
@@ -545,15 +560,40 @@ class ScenariosScreen(BaseScreen):
         self.list_box.clear_widgets()
         installed = self.app_ref.controller.installed_scenarios()
         if not installed:
-            self.list_box.add_widget(Label(text="Henüz senaryo yok.\nDemo dünya ile başlayabilirsin.", color=MUTED, font_size=sp(14), size_hint_y=None, height=dp(70), halign="left"))
+            empty = RoundedPanel(
+                orientation="vertical", padding=dp(16), spacing=dp(8),
+                size_hint_y=None, height=dp(132), fill=SURFACE, radius=dp(20),
+            )
+            empty.add_widget(_aligned_label(
+                text="Henüz senaryo yok", color=TEXT, font_size=sp(16), bold=True,
+                size_hint_y=None, height=dp(28),
+            ))
+            empty.add_widget(_aligned_label(
+                text="İlk dünyanı eklemek için yukarıdaki “Senaryo içe aktar” düğmesini kullan.",
+                color=MUTED, font_size=sp(12), valign="top",
+                size_hint_y=None, height=dp(48),
+            ))
+            self.list_box.add_widget(empty)
             return
         for item in installed:
-            card = RoundedPanel(orientation="horizontal", padding=dp(12), spacing=dp(10), size_hint_y=None, height=dp(82))
-            info = BoxLayout(orientation="vertical")
-            info.add_widget(Label(text=item.name, color=TEXT, font_size=sp(15), bold=True, halign="left"))
-            info.add_widget(Label(text=f"v{item.version} · {item.chapter_count} bölüm", color=MUTED, font_size=sp(11), halign="left"))
+            card = RoundedPanel(
+                orientation="horizontal", padding=dp(12), spacing=dp(10),
+                size_hint_y=None, height=dp(84), fill=SURFACE, radius=dp(18),
+            )
+            info = BoxLayout(orientation="vertical", spacing=dp(4))
+            info.add_widget(_aligned_label(
+                text=item.name, color=TEXT, font_size=sp(14), bold=True,
+                size_hint_y=None, height=dp(28),
+            ))
+            info.add_widget(_aligned_label(
+                text=f"v{item.version} · {item.chapter_count} bölüm",
+                color=MUTED, font_size=sp(11), size_hint_y=None, height=dp(20),
+            ))
             card.add_widget(info)
-            btn = SoftButton(text="Başlat", size_hint_x=None, width=dp(86))
+            btn = AccentButton(
+                text="Başlat", size_hint_x=None, width=dp(88),
+                font_size=sp(12),
+            )
             btn.bind(on_release=lambda *_a, sid=item.scenario_id: self.app_ref.open_scenario(sid))
             card.add_widget(btn)
             self.list_box.add_widget(card)
