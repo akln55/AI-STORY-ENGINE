@@ -97,7 +97,6 @@ class SoftButton(Button):
     fill = ColorProperty(SURFACE_2)
     pressed_fill = ColorProperty(SURFACE_PRESSED)
     disabled_fill = ColorProperty(SURFACE_2)
-    disabled_text = ColorProperty(MUTED)
     radius = NumericProperty(dp(22))
 
     def __init__(self, **kwargs):
@@ -107,6 +106,7 @@ class SoftButton(Button):
         kwargs.setdefault("background_down", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
         kwargs.setdefault("color", TEXT)
+        kwargs.setdefault("disabled_color", MUTED)
         kwargs.setdefault("font_size", sp(14))
         kwargs.setdefault("bold", False)
         super().__init__(**kwargs)
@@ -119,7 +119,6 @@ class SoftButton(Button):
             fill=self._sync,
             pressed_fill=self._sync,
             disabled_fill=self._sync,
-            disabled_text=self._sync,
             radius=self._sync,
             state=self._sync,
             disabled=self._sync,
@@ -127,11 +126,11 @@ class SoftButton(Button):
         self._sync()
 
     def _sync(self, *_):
-        if self.disabled:
-            self._color.rgba = self.disabled_fill
-            self.color = self.disabled_text
-        else:
-            self._color.rgba = self.pressed_fill if self.state == "down" else self.fill
+        self._color.rgba = (
+            self.disabled_fill if self.disabled
+            else self.pressed_fill if self.state == "down"
+            else self.fill
+        )
         self._rect.pos = self.pos
         self._rect.size = self.size
         self._rect.radius = [self.radius]
@@ -142,14 +141,13 @@ class AccentButton(SoftButton):
     fill = ColorProperty(PRIMARY_ACTION)
     pressed_fill = ColorProperty((0.82, 0.82, 0.82, 1))
     disabled_fill = ColorProperty((0.32, 0.32, 0.32, 1))
-    disabled_text = ColorProperty((0.72, 0.72, 0.72, 1))
     color = ColorProperty(PRIMARY_ACTION_TEXT)
 
     def __init__(self, **kwargs):
         kwargs.setdefault("color", PRIMARY_ACTION_TEXT)
+        kwargs.setdefault("disabled_color", (0.25, 0.25, 0.25, 1))
         kwargs.setdefault("font_size", sp(14))
         super().__init__(**kwargs)
-
 
 class GhostButton(SoftButton):
     fill = ColorProperty((0, 0, 0, 0))
