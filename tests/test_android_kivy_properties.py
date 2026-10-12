@@ -164,3 +164,43 @@ def test_message_bubble_height_includes_role_caption():
         APP_SOURCE.read_text(encoding="utf-8"), height_method
     ) or ""
     assert "self._label.texture_size[1] + dp(34)" in source
+
+
+
+def test_model_download_snapshots_widget_values_before_starting_worker():
+    ai_screen = _class_node("AIScreen")
+    method = next(
+        node for node in ai_screen.body
+        if isinstance(node, ast.FunctionDef) and node.name == "open_model_download_dialog"
+    )
+    nested = {
+        node.name: node
+        for node in ast.walk(method)
+        if isinstance(node, ast.FunctionDef) and node is not method
+    }
+    assert "worker" in nested
+    assert "start_download" in nested
+    worker_source = ast.get_source_segment(
+        APP_SOURCE.read_text(encoding="utf-8"), nested["worker"]
+    ) or ""
+    start_source = ast.get_source_segment(
+        APP_SOURCE.read_text(encoding="utf-8"), nested["start_download"]
+    ) or ""
+
+    for widget in ("repo", "filename", "revision", "sha"):
+        assert f"{widget}.text" not in worker_source, (
+            f"Worker thread must not read Kivy widget {widget!r}."
+        )
+        assert f"{widget}.text" in start_source, (
+            f"Widget {widget!r} should be snapshotted in the UI callback."
+        )
+    assert "spec.validate()" in start_source
+    assert "Thread(target=worker, args=(spec,), daemon=True).start()" in start_source
+
+
+def test_initial_game_failures_are_separate_error_bubbles_without_exception_names():
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    method = source[source.index("    def _initial_game(self):"):source.index("    def _record_gameplay_error")]
+    assert 'self.game.append(opening, role="error")' in method
+    assert 'f"Tanı: {type(exc).__name__}"' not in method
+    assert 'self.game.set_log("RPG Engine")' in method
