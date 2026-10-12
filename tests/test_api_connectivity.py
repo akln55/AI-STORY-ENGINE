@@ -36,6 +36,7 @@ def test_openai_compatible_connection_probe_uses_models_endpoint_and_bearer_head
     )
     assert result.status_code == 200
     assert result.available_models == 2
+    assert result.model_ids == ("model-a", "model-b")
     assert "2 model bulundu" in result.message
 
 
@@ -52,6 +53,7 @@ def test_gemini_connection_probe_uses_api_key_header_without_url_credentials():
     )
     assert result.available_models == 1
     assert result.provider == "Gemini"
+    assert result.model_ids == ("gemini-2.5-flash",)
 
 
 def test_connection_probe_translates_dns_error_without_exposing_secret():
@@ -95,3 +97,15 @@ def test_connection_probe_rejects_insecure_remote_endpoint_before_network():
             "OpenAI", endpoint="http://api.example.invalid/v1",
             api_key="test-only-secret", opener=opener,
         )
+
+
+def test_gemini_model_list_filters_out_non_generation_models():
+    def opener(request, timeout):
+        return FakeResponse({
+            "models": [
+                {"name": "models/gemini-good", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-embed", "supportedGenerationMethods": ["embedContent"]},
+            ]
+        })
+    result = check_api_connection("Gemini", api_key="test-only-secret", opener=opener)
+    assert result.model_ids == ("gemini-good",)
