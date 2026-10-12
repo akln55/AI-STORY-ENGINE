@@ -218,50 +218,88 @@ def install_imported_model(
 def search_huggingface_models(
     query: str, *, limit: int = 12, opener: Callable[..., object] | None = None
 ) -> list[HuggingFaceModel]:
-    """Search public Hugging Face repositories tagged for GGUF models.
+    """Search public Hugging Face repositories for GGUF models.
 
-    Search results are metadata only. A repository is never downloaded until
-    the user explicitly selects a GGUF file and confirms the download.
+    Prefer the GGUF-filtered endpoint. Some search/index responses may return an
+    empty filtered collection even when matching GGUF repositories exist, so a
+    second unfiltered query is used as a compatibility fallback. Fallback
+    results are kept only when the repository id or model tags identify GGUF.
+    Search results are metadata only; downloads still require explicit file
+    selection and confirmation.
     """
     cleaned = query.strip()
     if not cleaned:
         raise ModelSpecError("enter a model name or search term")
     if not 1 <= limit <= 30:
         raise ModelSpecError("model search limit must be between 1 and 30")
-    params = urllib.parse.urlencode({
-        "search": cleaned,
-        "filter": "gguf",
-        "sort": "downloads",
-        "direction": "-1",
-        "limit": str(limit),
-    })
-    url = f"https://huggingface.co/api/models?{params}"
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/json"}
-    )
-    urlopen = opener or urllib.request.urlopen
-    try:
-        with urlopen(request, timeout=20) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-        raise ModelDiscoveryError(f"Hugging Face search failed: {exc}") from exc
-    if not isinstance(payload, list):
-        raise ModelDiscoveryError("Hugging Face returned an unexpected model list")
-    results = []
-    for item in payload:
-        if not isinstance(item, dict):
-            continue
-        repo_id = item.get("id")
-        if (not isinstance(repo_id, str) or not _REPO_ID_RE.fullmatch(repo_id)
-                or any(part in {".", ".."} for part in repo_id.split("/"))):
-            continue
-        results.append(HuggingFaceModel(
-            repo_id=repo_id,
-            downloads=max(0, int(item.get("downloads") or 0)),
-            likes=max(0, int(item.get("likes") or 0)),
-        ))
-    return results
 
+    urlopen = opener or urllib.request.urlopen
+
+    def request_models(*, filter_gguf: bool) -> list[dict]:
+        params = {
+            "search": cleaned,
+            "sort": "downloads",
+            "direction": "-1",
+            "limit": str(limit),
+        }
+        if filter_gguf:
+            params["filter"] = "gguf"
+        url = "https://huggingface.co/api/models?" + urllib.parse.urlencode(params)
+        request = urllib.request.Request(
+            url, headers={
+                "User-Agent": "RPG-Engine/1.1",
+                "Accept": "application/json",
+            }
+        )
+        try:
+            with urlopen(request, timeout=20) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            raise ModelDiscoveryError(f"Hugging Face search failed: {exc}") from exc
+        if not isinstance(payload, list):
+            raise ModelDiscoveryError("Hugging Face returned an unexpected model list")
+        return [item for item in payload if isinstance(item, dict)]
+
+    raw_results = request_models(filter_gguf=True)
+    if not raw_results:
+        # Compatibility fallback for API/index deployments where filter=gguf
+        # produces false-empty results. It never triggers a model download.
+        raw_results = request_models(filter_gguf=False)
+        raw_results = [
+            item for item in raw_results
+            if (
+                "gguf" in str(item.get("id", "")).lower()
+                or (
+                    isinstance(item.get("tags"), list)
+                    and any(str(tag).lower() == "gguf" for tag in item["tags"])
+                )
+            )
+        ]
+
+    results: list[HuggingFaceModel] = []
+    seen: set[str] = set()
+    for item in raw_results:
+        repo_id = item.get("id")
+        if (
+            not isinstance(repo_id, str)
+            or not _REPO_ID_RE.fullmatch(repo_id)
+            or any(part in {".", ".."} for part in repo_id.split("/"))
+            or repo_id in seen
+        ):
+            continue
+        seen.add(repo_id)
+        try:
+            downloads = max(0, int(item.get("downloads") or 0))
+        except (TypeError, ValueError):
+            downloads = 0
+        try:
+            likes = max(0, int(item.get("likes") or 0))
+        except (TypeError, ValueError):
+            likes = 0
+        results.append(HuggingFaceModel(repo_id=repo_id, downloads=downloads, likes=likes))
+        if len(results) >= limit:
+            break
+    return results
 
 def list_huggingface_gguf_files(
     repo_id: str, *, opener: Callable[..., object] | None = None,

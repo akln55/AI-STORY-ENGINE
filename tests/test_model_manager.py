@@ -183,6 +183,42 @@ def test_huggingface_search_returns_validated_repository_metadata():
     assert results[0].likes == 56
 
 
+def test_huggingface_search_falls_back_when_gguf_filter_returns_empty():
+    import json
+
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    def opener(request, timeout):
+        calls.append(request.full_url)
+        if "filter=gguf" in request.full_url:
+            return FakeResponse([])
+        return FakeResponse([
+            {"id": "Qwen/Qwen3-1.7B-GGUF", "downloads": "42", "likes": "3"},
+            {"id": "Qwen/Qwen3-1.7B", "downloads": 9999, "tags": ["text-generation"]},
+            {"id": "../unsafe-GGUF", "downloads": 5},
+        ])
+
+    results = search_huggingface_models("Qwen", opener=opener)
+    assert len(calls) == 2
+    assert len(results) == 1
+    assert results[0].repo_id == "Qwen/Qwen3-1.7B-GGUF"
+    assert results[0].downloads == 42
+    assert results[0].likes == 3
+
+
 def test_huggingface_file_listing_only_returns_safe_gguf_under_size_limit():
     import json
 

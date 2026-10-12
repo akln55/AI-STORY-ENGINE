@@ -262,14 +262,14 @@ class HomeScreen(BaseScreen):
         shortcuts = BoxLayout(orientation="horizontal", spacing=dp(10), size_hint_y=None, height=dp(54))
         games = SoftButton(text="Oyunlar")
         games.bind(on_release=lambda *_: self.app_ref.open_game())
-        ai = SoftButton(text="AI ve API")
-        ai.bind(on_release=lambda *_: self.app_ref.open_ai())
+        settings = SoftButton(text="Ayarlar")
+        settings.bind(on_release=lambda *_: self.app_ref.go("settings"))
         shortcuts.add_widget(games)
-        shortcuts.add_widget(ai)
+        shortcuts.add_widget(settings)
         content.add_widget(shortcuts)
 
         content.add_widget(_aligned_label(
-            text="Senaryolar Oyun bölümünde; model ve API seçenekleri Ayarlar bölümünde.",
+            text="Senaryolar Oyun bölümünde. Model, Hugging Face ve API seçenekleri Ayarlar > Yapay zekâ bölümünde.",
             color=MUTED, font_size=sp(12), valign="top",
             size_hint_y=None, height=dp(42),
         ))
@@ -672,8 +672,8 @@ class AIScreen(BaseScreen):
         )
         content.bind(minimum_height=content.setter("height"))
         content.add_widget(self._heading(
-            "Yapay zekâ",
-            "Yerel model veya API sağlayıcısı seç. Model adlarını bilmen gerekmiyor; kataloğu kullanabilirsin.",
+            "Ayarlar · Yapay zekâ",
+            "Yerel GGUF, Hugging Face model kataloğu ve API sağlayıcılarını buradan yönet.",
         ))
 
         provider_panel = RoundedPanel(
