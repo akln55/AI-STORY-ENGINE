@@ -79,3 +79,11 @@ def test_android_workflow_verifies_staged_source_before_apk_metadata():
     assert "tools/verify_android_staging.py" in source
     assert "tools/verify_android_apk.py" in source
     assert "rpg-engine-v1.1.4-android-debug" in source
+
+
+def test_android_preserves_python_sources_for_apk_provenance_verification():
+    text = SPEC.read_text(encoding="utf-8")
+    assert "android.no-byte-compile-python = True" in text, (
+        "APK provenance verifier compares packaged Python source hashes; "
+        "Buildozer must not convert the source files to .pyc before packaging."
+    )

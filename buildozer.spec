@@ -17,6 +17,7 @@ android.minapi = 26
 android.archs = arm64-v8a
 android.allow_backup = 1
 android.accept_sdk_license = True
+android.no-byte-compile-python = True
 
 [buildozer]
 log_level = 2
