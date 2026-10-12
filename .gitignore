@@ -12,6 +12,14 @@ secret/
 *.pfx
 *.jks
 *.keystore
+*.p8
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.secret
+*.token
+.envrc
+.direnv/
 *credentials*.json
 *service-account*.json
 
