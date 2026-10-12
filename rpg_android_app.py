@@ -1214,17 +1214,8 @@ class AIScreen(BaseScreen):
         )
         cancel.bind(on_release=lambda *_: popup.dismiss())
 
-        def worker():
+        def worker(spec):
             try:
-                spec = ModelSpec(
-                    repo.text.strip(),
-                    filename.text.strip(),
-                    revision=revision.text.strip() or "main",
-                    expected_size_bytes=expected_size_bytes,
-                    expected_sha256=sha.text.strip() or None,
-                )
-                spec.validate()
-
                 def progress_callback(written, total):
                     def update(*_):
                         if total:
@@ -1250,14 +1241,28 @@ class AIScreen(BaseScreen):
             Clock.schedule_once(finish, 0)
 
         def start_download(*_):
-            if not repo.text.strip() or not filename.text.strip():
+            repo_id = repo.text.strip()
+            selected_filename = filename.text.strip()
+            if not repo_id or not selected_filename:
                 status.text = "Repository ve GGUF dosya adı zorunlu."
+                return
+            spec = ModelSpec(
+                repo_id,
+                selected_filename,
+                revision=revision.text.strip() or "main",
+                expected_size_bytes=expected_size_bytes,
+                expected_sha256=sha.text.strip() or None,
+            )
+            try:
+                spec.validate()
+            except Exception as exc:
+                status.text = f"Model bilgileri geçersiz: {exc}"
                 return
             self.app_ref._model_download_in_progress = True
             start.disabled = True
             cancel.disabled = True
             status.text = "Model doğrulanıyor ve indiriliyor…"
-            Thread(target=worker, daemon=True).start()
+            Thread(target=worker, args=(spec,), daemon=True).start()
 
         start.bind(on_release=start_download)
         popup.open()
@@ -1657,14 +1662,17 @@ class RPGEngineApp(App):
             opening = self.controller.submit("look")
         except Exception as exc:
             self._record_gameplay_error("initial_world_view", exc)
-            opening = (
-                "Dünya görünümü yüklenemedi. Ana menüye dönüp yeniden deneyebilirsin.\n"
-                f"Tanı: {type(exc).__name__}"
-            )
+            opening = "Dünya görünümü yüklenemedi. Ana menüye dönüp yeniden deneyebilirsin."
             self._gameplay_initialized = False
         else:
             self._gameplay_initialized = True
-        self.game.set_log("RPG Engine\n" + opening)
+        if self._gameplay_initialized:
+            self.game.set_log("RPG Engine\n" + opening)
+        else:
+            # Keep operational failures separate from in-world narration and
+            # avoid exposing implementation-specific exception names to players.
+            self.game.set_log("RPG Engine")
+            self.game.append(opening, role="error")
         self.game.refresh()
         return self._gameplay_initialized
 
