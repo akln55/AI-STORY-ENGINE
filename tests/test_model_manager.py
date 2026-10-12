@@ -213,3 +213,13 @@ def test_huggingface_file_listing_only_returns_safe_gguf_under_size_limit():
     assert [item.filename for item in files] == ["model.Q4_K_M.gguf", "unknown-size.gguf"]
     assert files[0].size_bytes == 1024
     assert files[1].size_bytes is None
+
+
+def test_model_spec_rejects_traversal_like_repository_ids():
+    for repo_id in ("../unsafe", "org/../model", "./model"):
+        try:
+            ModelSpec(repo_id, "model.gguf").validate()
+        except ModelSpecError:
+            pass
+        else:
+            raise AssertionError(f"expected ModelSpecError for {repo_id!r}")
