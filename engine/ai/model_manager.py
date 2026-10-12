@@ -536,6 +536,10 @@ def check_huggingface_connection(
         raise ModelDiscoveryError(f"Hugging Face returned HTTP {exc.code}") from None
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         reason = getattr(exc, "reason", exc)
+        # socket.timeout can carry an arbitrary message, so classify by type
+        # before relying on platform-specific exception text.
+        if isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError):
+            raise ModelDiscoveryError("Hugging Face connection timed out") from None
         raw = str(reason).lower()
         if any(term in raw for term in (
             "no address associated", "name or service not known",
