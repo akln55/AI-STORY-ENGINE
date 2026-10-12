@@ -29,17 +29,23 @@ from engine.ai.model_manager import ModelSpec
 from engine.ai.connectivity import APIConnectionError, check_api_connection
 
 
-# Adapted from the supplied "Void Panel Utilitarian" reference:
-# near-black canvas, quiet charcoal panels, white primary actions, restrained status green.
-BG = (0.0, 0.0, 0.0, 1)                    # #000000
-SURFACE = (17 / 255, 17 / 255, 17 / 255, 1) # #111111
+# Semantic dark-theme tokens: one source of truth for surfaces, text and actions.
+# Keep the canvas near-black, panels charcoal, and green reserved for active/status states.
+BG = (0.0, 0.0, 0.0, 1)                       # #000000
+SURFACE = (17 / 255, 17 / 255, 17 / 255, 1)   # #111111
 SURFACE_2 = (26 / 255, 26 / 255, 26 / 255, 1) # #1A1A1A
+SURFACE_PRESSED = (43 / 255, 43 / 255, 43 / 255, 1) # #2B2B2B
 BORDER = (1.0, 1.0, 1.0, 0.10)
-TEXT = (0.98, 0.98, 0.98, 1)                # near-white
-MUTED = (0.61, 0.64, 0.69, 1)               # muted gray
-ACCENT = (22 / 255, 163 / 255, 74 / 255, 1) # status/active only
+TEXT = (0.98, 0.98, 0.98, 1)                  # primary text
+TEXT_MUTED = (0.61, 0.64, 0.69, 1)            # secondary text
+PRIMARY_ACTION = (0.98, 0.98, 0.98, 1)        # light primary action surface
+PRIMARY_ACTION_TEXT = (0.035, 0.035, 0.035, 1) # dark text on light action
+ACCENT = (22 / 255, 163 / 255, 74 / 255, 1)   # status/active only
 DANGER = (0.86, 0.15, 0.15, 1)
 FOOTER_SURFACE = (10 / 255, 10 / 255, 10 / 255, 1)
+
+# Backwards-compatible alias while screens migrate to semantic names.
+MUTED = TEXT_MUTED
 
 
 def _aligned_label(text="", **kwargs):
@@ -89,33 +95,60 @@ class RoundedPanel(BoxLayout):
 
 class SoftButton(Button):
     fill = ColorProperty(SURFACE_2)
-    pressed_fill = ColorProperty((0.22, 0.22, 0.22, 1))
+    pressed_fill = ColorProperty(SURFACE_PRESSED)
+    disabled_fill = ColorProperty(SURFACE_2)
+    disabled_text = ColorProperty(MUTED)
     radius = NumericProperty(dp(22))
 
     def __init__(self, **kwargs):
+        # Set visual defaults on the instance. This keeps subclass overrides
+        # predictable under Kivy's property system and Android rendering.
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_down", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
         kwargs.setdefault("color", TEXT)
         kwargs.setdefault("font_size", sp(14))
+        kwargs.setdefault("bold", False)
         super().__init__(**kwargs)
         with self.canvas.before:
             self._color = Color(rgba=self.fill)
             self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
-        self.bind(pos=self._sync, size=self._sync, fill=self._sync, radius=self._sync)
+        self.bind(
+            pos=self._sync,
+            size=self._sync,
+            fill=self._sync,
+            pressed_fill=self._sync,
+            disabled_fill=self._sync,
+            disabled_text=self._sync,
+            radius=self._sync,
+            state=self._sync,
+            disabled=self._sync,
+        )
+        self._sync()
 
     def _sync(self, *_):
-        self._color.rgba = self.pressed_fill if self.state == "down" else self.fill
+        if self.disabled:
+            self._color.rgba = self.disabled_fill
+            self.color = self.disabled_text
+        else:
+            self._color.rgba = self.pressed_fill if self.state == "down" else self.fill
         self._rect.pos = self.pos
         self._rect.size = self.size
         self._rect.radius = [self.radius]
 
 
 class AccentButton(SoftButton):
-    # The reference uses a near-white pill as the primary action.
-    fill = ColorProperty(TEXT)
+    # Primary actions use a light surface and explicitly dark, readable text.
+    fill = ColorProperty(PRIMARY_ACTION)
     pressed_fill = ColorProperty((0.82, 0.82, 0.82, 1))
-    color = ColorProperty((0.03, 0.03, 0.03, 1))
+    disabled_fill = ColorProperty((0.32, 0.32, 0.32, 1))
+    disabled_text = ColorProperty((0.72, 0.72, 0.72, 1))
+    color = ColorProperty(PRIMARY_ACTION_TEXT)
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("color", PRIMARY_ACTION_TEXT)
+        kwargs.setdefault("font_size", sp(14))
+        super().__init__(**kwargs)
 
 
 class GhostButton(SoftButton):
