@@ -109,3 +109,13 @@ def test_ai_settings_content_is_scrollable_on_small_android_screens():
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
     assert 'root = ScrollView(do_scroll_x=False' in ai
     assert 'content.bind(minimum_height=content.setter("height"))' in ai
+
+
+def test_huggingface_catalog_is_available_from_ai_settings():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    controller = (ROOT / "engine/app/controller.py").read_text()
+    assert 'Hugging Face model kataloğu' in source
+    assert 'def search_remote_models(self, query: str' in controller
+    assert 'def remote_model_files(self, repo_id: str)' in controller
+    assert 'def show_remote_model_files(self, repo_id)' in source
+    assert 'def search_huggingface_models(' in (ROOT / "engine/ai/model_manager.py").read_text()
