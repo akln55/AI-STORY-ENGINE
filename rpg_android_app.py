@@ -20,6 +20,7 @@ from kivy.uix.screenmanager import Screen, ScreenManager, SlideTransition
 from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
+from kivy.storage.jsonstore import JsonStore
 from kivy.graphics import Color, RoundedRectangle, Line
 
 from engine import __version__
@@ -166,7 +167,7 @@ class HomeScreen(BaseScreen):
         self.meta.bind(size=lambda *_: setattr(self.meta, "text_size", self.meta.size))
         card.add_widget(self.meta)
         start = AccentButton(text="Oyuna devam et", size_hint_y=None, height=dp(48))
-        start.bind(on_release=lambda *_: self.app_ref.open_game())
+        start.bind(on_release=lambda *_: self.app_ref.open_gameplay())
         card.add_widget(start)
         root.add_widget(card)
 
@@ -223,9 +224,9 @@ class MessageBubble(RoundedPanel):
         self.height = max(dp(44), self._label.texture_size[1] + dp(20))
 
 
-class GameScreen(BaseScreen):
+class GameplayScreen(BaseScreen):
     def __init__(self, app, **kwargs):
-        super().__init__(app, name="game", **kwargs)
+        super().__init__(app, name="gameplay", **kwargs)
         root = BoxLayout(orientation="vertical", padding=[dp(12), dp(10), dp(12), dp(10)], spacing=dp(8))
         top = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
         back = GhostButton(text="‹", size_hint_x=None, width=dp(46), font_size=sp(28))
@@ -341,6 +342,81 @@ class GameScreen(BaseScreen):
         Thread(target=self.app_ref._submit_worker, args=(text,), daemon=True).start()
 
 
+class RecentGamesScreen(BaseScreen):
+    """The Oyun tab: resume the active campaign or launch a recent scenario."""
+
+    def __init__(self, app, **kwargs):
+        super().__init__(app, name="games", **kwargs)
+        root = BoxLayout(orientation="vertical", padding=[dp(18), dp(16), dp(18), dp(12)], spacing=dp(12))
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(8))
+        title = Label(text="Oyun", color=TEXT, font_size=sp(27), bold=True, halign="left")
+        title.bind(size=lambda *_: setattr(title, "text_size", title.size))
+        header.add_widget(title)
+        add = AccentButton(text="+ Senaryo", size_hint_x=None, width=dp(126), size_hint_y=None, height=dp(42))
+        add.bind(on_release=lambda *_: self.app_ref.import_scenario())
+        header.add_widget(add)
+        root.add_widget(header)
+
+        self.list_box = BoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
+        self.list_box.bind(minimum_height=self.list_box.setter("height"))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        scroll.add_widget(self.list_box)
+        root.add_widget(scroll)
+        self.add_widget(root)
+
+    def show(self):
+        super().show()
+        self.refresh()
+
+    def refresh(self):
+        self.list_box.clear_widgets()
+        active = RoundedPanel(orientation="vertical", padding=dp(16), spacing=dp(8),
+                              size_hint_y=None, height=dp(150))
+        active.add_widget(Label(text="Kaldığın yer", color=MUTED, font_size=sp(12),
+                                halign="left", size_hint_y=None, height=dp(20)))
+        active.add_widget(Label(text=self.app_ref.current_campaign_name(), color=TEXT,
+                                font_size=sp(19), bold=True, halign="left",
+                                size_hint_y=None, height=dp(30)))
+        active.add_widget(Label(text=f"Tur {self.app_ref.controller.turn} · {self.app_ref.controller.provider_name}",
+                                color=MUTED, font_size=sp(12), halign="left",
+                                size_hint_y=None, height=dp(22)))
+        resume = AccentButton(text="Devam et", size_hint_y=None, height=dp(42))
+        resume.bind(on_release=lambda *_: self.app_ref.open_gameplay())
+        active.add_widget(resume)
+        self.list_box.add_widget(active)
+
+        self.list_box.add_widget(Label(text="Son oynananlar", color=TEXT, font_size=sp(18),
+                                       bold=True, halign="left", size_hint_y=None, height=dp(32)))
+        recent = list(self.app_ref.recent_scenarios)
+        if not recent:
+            self.list_box.add_widget(Label(
+                text="Henüz kayıtlı bir senaryo yok. Sağ üstten + Senaryo ile bir dünya ekleyebilirsin.",
+                color=MUTED, font_size=sp(13), halign="left", valign="top",
+                size_hint_y=None, height=dp(58)))
+            return
+
+        installed_ids = {item.scenario_id for item in self.app_ref.controller.installed_scenarios()}
+        for item in recent:
+            sid = item.get("scenario_id", "")
+            name = item.get("name", sid or "Senaryo")
+            card = RoundedPanel(orientation="horizontal", padding=dp(12), spacing=dp(10),
+                                size_hint_y=None, height=dp(78))
+            info = BoxLayout(orientation="vertical", spacing=dp(4))
+            label = Label(text=name, color=TEXT, font_size=sp(14), bold=True, halign="left")
+            label.bind(size=lambda widget, *_: setattr(widget, "text_size", widget.size))
+            info.add_widget(label)
+            info.add_widget(Label(text="Demo dünya" if sid == "demo-bootstrap" else ("Kurulu senaryo" if sid in installed_ids else "Son oynanan"),
+                                  color=MUTED, font_size=sp(11), halign="left"))
+            card.add_widget(info)
+            launch = SoftButton(text="Aç", size_hint_x=None, width=dp(68))
+            if sid == "demo-bootstrap":
+                launch.bind(on_release=lambda *_: self.app_ref.open_gameplay())
+            else:
+                launch.bind(on_release=lambda *_a, scenario_id=sid: self.app_ref.open_scenario(scenario_id))
+            card.add_widget(launch)
+            self.list_box.add_widget(card)
+
+
 class ScenariosScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="scenarios", **kwargs)
@@ -387,12 +463,14 @@ class ScenariosScreen(BaseScreen):
 class AIScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="ai", **kwargs)
-        root = BoxLayout(orientation="vertical", padding=[dp(18), dp(18), dp(18), dp(12)], spacing=dp(12))
-        root.add_widget(self._heading("AI Modelleri", "PocketPal mantığı: modeli seç, indir/import et, sonra aktif et."))
+        root = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        content = BoxLayout(orientation="vertical", padding=[dp(18), dp(18), dp(18), dp(24)], spacing=dp(12), size_hint_y=None)
+        content.bind(minimum_height=content.setter("height"))
+        content.add_widget(self._heading("AI Modelleri", "PocketPal mantığı: modeli seç, indir/import et, sonra aktif et."))
 
         self.provider = Label(text="Aktif sağlayıcı: Demo / AI kapalı", color=TEXT, font_size=sp(16), bold=True, size_hint_y=None, height=dp(32), halign="left")
         self.provider.bind(size=lambda *_: setattr(self.provider, "text_size", self.provider.size))
-        root.add_widget(self.provider)
+        content.add_widget(self.provider)
 
         local = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(270))
         local.add_widget(Label(text="Local GGUF", color=TEXT, font_size=sp(15), bold=True, halign="left"))
@@ -407,7 +485,7 @@ class AIScreen(BaseScreen):
         local.add_widget(row)
         self.local_models = BoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None, height=dp(92))
         local.add_widget(self.local_models)
-        root.add_widget(local)
+        content.add_widget(local)
 
         api = RoundedPanel(orientation="vertical", padding=dp(14), spacing=dp(8), size_hint_y=None, height=dp(282))
         api.add_widget(Label(text="API sağlayıcısı", color=TEXT, font_size=sp(15), bold=True, halign="left"))
@@ -420,10 +498,11 @@ class AIScreen(BaseScreen):
         connect = AccentButton(text="API'ye bağlan", size_hint_y=None, height=dp(46))
         connect.bind(on_release=lambda *_: self.connect_api())
         api.add_widget(connect)
-        root.add_widget(api)
-        root.add_widget(Label(text="Gemini doğrudan desteklenir. API anahtarı yalnızca çalışma belleğinde tutulur; ağ endpoint'i yalnızca OpenAI-compatible sağlayıcı için kullanılır.", color=MUTED, font_size=sp(11), halign="left"))
+        content.add_widget(api)
+        content.add_widget(Label(text="Gemini doğrudan desteklenir. API anahtarı yalnızca çalışma belleğinde tutulur; ağ endpoint'i yalnızca OpenAI-compatible sağlayıcı için kullanılır.", color=MUTED, font_size=sp(11), halign="left"))
         self._provider_changed()
-        root.add_widget(Label())
+        content.add_widget(Label())
+        root.add_widget(content)
         self.add_widget(root)
 
     def _heading(self, title, subtitle):
@@ -625,19 +704,30 @@ class RPGEngineApp(App):
 
         try:
             self.controller = AppController.demo()
+            self.recent_scenarios = []
+            try:
+                recent_path = Path(self.user_data_dir) / "recent_scenarios.json"
+                recent_path.parent.mkdir(parents=True, exist_ok=True)
+                self._recent_store = JsonStore(str(recent_path))
+                if self._recent_store.exists("recent"):
+                    self.recent_scenarios = list(self._recent_store.get("recent").get("items", []))
+            except Exception:
+                self._recent_store = None
             self.manager = ScreenManager(transition=SlideTransition(duration=0.16))
             self.home = HomeScreen(self)
-            self.game = GameScreen(self)
+            self.games = RecentGamesScreen(self)
+            self.game = GameplayScreen(self)
             self.scenarios = ScenariosScreen(self)
             self.ai = AIScreen(self)
             self.settings = SettingsScreen(self)
-            for screen in (self.home, self.game, self.scenarios, self.ai, self.settings):
+            for screen in (self.home, self.games, self.game, self.scenarios, self.ai, self.settings):
                 self.manager.add_widget(screen)
 
             root = FloatLayout()
             root.add_widget(self.manager)
             root.add_widget(self._bottom_nav())
             self.manager.current = "home"
+            self._record_recent_scenario("demo-bootstrap", "Demo dünyası")
             Clock.schedule_once(lambda *_: self.home.refresh(), 0)
             return root
         except Exception as exc:
@@ -682,9 +772,12 @@ class RPGEngineApp(App):
             return root
 
     def _bottom_nav(self):
-        nav = RoundedPanel(orientation="horizontal", padding=[dp(6), dp(5)], spacing=dp(3), size_hint=(1, None), height=dp(66), pos_hint={"x": 0, "y": 0.0}, fill=(0.105, 0.105, 0.105, 0.98), radius=dp(22))
-        for icon, label, target in (("⌂", "Ana", "home"), ("▣", "Oyun", "game"), ("◈", "Dünya", "scenarios"), ("✦", "AI", "ai"), ("•••", "Ayar", "settings")):
-            b = GhostButton(text=f"{icon}\n{label}", font_size=sp(11))
+        # Plain text labels avoid tofu/missing-glyph boxes on Android fonts.
+        nav = RoundedPanel(orientation="horizontal", padding=[dp(8), dp(6)], spacing=dp(6),
+                           size_hint=(1, None), height=dp(62), pos_hint={"x": 0, "y": 0.0},
+                           fill=(0.105, 0.105, 0.105, 0.98), radius=dp(22))
+        for label, target in (("Oyun", "games"), ("Ana", "home"), ("Ayarlar", "settings")):
+            b = GhostButton(text=label, font_size=sp(13))
             b.bind(on_release=lambda *_a, t=target: self.go(t))
             nav.add_widget(b)
         return nav
@@ -697,10 +790,39 @@ class RPGEngineApp(App):
         if hasattr(target, "show"):
             target.show()
 
+    def go(self, screen):
+        self.manager.transition.direction = "right" if screen == "home" else "left"
+        self.manager.current = screen
+        target = self.manager.get_screen(screen)
+        if hasattr(target, "show"):
+            target.show()
+
     def open_home(self): self.go("home")
-    def open_game(self): self.go("game")
+    def open_game(self): self.go("games")
+    def open_gameplay(self):
+        self.go("gameplay")
     def open_scenarios(self): self.go("scenarios")
     def open_ai(self): self.go("ai")
+
+    def current_campaign_name(self):
+        pack = getattr(self.controller, "scenario_pack", None)
+        if pack is not None:
+            return getattr(pack, "name", self.controller.scenario_id)
+        return "Demo dünyası" if self.controller.scenario_id == "demo-bootstrap" else self.controller.scenario_id
+
+    def _record_recent_scenario(self, scenario_id, name):
+        item = {"scenario_id": str(scenario_id), "name": str(name)}
+        self.recent_scenarios = [old for old in self.recent_scenarios
+                                 if old.get("scenario_id") != item["scenario_id"]]
+        self.recent_scenarios.insert(0, item)
+        self.recent_scenarios = self.recent_scenarios[:8]
+        try:
+            if self._recent_store is not None:
+                self._recent_store.put("recent", items=self.recent_scenarios)
+        except Exception:
+            pass
+        if hasattr(self, "games"):
+            self.games.refresh()
 
     def notify(self, text):
         popup = Popup(title="RPG Engine", content=Label(text=text, color=TEXT, padding=[dp(14), dp(14)]), size_hint=(0.88, 0.28), background_color=SURFACE)
@@ -802,7 +924,8 @@ class RPGEngineApp(App):
         try:
             pack = self.controller.load_installed_scenario(scenario_id)
             self.controller.start_scenario(pack)
-            self._initial_game(); self.open_game()
+            self._record_recent_scenario(pack.scenario_id, pack.name)
+            self._initial_game(); self.open_gameplay()
         except Exception as exc:
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
