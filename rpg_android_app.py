@@ -1165,21 +1165,10 @@ class AIScreen(BaseScreen):
             self.api_status.text = "Model adı gerekli."
             self.api_status.color = DANGER
             return
-        try:
-            if provider == "Gemini":
-                self.app_ref.controller.set_gemini(api_key, model_name)
-            else:
-                self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
-        except Exception as exc:
-            self.api_status.text = f"Ayarlar uygulanamadı: {exc}"
-            self.api_status.color = DANGER
-            return
-
-        # The adapter retains the key in memory for game requests. The input
-        # control is cleared immediately; the probe uses this local variable and
-        # never records the credential or includes it in error text.
+        # Do not replace a working provider until the new credentials and
+        # endpoint have passed the connection probe below. This preserves the
+        # current adapter if the user mistypes a key or endpoint.
         self.api_key.text = ""
-        self.provider.text = self.app_ref.controller.provider_name
         self.api_status.text = "Bağlantı kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
@@ -1209,6 +1198,16 @@ class AIScreen(BaseScreen):
             def finish(*_):
                 if token != self._api_probe_token:
                     return
+                if success:
+                    try:
+                        if provider == "Gemini":
+                            self.app_ref.controller.set_gemini(api_key, model_name)
+                        else:
+                            self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
+                        self.provider.text = self.app_ref.controller.provider_name
+                    except Exception as exc:
+                        success = False
+                        message = f"Ayarlar uygulanamadı: {exc}"
                 self.api_status.text = message
                 self.api_status.color = ACCENT if success else DANGER
                 self.api_connect_button.disabled = False
