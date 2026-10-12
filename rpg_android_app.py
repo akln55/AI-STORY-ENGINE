@@ -747,11 +747,20 @@ class AIScreen(BaseScreen):
             valign="top", size_hint_y=None, height=dp(32),
         )
         api.add_widget(self.api_status)
+        self.api_models_picker = Spinner(
+            text="Model listesi testten sonra görünür", values=(),
+            size_hint_y=None, height=0, font_size=sp(12),
+            background_normal="", background_down="",
+            background_color=SURFACE_2, color=TEXT,
+        )
+        self.api_models_picker.bind(text=self._choose_api_model)
+        api.add_widget(self.api_models_picker)
         self.api_connect_button = AccentButton(
             text="Ayarları uygula ve test et", size_hint_y=None, height=dp(46),
         )
         self.api_connect_button.bind(on_release=lambda *_: self.connect_api())
         api.add_widget(self.api_connect_button)
+        self.api_panel = api
         content.add_widget(api)
         content.add_widget(_aligned_label(
             text="API anahtarı cihazda kalıcı olarak saklanmaz; yalnızca bu oturumda kullanılır. "
@@ -787,6 +796,19 @@ class AIScreen(BaseScreen):
             self.api_model.text = "gemini-3.6-flash"
         elif not gemini and self.api_model.text.strip() == "gemini-3.6-flash":
             self.api_model.text = "gpt-4.1-mini"
+        if hasattr(self, "api_models_picker"):
+            self.api_models_picker.values = ()
+            self.api_models_picker.text = "Model listesi testten sonra görünür"
+            self.api_models_picker.height = 0
+        if hasattr(self, "api_panel"):
+            self.api_panel.height = dp(470)
+        if hasattr(self, "api_status"):
+            self.api_status.text = "Sağlayıcı değişti; model listesini görmek için bağlantıyı test et."
+            self.api_status.color = MUTED
+
+    def _choose_api_model(self, _spinner, selected):
+        if selected and selected in self.api_models_picker.values:
+            self.api_model.text = selected
 
     def refresh(self):
         self.provider.text = self.app_ref.controller.provider_name
@@ -1151,10 +1173,12 @@ class AIScreen(BaseScreen):
         self.api_status.text = "Bağlantı kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
+        self.api_provider.disabled = True
         token = getattr(self, "_api_probe_token", 0) + 1
         self._api_probe_token = token
 
         def worker():
+            model_ids = ()
             try:
                 result = check_api_connection(
                     provider,
@@ -1163,6 +1187,7 @@ class AIScreen(BaseScreen):
                     timeout=12.0,
                 )
                 message = result.message
+                model_ids = result.model_ids
                 success = True
             except APIConnectionError as exc:
                 message = str(exc)
@@ -1177,6 +1202,19 @@ class AIScreen(BaseScreen):
                 self.api_status.text = message
                 self.api_status.color = ACCENT if success else DANGER
                 self.api_connect_button.disabled = False
+                self.api_provider.disabled = False
+                if success and model_ids:
+                    self.api_models_picker.values = model_ids[:20]
+                    self.api_models_picker.text = "Bulunan modelleri seç"
+                    self.api_models_picker.height = dp(42)
+                    self.api_panel.height = dp(512)
+                else:
+                    self.api_models_picker.values = ()
+                    self.api_models_picker.text = "Model listesi bulunamadı"
+                    self.api_models_picker.height = 0
+                    self.api_panel.height = dp(470)
+                if success and model_ids:
+                    self.api_status.text = message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
 
             Clock.schedule_once(finish, 0)
 
