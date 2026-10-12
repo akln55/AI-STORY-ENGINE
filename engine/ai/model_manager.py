@@ -331,9 +331,8 @@ def list_huggingface_gguf_files(
         f"https://huggingface.co/api/models/{encoded_repo}?blobs=true",
         headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/json"},
     )
-    urlopen = opener or urllib.request.urlopen
     try:
-        with urlopen(request, timeout=20) as response:
+        with _open_url(request, timeout=20, opener=opener) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         raise ModelDiscoveryError(f"Could not read Hugging Face repository: {exc}") from exc
@@ -391,7 +390,6 @@ def download_huggingface_model(
         headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/octet-stream"},
         method="GET",
     )
-    urlopen = opener or urllib.request.urlopen
     try:
         response = _open_url(request, timeout=60, opener=opener)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
@@ -524,7 +522,6 @@ def check_huggingface_connection(
             "Accept": "application/json",
         },
     )
-    urlopen = opener or urllib.request.urlopen
     try:
         with _open_url(request, timeout=timeout, opener=opener) as response:
             status_value = getattr(response, "status", None)
