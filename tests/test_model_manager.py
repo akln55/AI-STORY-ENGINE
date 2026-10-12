@@ -14,6 +14,8 @@ from engine.ai.model_manager import (
     download_huggingface_model,
     install_imported_model,
     list_installed_models,
+    list_huggingface_gguf_files,
+    search_huggingface_models,
     model_storage_dir,
     validate_model_file,
 )
@@ -149,3 +151,65 @@ def test_download_uses_expected_size_and_hash(tmp_path):
     installed = download_huggingface_model(spec, tmp_path / "models", opener=opener)
     assert installed.path.exists()
     assert installed.sha256 == sha
+
+
+def test_huggingface_search_returns_validated_repository_metadata():
+    import json
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps([
+                {"id": "Qwen/Qwen3-1.7B-GGUF", "downloads": 1234, "likes": 56},
+                {"id": "../unsafe", "downloads": 999},
+                {"id": "invalid"},
+            ]).encode()
+
+    def opener(request, timeout):
+        assert request.full_url.startswith("https://huggingface.co/api/models?")
+        assert "filter=gguf" in request.full_url
+        assert timeout == 20
+        return FakeResponse()
+
+    results = search_huggingface_models("Qwen GGUF", opener=opener)
+    assert len(results) == 1
+    assert results[0].repo_id == "Qwen/Qwen3-1.7B-GGUF"
+    assert results[0].downloads == 1234
+    assert results[0].likes == 56
+
+
+def test_huggingface_file_listing_only_returns_safe_gguf_under_size_limit():
+    import json
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "siblings": [
+                    {"rfilename": "model.Q4_K_M.gguf", "size": 1024},
+                    {"rfilename": "folder/nested.gguf", "size": 1024},
+                    {"rfilename": "too-big.gguf", "size": HARD_MAX_MODEL_BYTES + 1},
+                    {"rfilename": "readme.md", "size": 50},
+                    {"rfilename": "unknown-size.gguf"},
+                ]
+            }).encode()
+
+    def opener(request, timeout):
+        assert request.full_url == "https://huggingface.co/api/models/Qwen/model?blobs=true"
+        assert timeout == 20
+        return FakeResponse()
+
+    files = list_huggingface_gguf_files("Qwen/model", opener=opener)
+    assert [item.filename for item in files] == ["model.Q4_K_M.gguf", "unknown-size.gguf"]
+    assert files[0].size_bytes == 1024
+    assert files[1].size_bytes is None
