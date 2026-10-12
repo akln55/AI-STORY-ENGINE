@@ -158,7 +158,7 @@ class HomeScreen(BaseScreen):
         sub.bind(size=lambda *_: setattr(sub, "text_size", sub.size))
         root.add_widget(sub)
 
-        card = RoundedPanel(orientation="vertical", padding=dp(18), spacing=dp(12), size_hint_y=None, height=dp(176))
+        card = RoundedPanel(orientation="vertical", padding=dp(16), spacing=dp(9), size_hint_y=None, height=dp(208))
         card.add_widget(Label(text="Kaldığın yer", color=MUTED, font_size=sp(12), halign="left", size_hint_y=None, height=dp(22)))
         self.status = Label(text="Demo dünyası hazır", color=TEXT, font_size=sp(20), bold=True, halign="left", size_hint_y=None, height=dp(34))
         self.status.bind(size=lambda *_: setattr(self.status, "text_size", self.status.size))
@@ -171,7 +171,7 @@ class HomeScreen(BaseScreen):
         card.add_widget(start)
         root.add_widget(card)
 
-        hint = Label(text="Senaryoları, AI modellerini ve API bağlantılarını aşağıdaki menüden yönetebilirsin.", color=MUTED, font_size=sp(13), halign="left", valign="top")
+        hint = Label(text="Senaryoları Oyun bölümünden; AI modellerini ve API bağlantılarını Ayarlar bölümünden yönetebilirsin.", color=MUTED, font_size=sp(13), halign="left", valign="top")
         hint.bind(size=lambda *_: setattr(hint, "text_size", hint.size))
         root.add_widget(hint)
         root.add_widget(Label())
@@ -501,7 +501,6 @@ class AIScreen(BaseScreen):
         content.add_widget(api)
         content.add_widget(Label(text="Gemini doğrudan desteklenir. API anahtarı yalnızca çalışma belleğinde tutulur; ağ endpoint'i yalnızca OpenAI-compatible sağlayıcı için kullanılır.", color=MUTED, font_size=sp(11), halign="left"))
         self._provider_changed()
-        content.add_widget(Label())
         root.add_widget(content)
         self.add_widget(root)
 
@@ -781,14 +780,6 @@ class RPGEngineApp(App):
             b.bind(on_release=lambda *_a, t=target: self.go(t))
             nav.add_widget(b)
         return nav
-
-    def go(self, screen):
-        current = self.manager.current
-        self.manager.transition.direction = "left" if screen != "home" else "right"
-        self.manager.current = screen
-        target = self.manager.get_screen(screen)
-        if hasattr(target, "show"):
-            target.show()
 
     def go(self, screen):
         self.manager.transition.direction = "right" if screen == "home" else "left"
