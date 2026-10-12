@@ -84,3 +84,37 @@ def test_body_label_does_not_replace_inherited_kivy_property_descriptors():
         assert _has_kwargs_default(init, name), (
             f"BodyLabel should configure {name} via instance kwargs."
         )
+
+
+
+def test_soft_button_updates_pressed_and_disabled_visual_states():
+    soft_button = _class_node("SoftButton")
+    init = _init_method(soft_button)
+    init_source = ast.get_source_segment(APP_SOURCE.read_text(encoding="utf-8"), init) or ""
+
+    assert _has_kwargs_default(init, "color"), (
+        "SoftButton must set a readable text color on the instance."
+    )
+    assert _has_kwargs_default(init, "disabled_color"), (
+        "Disabled button text must use an explicit accessible color."
+    )
+    assert "state=self._sync" in init_source, (
+        "The button background must refresh when its pressed state changes."
+    )
+    assert "disabled=self._sync" in init_source, (
+        "The button background must refresh when it becomes disabled."
+    )
+
+
+def test_accent_button_has_explicit_contrasting_text_color():
+    accent_button = _class_node("AccentButton")
+    class_names = _class_assignment_names(accent_button)
+
+    assert "color" in class_names, (
+        "Primary action buttons must define their own text color rather than "
+        "inherit a potentially conflicting default."
+    )
+    init = _init_method(accent_button)
+    assert _has_kwargs_default(init, "color"), (
+        "Primary action text color must also be set explicitly per instance."
+    )
