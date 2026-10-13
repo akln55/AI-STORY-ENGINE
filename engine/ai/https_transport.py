@@ -1,9 +1,9 @@
-Verified HTTPS transport shared by external AI providers.
+"""Verified HTTPS transport shared by external AI providers.
 
-Android's Python runtime may not discover the platform CA bundle reliably.
-Prefer certifi's maintained roots when installed, otherwise use Python's normal
-verified system trust store. Certificate verification is never disabled.
-
+Android Python runtimes may not discover the platform CA bundle reliably.
+Prefer certifi roots when installed; otherwise use Python's verified system
+trust store. Certificate verification is never disabled.
+"""
 from __future__ import annotations
 
 import ssl
