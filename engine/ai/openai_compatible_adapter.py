@@ -11,6 +11,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from engine.ai.https_transport import open_url
 from engine.ai.adapter_base import AIAdapter
 from engine.ai.reliability import AIProviderError, AICapabilities
 from engine.ai.schema import StructuredResponse, parse_structured_response_json
@@ -85,7 +86,7 @@ class OpenAICompatibleAdapter(AIAdapter):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_url(request, timeout=self.timeout) as response:
                 raw = response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
