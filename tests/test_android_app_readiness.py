@@ -219,7 +219,7 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     assert 'self.api_models_picker = Spinner(' in ai
     assert 'self.api_models_picker.values = model_ids[:20]' in ai
     assert 'self.api_model.text = selected' in ai
-    assert 'self.api_panel.height = dp(512)' in ai
+    assert 'self.api_panel.height = dp(562)' in ai
 
 
 def test_selecting_discovered_api_model_updates_live_adapter():
