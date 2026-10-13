@@ -549,3 +549,81 @@ def test_huggingface_search_supports_validated_sort_modes():
         pass
     else:
         raise AssertionError("unsupported sort mode must be rejected")
+
+
+
+def test_download_resumes_partial_file_with_http_range(tmp_path):
+    import hashlib
+
+    payload = _gguf_payload(b"RESUMED")
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    part = models_dir / "model.Q4_K_M.gguf.part"
+    offset = len(payload) // 2
+    part.write_bytes(payload[:offset])
+    calls = []
+
+    class FakeResponse:
+        status = 206
+
+        def __init__(self):
+            self.headers = {
+                "Content-Length": str(len(payload) - offset),
+                "Content-Range": f"bytes {offset}-{len(payload)-1}/{len(payload)}",
+            }
+            self.remaining = payload[offset:]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self, size=-1):
+            chunk, self.remaining = self.remaining[:size], self.remaining[size:]
+            return chunk
+
+    def opener(request, timeout):
+        calls.append(request.get_header("Range"))
+        return FakeResponse()
+
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
+    installed = download_huggingface_model(spec, models_dir, opener=opener)
+    assert calls == [f"bytes={offset}-"]
+    assert installed.path.read_bytes() == payload
+    assert installed.sha256 == hashlib.sha256(payload).hexdigest()
+    assert not part.exists()
+
+
+def test_download_keeps_partial_file_when_stream_is_interrupted(tmp_path):
+    import urllib.error
+
+    payload = _gguf_payload(b"PARTIAL")
+
+    class FakeResponse:
+        status = 200
+        headers = {"Content-Length": str(len(payload))}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self, size=-1):
+            if hasattr(self, "sent"):
+                raise urllib.error.URLError(TimeoutError("timed out"))
+            self.sent = True
+            return payload[:12]
+
+    def opener(_request, timeout):
+        return FakeResponse()
+
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf")
+    try:
+        download_huggingface_model(spec, tmp_path / "models", opener=opener)
+    except Exception:
+        pass
+    else:
+        raise AssertionError("interrupted stream should fail")
+    assert (tmp_path / "models" / "model.Q4_K_M.gguf.part").exists()
