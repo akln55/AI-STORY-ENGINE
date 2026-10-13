@@ -750,7 +750,14 @@ class AIScreen(BaseScreen):
         self.hf_search = PillInput(hint_text="Model veya aile ara")
         self.hf_search.bind(on_text_validate=lambda *_: self.search_remote_models())
         search_row.add_widget(self.hf_search)
-        search_button = AccentButton(text="⌕  Ara", size_hint_x=None, width=dp(82))
+        self.hf_sort = Spinner(
+            text="İndirme", values=("İndirme", "Beğeni", "Güncel"),
+            size_hint_x=None, width=dp(92), font_size=sp(10),
+            background_normal="", background_down="",
+            background_color=SURFACE_2, color=TEXT,
+        )
+        search_row.add_widget(self.hf_sort)
+        search_button = AccentButton(text="Ara", size_hint_x=None, width=dp(56))
         search_button.bind(on_release=lambda *_: self.search_remote_models())
         search_row.add_widget(search_button)
         self.hf_catalog.add_widget(search_row)
@@ -836,6 +843,12 @@ class AIScreen(BaseScreen):
         )
         self.api_models_picker.bind(text=self._choose_api_model)
         api.add_widget(self.api_models_picker)
+        self.api_model_filter = PillInput(
+            hint_text="Model listesinde filtrele…", size_hint_y=None, height=0,
+        )
+        self.api_model_filter.bind(text=lambda *_: self._filter_api_models())
+        api.add_widget(self.api_model_filter)
+        self._api_all_model_ids = ()
         self.api_connect_button = AccentButton(
             text="✓  Ayarları uygula ve test et", size_hint_y=None, height=dp(46),
         )
@@ -912,14 +925,22 @@ class AIScreen(BaseScreen):
         if hasattr(self, "api_generation_test_button"):
             self.api_generation_test_button.disabled = True
 
+    def _filter_api_models(self):
+        all_models = getattr(self, "_api_all_model_ids", ())
+        query = self.api_model_filter.text.strip().casefold()
+        filtered = tuple(model for model in all_models if query in model.casefold())[:30]
+        current = self.api_models_picker.text
+        self.api_models_picker.values = filtered
+        if current not in filtered:
+            self.api_models_picker.text = "Filtrelenen modelleri seç" if filtered else "Eşleşen model yok"
+        if not filtered and all_models:
+            self.api_status.text = "Filtreyle eşleşen model yok. Filtreyi kısalt veya model adını elle gir."
+            self.api_status.color = MUTED
+
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
             return
         self.api_model.text = selected
-        # The connection probe initially configures the adapter with the
-        # manually entered model. Selecting a discovered model must update the
-        # live adapter too, otherwise the UI would claim a model is selected
-        # while gameplay keeps sending requests to the old one.
         adapter = getattr(self.app_ref.controller.session, "adapter", None)
         if adapter is not None and hasattr(adapter, "model"):
             adapter.model = selected
@@ -1047,7 +1068,10 @@ class AIScreen(BaseScreen):
 
         def worker():
             try:
-                models = self.app_ref.controller.search_remote_models(query, limit=8)
+                sort_by = {"İndirme": "downloads", "Beğeni": "likes", "Güncel": "lastModified"}.get(
+                    self.hf_sort.text, "downloads"
+                )
+                models = self.app_ref.controller.search_remote_models(query, limit=8, sort_by=sort_by)
                 error = None
             except Exception as exc:
                 models = []
@@ -1363,17 +1387,23 @@ class AIScreen(BaseScreen):
                 self.api_provider.disabled = False
                 self.api_generation_test_button.disabled = not apply_success
                 if apply_success and model_ids:
-                    self.api_models_picker.values = model_ids[:20]
+                    self._api_all_model_ids = tuple(model_ids)
+                    self.api_model_filter.text = ""
+                    self.api_model_filter.height = dp(42)
+                    self.api_models_picker.values = model_ids[:30]
                     self.api_models_picker.text = "Bulunan modelleri seç"
                     self.api_models_picker.height = dp(42)
-                    self.api_panel.height = dp(562)
+                    self.api_panel.height = dp(612)
                 else:
+                    self._api_all_model_ids = ()
+                    self.api_model_filter.text = ""
+                    self.api_model_filter.height = 0
                     self.api_models_picker.values = ()
                     self.api_models_picker.text = "Model listesi bulunamadı"
                     self.api_models_picker.height = 0
                     self.api_panel.height = dp(520)
                 if apply_success and model_ids:
-                    self.api_status.text = final_message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
+                    self.api_status.text = final_message + " Model listesini filtreleyebilir veya adını elle yazabilirsin."
 
             Clock.schedule_once(finish, 0)
 
