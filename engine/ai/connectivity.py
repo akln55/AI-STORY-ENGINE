@@ -6,6 +6,7 @@ not a guarantee that every selected model supports the engine's JSON contract.
 """
 from __future__ import annotations
 
+from engine.ai.https_transport import open_url
 from dataclasses import dataclass
 import json
 from typing import Callable
@@ -96,9 +97,8 @@ def check_api_connection(
         raise APIConnectionError("Desteklenmeyen API sağlayıcısı.")
 
     request = urllib.request.Request(url, headers=headers, method="GET")
-    urlopen = opener or urllib.request.urlopen
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with open_url(request, timeout=timeout, opener=opener) as response:
             status_value = getattr(response, "status", None)
             status = int(status_value if status_value is not None else response.getcode())
             body = response.read(65536)
