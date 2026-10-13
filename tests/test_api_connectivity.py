@@ -1,5 +1,6 @@
 import io
 import json
+import ssl
 import urllib.error
 
 import pytest
@@ -109,3 +110,57 @@ def test_gemini_model_list_filters_out_non_generation_models():
         })
     result = check_api_connection("Gemini", api_key="test-only-secret", opener=opener)
     assert result.model_ids == ("gemini-good",)
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected"),
+    [
+        (ssl.SSLCertVerificationError("certificate verify failed"), "TLS sertifika"),
+        (OSError("Connection refused"), "bağlantıyı reddetti"),
+        (OSError("Connection reset by peer"), "kesildi"),
+        (TimeoutError("timed out"), "zamanında yanıt vermedi"),
+    ],
+)
+def test_connection_probe_classifies_common_network_failures_without_leaking_details(reason, expected):
+    def opener(request, timeout):
+        raise urllib.error.URLError(reason)
+
+    with pytest.raises(APIConnectionError) as caught:
+        check_api_connection(
+            "OpenAI", endpoint="https://api.example.invalid/v1",
+            api_key="test-only-secret", opener=opener,
+        )
+    assert expected in str(caught.value)
+    assert "test-only-secret" not in str(caught.value)
+    assert "example.invalid" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("provider", "payload"),
+    [
+        ("OpenAI", {"message": "This is a proxy login page"}),
+        ("Gemini", {"data": [{"id": "wrong-provider-shape"}]}),
+        ("OpenAI", ["not", "an", "object"]),
+    ],
+)
+def test_connection_probe_rejects_success_status_with_wrong_response_shape(provider, payload):
+    def opener(request, timeout):
+        return FakeResponse(payload)
+
+    with pytest.raises(APIConnectionError, match="model-listesi"):
+        check_api_connection(
+            provider,
+            endpoint="https://api.example.invalid/v1" if provider == "OpenAI" else "",
+            api_key="test-only-secret",
+            opener=opener,
+        )
+
+
+def test_empty_but_valid_model_collection_is_still_a_successful_connection():
+    result = check_api_connection(
+        "OpenAI", endpoint="https://api.example.invalid/v1",
+        api_key="test-only-secret",
+        opener=lambda request, timeout: FakeResponse({"data": []}),
+    )
+    assert result.available_models == 0
+    assert "0 model bulundu" in result.message
