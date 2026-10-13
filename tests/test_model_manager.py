@@ -510,7 +510,7 @@ def test_huggingface_download_sanitizes_midstream_timeout_and_cleans_partial(tmp
         raise AssertionError("expected sanitized mid-stream download timeout")
 
     models_dir = tmp_path / "models"
-    assert not list(models_dir.glob("*.part"))
+    assert list(models_dir.glob("*.part"))
     assert not list(models_dir.glob("*.gguf"))
 
 
@@ -558,7 +558,8 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
     payload = _gguf_payload(b"RESUMED")
     models_dir = tmp_path / "models"
     models_dir.mkdir()
-    part = models_dir / "model.Q4_K_M.gguf.part"
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
+    part = models_dir / (spec.destination_name + ".part")
     offset = len(payload) // 2
     part.write_bytes(payload[:offset])
     calls = []
@@ -587,7 +588,6 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
         calls.append(request.get_header("Range"))
         return FakeResponse()
 
-    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
     installed = download_huggingface_model(spec, models_dir, opener=opener)
     assert calls == [f"bytes={offset}-"]
     assert installed.path.read_bytes() == payload
@@ -626,4 +626,4 @@ def test_download_keeps_partial_file_when_stream_is_interrupted(tmp_path):
         pass
     else:
         raise AssertionError("interrupted stream should fail")
-    assert (tmp_path / "models" / "model.Q4_K_M.gguf.part").exists()
+    assert (tmp_path / "models" / (spec.destination_name + ".part")).exists()
