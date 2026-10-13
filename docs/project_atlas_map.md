@@ -1,6 +1,7 @@
 # Project Atlas Map
 
-Last verified: 2026-10-12
+Last updated: 2026-10-13
+Current focus: AI provider connectivity; see `docs/AI_NETWORKING_STATUS.md`
 Repository: `akln55/AI-STORY-ENGINE`
 Version: `1.1.4`
 Purpose: navigation map for future audits and implementation. This is an index of source-of-truth owners, not proof that every runtime path works.
@@ -28,7 +29,7 @@ Primary user surface: Android app. Developer surfaces: Python engine/tests/tools
 | CAP-STATE | Authoritative character/world/NPC/item/quest state | `engine/core/state.py:12-265`; `engine/core/invariants.py` | `tests/test_invariants.py`, `tests/test_validation.py` |
 | CAP-RULES | Deterministic rules and atomic effect validation | `engine/core/validation.py:120-430`; `engine/rules/` | `tests/test_rules.py`, `tests/test_validation.py`, mutation smoke |
 | CAP-AI | Structured AI response and proposal contract | `engine/ai/schema.py:65-208`; `engine/ai/security.py` | `tests/test_ai_schema.py`, `tests/test_ai_contract.py`, `tests/test_ai_security.py` |
-| CAP-PROVIDER | Remote and local inference adapters, retry/health/fallback | `engine/ai/adapter_base.py:14-18`; `engine/ai/gemini_adapter.py:67-130`; `engine/ai/openai_compatible_adapter.py:27-119`; `engine/ai/llama_cpp_process_adapter.py:139-220`; `engine/ai/reliability.py` | `tests/test_gemini_adapter.py`, `tests/test_openai_compatible_adapter.py`, `tests/test_llama_cpp_process_adapter.py`, `tests/test_ai_reliability.py`, `tests/test_ai_retry.py` |
+| CAP-PROVIDER | Remote and local inference adapters, retry/health/fallback | `engine/ai/adapter_base.py:14-18`; `engine/ai/https_transport.py`; `engine/ai/connectivity.py`; `engine/ai/gemini_adapter.py:67-130`; `engine/ai/openai_compatible_adapter.py:27-119`; `engine/ai/llama_cpp_process_adapter.py:139-220`; `engine/ai/reliability.py` | `tests/test_gemini_adapter.py`, `tests/test_openai_compatible_adapter.py`, HTTPS transport tests, `tests/test_ai_reliability.py`, `tests/test_ai_retry.py`; physical provider call still unverified |
 | CAP-LOCAL-MODEL | Import/download/validate GGUF and start local native server | `engine/ai/model_manager.py:66-332`; `engine/ai/llama_native_runtime.py:38-229`; `engine/app/controller.py:107-170` | `tests/test_model_manager.py`, `tests/test_llama_native_runtime.py`, `tests/test_app_controller.py` |
 | CAP-MEMORY | Memory validation, visibility, retrieval, archival | `engine/memory/system.py:43-406`; `engine/memory/retrieval.py:18-118`; `engine/ai/context.py:73-292` | `tests/test_memory.py`, `tests/test_context_memory.py`, `tests/test_memory_ai.py`, `tests/test_knowledge.py` |
 | CAP-SAVE | Serialize state/memory, atomic save/load, backups and slots | `engine/persistence/db.py:101-511`; `engine/persistence/saves.py:24-196` | `tests/test_persistence.py`, `tests/test_persistence_memory.py`, `tests/test_persistence_relationships.py` |
@@ -120,3 +121,13 @@ Primary user surface: Android app. Developer surfaces: Python engine/tests/tools
 3. Coverage and branch-coverage baselines have not yet been measured.
 4. Provider fallback and retry behavior has unit tests, but live-provider behavior with real service rate limits/credential failures remains an external integration gate.
 5. Several docs contain older version/test counts; use current source/workflows and current run logs when deciding readiness.
+
+
+## Current AI/network investigation (2026-10-13)
+
+- Shared outbound HTTPS owner: `engine/ai/https_transport.py`; certificate and hostname validation remain enabled.
+- Provider model-list probe: `engine/ai/connectivity.py`; this confirms a provider's model-list API path, not generation.
+- Actual-generation diagnostic: `rpg_android_app.py` in `AIScreen.test_api_generation`; it calls the selected adapter's `generate` method and reports a sanitized error class.
+- Android INTERNET permission exists in `buildozer.spec`, but permission presence is not proof of working mobile-data access.
+- Last green source baseline: [run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), 538 passed. The subsequent panel-height assertion was updated; latest CI must be checked.
+- Physical device/carrier/provider behavior is an explicit unknown, not a passed gate. Do not start an APK build unless the user asks.
