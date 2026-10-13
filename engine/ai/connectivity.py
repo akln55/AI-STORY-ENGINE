@@ -6,13 +6,15 @@ not a guarantee that every selected model supports the engine's JSON contract.
 """
 from __future__ import annotations
 
-from engine.ai.https_transport import open_url
 from dataclasses import dataclass
 import json
+import ssl
 from typing import Callable
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from engine.ai.https_transport import open_url
 
 
 class APIConnectionError(RuntimeError):
@@ -29,7 +31,15 @@ class APIConnectionResult:
 
 
 def _network_error_message(exc: BaseException) -> str:
-    raw = str(getattr(exc, "reason", exc)).lower()
+    reason = getattr(exc, "reason", exc)
+    if isinstance(reason, ssl.SSLCertVerificationError) or any(
+        term in str(reason).lower() for term in (
+            "certificate verify failed", "hostname mismatch",
+            "self-signed certificate", "tls", "ssl",
+        )
+    ):
+        return "TLS sertifika doğrulaması başarısız. Cihazın tarihini ve ağ bağlantısını kontrol et."
+    raw = str(reason).lower()
     if any(term in raw for term in (
         "no address associated", "name or service not known",
         "temporary failure in name resolution", "nodename nor servname",
@@ -40,6 +50,10 @@ def _network_error_message(exc: BaseException) -> str:
         return "Sunucu zamanında yanıt vermedi. Bağlantını kontrol edip tekrar dene."
     if "network is unreachable" in raw or "no route to host" in raw:
         return "Ağa erişilemiyor. İnternet bağlantını kontrol edip tekrar dene."
+    if "connection refused" in raw:
+        return "Sunucu bağlantıyı reddetti. Endpoint adresini ve sunucunun çalıştığını kontrol et."
+    if any(term in raw for term in ("connection reset", "connection aborted", "remote end closed")):
+        return "Bağlantı sunucu tarafından kesildi. Biraz sonra tekrar dene."
     return "Sunucuya ulaşılamadı. İnternet bağlantısını ve endpoint adresini kontrol et."
 
 
@@ -122,32 +136,36 @@ def check_api_connection(
     except (UnicodeDecodeError, ValueError):
         raise APIConnectionError("Sunucu yanıt verdi ancak geçerli JSON döndürmedi.") from None
 
-    model_count = None
+    if not isinstance(payload, dict):
+        raise APIConnectionError("Sunucu yanıt verdi ancak model-listesi yanıt biçimi geçersiz.")
+
+    # Require the provider's documented collection field. An unrelated JSON
+    # page or proxy response must not be reported as a successful API check.
+    collection_key = "models" if label == "Gemini" else "data"
+    collection = payload.get(collection_key)
+    if not isinstance(collection, list):
+        raise APIConnectionError("Sunucu yanıt verdi ancak beklenen model-listesi bulunamadı. Endpoint adresini kontrol et.")
+
     model_ids: list[str] = []
-    if isinstance(payload, dict):
-        collection = payload.get("data")
-        if not isinstance(collection, list):
-            collection = payload.get("models")
-        if isinstance(collection, list):
-            model_count = len(collection)
-            for item in collection:
-                if not isinstance(item, dict):
-                    continue
-                model_id = item.get("id") or item.get("name")
-                if not isinstance(model_id, str) or not model_id.strip():
-                    continue
-                if label == "Gemini":
-                    supported = item.get("supportedGenerationMethods")
-                    if isinstance(supported, list) and "generateContent" not in supported:
-                        continue
-                    if model_id.startswith("models/"):
-                        model_id = model_id[len("models/"):]
-                if model_id not in model_ids:
-                    model_ids.append(model_id)
-                if len(model_ids) >= 30:
-                    break
-    offered_count = len(model_ids) if model_ids else model_count
-    suffix = f" · {offered_count} model bulundu" if offered_count is not None else ""
+    for item in collection:
+        if not isinstance(item, dict):
+            continue
+        model_id = item.get("id") or item.get("name")
+        if not isinstance(model_id, str) or not model_id.strip():
+            continue
+        if label == "Gemini":
+            supported = item.get("supportedGenerationMethods")
+            if isinstance(supported, list) and "generateContent" not in supported:
+                continue
+            if model_id.startswith("models/"):
+                model_id = model_id[len("models/"):]
+        if model_id not in model_ids:
+            model_ids.append(model_id)
+        if len(model_ids) >= 30:
+            break
+
+    offered_count = len(model_ids) if model_ids else len(collection)
+    suffix = f" · {offered_count} model bulundu"
     return APIConnectionResult(
         provider=label,
         status_code=status,
