@@ -5,8 +5,10 @@
 - **Product release:** `v1.1.4`
 - **Current handoff:** [`AI_START_HERE.md`](AI_START_HERE.md)
 - **Project history:** [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md)
-- **Latest source CI:** **524 passed**; Python compile check PASS; Android readiness PASS; mutation smoke **3/3 detected**
-- **Android APK status:** use the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml) for the latest run. Do not treat older build #122 as evidence for the current review fixes; the artifact must pass metadata/provenance checks.
+- **Latest green networking baseline:** [CI run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), **538 passed**; compileall, Android readiness, and mutation smoke **3/3 detected**
+- **Current source CI:** [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555) checks the follow-up to a stale UI height assertion; confirm its result before claiming the latest code is green.
+- **AI connectivity investigation:** see [AI networking status](docs/AI_NETWORKING_STATUS.md). Physical mobile-data and provider-generation behavior are not yet verified.
+- **Android APK status:** no APK build was started for the current networking task. For release packaging status, use the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml).
 - **Physical Android verification:** not yet complete.
 
 Read `AI_START_HERE.md` first. It describes current state only. Historical milestones and retired assumptions belong in `docs/PROJECT_HISTORY.md`.
@@ -41,12 +43,13 @@ AI never receives direct authority to mutate GameState, saves, databases, scenar
 - AI settings for Local GGUF, Gemini, OpenAI, and OpenAI-compatible endpoints.
 - Hugging Face catalog search plus a connection diagnostic that does not download a model.
 - API connectivity/model discovery controls and provider-aware endpoint/model defaults.
+- Verified HTTPS transport shared by remote AI calls, plus a separate actual-generation test in AI settings.
 - Gameplay errors are presented separately from story narration; raw exception text is not shown in the chat.
 - Text reveal is presentation-only and must not control persistence semantics.
 
 ## Verification boundaries
 
-At commit `4f13ef3106d621bab616f87696d4b3436bc51c60`, the source CI passed **535 tests in 8.38 seconds**, `compileall`, Android readiness (`version=1.1.4, target_api=36, SAF=enabled`), and mutation smoke (3/3 detected). These are source-level checks, not proof of a successful APK or physical-device behavior. Consult the linked workflows for the current state.
+The latest fully green networking baseline is [run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305) with **538 tests** plus compileall, Android readiness, and mutation smoke passing. A subsequent UI assertion was updated; the latest run is linked above. Source CI is not proof of mobile-data connectivity on a physical phone.
 
 Release gates remain separate:
 
@@ -73,5 +76,6 @@ Release gates remain separate:
 | `docs/TESTING.md` | Test and release verification contract |
 | `docs/ANDROID_BUILD.md` | Reproducible Android build contract |
 | `docs/ANDROID_APK_SMOKE.md` | Static APK and real-device startup gates |
+| `docs/AI_NETWORKING_STATUS.md` | AI connectivity implementation, evidence, and remaining device checks |
 
 Technical specifications remain separate from current-state summaries. When documents disagree with implementation, current code, tests, configuration, and observed CI evidence take precedence.
