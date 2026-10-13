@@ -300,3 +300,23 @@ This entry records the latest source/UI iteration. Current implementation eviden
 - Latest source-only CI: **524 passed in 10.09s**; `compileall` PASS; Android readiness PASS (`version=1.1.4, target_api=36, SAF=enabled`); mutation smoke **3/3 detected**.
 - Android build workflow #122: source tests and pinned llama.cpp cross-build passed; APK packaging, metadata/provenance verification, and artifact upload must be confirmed from the final workflow result.
 - Physical-device startup/gameplay and local-GGUF inference remain unproven until device smoke evidence is collected.
+
+
+---
+
+## 12. 2026-10-13 — AI connectivity investigation
+
+Scope was narrowed to AI/network access; Android APK building and scenario investigation were explicitly deferred.
+
+Implemented in source:
+- Added `engine/ai/https_transport.py` as a shared outbound transport for Gemini, OpenAI-compatible requests, and API model-list probes.
+- HTTPS uses a verified SSL context with `certifi` roots when available; certificate/hostname validation is not disabled. Localhost HTTP remains supported for the local inference server.
+- Added a separate “Gerçek AI yanıtını test et” control in AI settings. The existing connection check is a model-list probe, so it must not be treated as proof that generation works.
+- Increased the AI settings panel height to fit the new control.
+
+Verification and limitations:
+- Green baseline before the generation-test UI change: [CI run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), 538 tests passed; compileall, Android readiness, and mutation smoke passed.
+- Follow-up run [38351205793](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38351205793) failed on a stale UI assertion expecting `dp(512)` after the panel was intentionally expanded to `dp(562)`. The assertion was updated in commit `145d3b13dc6107b893909f32ff4743082697b11a`; current CI: [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555).
+- No APK build was started for this work.
+- Neither successful network access over the user's mobile data nor successful live AI generation on the Redmi target has been proven. Source CI cannot verify carrier/device runtime behavior.
+- Next step: confirm latest CI, then continue source-side diagnostics only within the AI connectivity boundary. Do not move to scenario work or APK packaging without an explicit scope change.
