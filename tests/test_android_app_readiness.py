@@ -200,6 +200,8 @@ def test_api_provider_picker_exposes_openai_compatible_and_uses_custom_endpoint(
     assert 'values=("OpenAI", "Gemini", "OpenAI-compatible")' in ai
     assert 'self.api_endpoint.hint_text = "Örn. https://api.provider.com/v1"' in ai
     assert 'self.api_endpoint.text = ""' in ai
+    assert 'self.hf_sort = Spinner(' in ai
+    assert 'sort_by=sort_by' in ai
 
 
 def test_api_settings_include_a_non_generation_connectivity_probe():
@@ -217,9 +219,11 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     source = (ROOT / "rpg_android_app.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
     assert 'self.api_models_picker = Spinner(' in ai
-    assert 'self.api_models_picker.values = model_ids[:20]' in ai
+    assert 'self.api_models_picker.values = model_ids[:30]' in ai
     assert 'self.api_model.text = selected' in ai
-    assert 'self.api_panel.height = dp(562)' in ai
+    assert 'self.api_model_filter = PillInput(' in ai
+    assert 'def _filter_api_models(self):' in ai
+    assert 'self.api_panel.height = dp(612)' in ai
 
 
 def test_selecting_discovered_api_model_updates_live_adapter():
