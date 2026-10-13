@@ -512,3 +512,40 @@ def test_huggingface_download_sanitizes_midstream_timeout_and_cleans_partial(tmp
     models_dir = tmp_path / "models"
     assert not list(models_dir.glob("*.part"))
     assert not list(models_dir.glob("*.gguf"))
+
+
+
+def test_huggingface_search_supports_validated_sort_modes():
+    import json
+    from engine.ai.model_manager import ModelSpecError
+
+    seen = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps([
+                {"id": "Qwen/Qwen3-1.7B-GGUF", "downloads": 42, "likes": 3}
+            ]).encode()
+
+    def opener(request, timeout):
+        seen.append(request.full_url)
+        return FakeResponse()
+
+    search_huggingface_models("Qwen", sort_by="likes", opener=opener)
+    assert all("sort=likes" in url for url in seen)
+    seen.clear()
+    search_huggingface_models("Qwen", sort_by="lastModified", opener=opener)
+    assert all("sort=lastModified" in url for url in seen)
+
+    try:
+        search_huggingface_models("Qwen", sort_by="unsafe", opener=opener)
+    except ModelSpecError:
+        pass
+    else:
+        raise AssertionError("unsupported sort mode must be rejected")
