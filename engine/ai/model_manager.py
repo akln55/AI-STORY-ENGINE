@@ -405,7 +405,7 @@ def download_huggingface_model(
     progress_callback: Callable[[int, int | None], None] | None = None,
     max_bytes: int = HARD_MAX_MODEL_BYTES,
 ) -> InstalledModel:
-    """Download one explicitly selected Hugging Face GGUF atomically."""
+    """Download one explicitly selected GGUF atomically, resuming a partial file when supported."""
     spec.validate(hard_max_bytes=max_bytes)
     if spec.expected_size_bytes is not None and spec.expected_size_bytes > max_bytes:
         raise ModelSizeError("model exceeds the hard size ceiling")
@@ -414,49 +414,71 @@ def download_huggingface_model(
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / spec.destination_name
     part = destination.with_name(destination.name + ".part")
-    part.unlink(missing_ok=True)
+    offset = part.stat().st_size if part.exists() else 0
+    if offset > max_bytes or (spec.expected_size_bytes is not None and offset > spec.expected_size_bytes):
+        part.unlink(missing_ok=True)
+        offset = 0
 
-    request = urllib.request.Request(
-        spec.resolved_url,
-        headers={"User-Agent": "RPG-Engine/1.1", "Accept": "application/octet-stream"},
-        method="GET",
-    )
+    headers = {"User-Agent": "RPG-Engine/1.1", "Accept": "application/octet-stream"}
+    if offset:
+        headers["Range"] = f"bytes={offset}-"
+    request = urllib.request.Request(spec.resolved_url, headers=headers, method="GET")
     try:
         response = _open_url(request, timeout=60, opener=opener)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise ModelDownloadError(_safe_huggingface_error(exc, operation="download")) from None
 
     with response as stream:
-        header = stream.headers.get("Content-Length") if hasattr(stream, "headers") else None
-        total = int(header) if header and header.isdigit() else spec.expected_size_bytes
+        status = getattr(stream, "status", None) or getattr(stream, "code", None)
+        content_range = stream.headers.get("Content-Range", "") if hasattr(stream, "headers") else ""
+        resumed = bool(offset and status == 206 and content_range.startswith(f"bytes {offset}-"))
+        if offset and not resumed:
+            # The server ignored Range (or returned an incompatible response); restart safely.
+            offset = 0
+        content_length = stream.headers.get("Content-Length") if hasattr(stream, "headers") else None
+        remaining = int(content_length) if content_length and content_length.isdigit() else None
+        total = spec.expected_size_bytes
+        if resumed:
+            try:
+                total = int(content_range.rsplit("/", 1)[1])
+            except (ValueError, IndexError):
+                total = (offset + remaining) if remaining is not None else total
+        elif remaining is not None:
+            total = remaining
         if total is not None and total > max_bytes:
             raise ModelSizeError("remote model exceeds the hard size ceiling")
-        written = 0
+
+        written = offset
+        mode = "ab" if resumed else "wb"
         try:
-            with part.open("wb") as output:
+            with part.open(mode) as output:
+                if progress_callback:
+                    progress_callback(written, total)
                 while True:
                     try:
                         chunk = stream.read(_IO_CHUNK_SIZE)
                     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                        raise ModelDownloadError(
-                            _safe_huggingface_error(exc, operation="download")
-                        ) from None
+                        # Keep the partial file so the next attempt can resume with HTTP Range.
+                        raise ModelDownloadError(_safe_huggingface_error(exc, operation="download")) from None
                     if not chunk:
                         break
                     written += len(chunk)
                     if written > max_bytes:
                         raise ModelSizeError("download exceeded the hard size ceiling")
                     output.write(chunk)
+                    output.flush()
                     if progress_callback:
                         progress_callback(written, total)
-        except Exception:
-            part.unlink(missing_ok=True)
-            raise
 
     if spec.expected_size_bytes is not None and written != spec.expected_size_bytes:
-        part.unlink(missing_ok=True)
         raise ModelIntegrityError(
-            f"downloaded size {written} does not match expected size {spec.expected_size_bytes}"
+            f"downloaded size {written} does not match expected size {spec.expected_size_bytes}; "
+            "partial data was kept for a resumable retry"
+        )
+    if total is not None and written != total:
+        raise ModelIntegrityError(
+            f"downloaded size {written} does not match remote size {total}; "
+            "partial data was kept for a resumable retry"
         )
 
     try:
@@ -467,9 +489,9 @@ def download_huggingface_model(
         part.replace(destination)
         return InstalledModel(destination, written, digest)
     except Exception:
+        # A completed but invalid artifact must not be resumed as though it were valid.
         part.unlink(missing_ok=True)
         raise
-
 
 def list_installed_models(
     models_dir: Path | str, *, verify_integrity: bool = True
