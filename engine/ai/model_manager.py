@@ -258,7 +258,8 @@ def install_imported_model(
 
 
 def search_huggingface_models(
-    query: str, *, limit: int = 12, opener: Callable[..., object] | None = None
+    query: str, *, limit: int = 12, sort_by: str = "downloads",
+    opener: Callable[..., object] | None = None
 ) -> list[HuggingFaceModel]:
     """Search public Hugging Face repositories for GGUF models.
 
@@ -274,12 +275,14 @@ def search_huggingface_models(
         raise ModelSpecError("enter a model name or search term")
     if not 1 <= limit <= 30:
         raise ModelSpecError("model search limit must be between 1 and 30")
+    if sort_by not in {"downloads", "likes", "lastModified"}:
+        raise ModelSpecError("unsupported Hugging Face sort order")
 
 
     def request_models(*, filter_gguf: bool) -> list[dict]:
         params = {
             "search": cleaned,
-            "sort": "downloads",
+            "sort": sort_by,
             "direction": "-1",
             "limit": str(limit),
         }
