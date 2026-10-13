@@ -1229,33 +1229,36 @@ class AIScreen(BaseScreen):
         if getattr(self.app_ref, "_model_download_in_progress", False):
             self.app_ref.notify("Model indirme zaten devam ediyor.")
             return
-        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(10))
+        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(8))
         box.add_widget(_aligned_label(
-            text="Seçtiğin GGUF dosyası indirilir. Yarım kalan indirme yeniden denendiğinde destekleniyorsa devam eder.",
-            color=MUTED, font_size=sp(12), valign="top",
-            size_hint_y=None, height=dp(54),
+            text="Yalnızca seçtiğin GGUF dosyası indirilir. Kesilen indirmeler tekrar denendiğinde devam edebilir.",
+            color=MUTED, font_size=sp(11), valign="top",
+            size_hint_y=None, height=dp(42),
         ))
-        box.add_widget(_aligned_label(
-            text=f"{repo_id} / {filename}", color=TEXT, font_size=sp(13),
-            size_hint_y=None, height=dp(44),
-        ))
+        repo = PillInput(text=repo_id, hint_text="Örn. organization/model")
+        filename_input = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
+        revision = PillInput(text="main", hint_text="main veya commit etiketi")
+        sha = PillInput(hint_text="İsteğe bağlı SHA-256")
+        for caption, widget in (
+            ("Hugging Face deposu", repo),
+            ("GGUF dosya adı", filename_input),
+            ("Sürüm", revision),
+            ("Bütünlük doğrulaması", sha),
+        ):
+            box.add_widget(_field_group(caption, widget))
         progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(8))
+        status = _aligned_label(text="İndirmeye hazır.", color=MUTED, font_size=sp(11),
+                                valign="top", size_hint_y=None, height=dp(34))
         box.add_widget(progress)
-        status = _aligned_label(
-            text="İndirmeye hazır.", color=MUTED, font_size=sp(12), valign="top",
-            size_hint_y=None, height=dp(44),
-        )
         box.add_widget(status)
-        actions = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
         cancel = SoftButton(text="Kapat")
         start = AccentButton(text="İndir / devam et")
         actions.add_widget(cancel)
         actions.add_widget(start)
         box.add_widget(actions)
-        popup = Popup(
-            title="Model indir", content=box, size_hint=(0.92, 0.54),
-            background_color=SURFACE, separator_color=ACCENT, auto_dismiss=False,
-        )
+        popup = Popup(title="Model indir", content=box, size_hint=(0.94, 0.80),
+                      background_color=SURFACE, separator_color=ACCENT, auto_dismiss=False)
         cancel.bind(on_release=lambda *_: popup.dismiss())
 
         def worker(spec):
@@ -1286,10 +1289,18 @@ class AIScreen(BaseScreen):
             Clock.schedule_once(finish, 0)
 
         def start_download(*_):
-            if not repo_id or not filename:
-                status.text = "Önce katalogdan bir GGUF dosyası seç."
+            # Snapshot every Kivy widget value on the UI thread before starting the worker.
+            selected_repo = repo.text.strip()
+            selected_filename = filename_input.text.strip()
+            selected_revision = revision.text.strip() or "main"
+            selected_sha = sha.text.strip() or None
+            if not selected_repo or not selected_filename:
+                status.text = "Repository ve GGUF dosya adı zorunlu."
                 return
-            spec = ModelSpec(repo_id, filename, revision="main", expected_size_bytes=expected_size_bytes)
+            spec = ModelSpec(
+                selected_repo, selected_filename, revision=selected_revision,
+                expected_size_bytes=expected_size_bytes, expected_sha256=selected_sha,
+            )
             try:
                 spec.validate()
             except Exception as exc:
