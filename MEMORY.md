@@ -32,19 +32,20 @@
 ## Current UI/AI notes
 
 - Hugging Face search and connectivity diagnostics are separate actions.
-- Connectivity test is not a model download.
+- The API connection check calls the provider's model-list endpoint; it does not generate text.
+- AI settings now has a separate “Gerçek AI yanıtını test et” control that invokes the configured adapter's generation endpoint.
+- Gemini, OpenAI-compatible calls, and provider model-list probes use `engine/ai/https_transport.py`; HTTPS hostname and certificate verification stay enabled. Localhost HTTP is preserved for the local llama-server.
 - API settings support provider-aware endpoint/model defaults and custom OpenAI-compatible endpoints.
+- See `docs/AI_NETWORKING_STATUS.md` for the current investigation and verification boundaries.
 - Chat has distinct player/narration/error role markers; operational failures must not masquerade as story text or expose raw exception strings.
 - Progressive text reveal is presentation-only.
 
 ## Latest source verification
 
-- 524 tests passed in 10.09 seconds.
-- `python -m compileall -q .`: PASS.
-- Android readiness: PASS (v1.1.4, target API 36, SAF enabled).
-- Mutation smoke: 3/3 detected.
-
-These are source-level checks, not physical-device release proof. The Android build workflow #122 is in progress; wait for APK metadata/provenance verification and artifact upload before reporting success.
+- Last green networking baseline: [CI run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), 538 tests passed; compileall, Android readiness, and mutation smoke 3/3 passed.
+- A later run failed because a UI readiness test still expected the old AI panel height (`dp(512)`) after the real-generation control expanded it to `dp(562)`. The test was updated in commit `145d3b13dc6107b893909f32ff4743082697b11a`; see [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555) for the latest gate.
+- No APK build was started for the current networking task.
+- Physical-device mobile-data access and real provider generation remain unverified.
 
 ## Release gates
 
