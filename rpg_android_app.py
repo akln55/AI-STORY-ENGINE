@@ -841,6 +841,14 @@ class AIScreen(BaseScreen):
         )
         self.api_connect_button.bind(on_release=lambda *_: self.connect_api())
         api.add_widget(self.api_connect_button)
+        self.api_generation_test_button = SoftButton(
+            text="Gerçek AI yanıtını test et", size_hint_y=None, height=dp(42),
+            disabled=True,
+        )
+        self.api_generation_test_button.bind(
+            on_release=lambda *_: self.test_api_generation()
+        )
+        api.add_widget(self.api_generation_test_button)
         self.api_panel = api
         content.add_widget(api)
         content.add_widget(_aligned_label(
@@ -901,6 +909,8 @@ class AIScreen(BaseScreen):
         if hasattr(self, "api_status"):
             self.api_status.text = "Sağlayıcı değişti; model listesini görmek için bağlantıyı test et."
             self.api_status.color = MUTED
+        if hasattr(self, "api_generation_test_button"):
+            self.api_generation_test_button.disabled = True
 
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
@@ -1351,6 +1361,7 @@ class AIScreen(BaseScreen):
                 self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
+                self.api_generation_test_button.disabled = not apply_success
                 if apply_success and model_ids:
                     self.api_models_picker.values = model_ids[:20]
                     self.api_models_picker.text = "Bulunan modelleri seç"
@@ -1363,6 +1374,48 @@ class AIScreen(BaseScreen):
                     self.api_panel.height = dp(470)
                 if apply_success and model_ids:
                     self.api_status.text = final_message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
+
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
+
+    def test_api_generation(self):
+        """Exercise the selected provider's real generation endpoint, not just model listing."""
+        if getattr(self, "_api_generation_test_running", False):
+            return
+        adapter = getattr(self.app_ref.controller.session, "adapter", None)
+        if adapter is None or not hasattr(adapter, "generate"):
+            self.api_status.text = "Etkin bir AI sağlayıcısı bulunamadı."
+            self.api_status.color = DANGER
+            return
+
+        self._api_generation_test_running = True
+        self.api_generation_test_button.disabled = True
+        self.api_status.text = "Gerçek AI isteği gönderiliyor…"
+        self.api_status.color = MUTED
+
+        def worker():
+            try:
+                result = adapter.generate(
+                    "PLAYER ACTION: look. Return a valid response using the required "
+                    "structured RPG response schema. Keep the narrative to one short sentence."
+                )
+                narrative = getattr(result, "narrative", "")
+                if not isinstance(narrative, str) or not narrative.strip():
+                    raise RuntimeError("Provider returned no narrative.")
+                message = "Gerçek AI üretimi başarılı. Sağlayıcı yanıt verdi."
+                success = True
+            except Exception as exc:
+                # Do not expose API keys, request bodies, or arbitrary provider response bodies.
+                error_name = type(exc).__name__
+                message = f"Gerçek AI isteği başarısız ({error_name}). Bağlantı, model ve API erişimini kontrol et."
+                success = False
+
+            def finish(*_):
+                self._api_generation_test_running = False
+                self.api_generation_test_button.disabled = False
+                self.api_status.text = message
+                self.api_status.color = ACCENT if success else DANGER
 
             Clock.schedule_once(finish, 0)
 
