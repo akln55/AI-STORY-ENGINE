@@ -794,7 +794,7 @@ class AIScreen(BaseScreen):
 
         api = RoundedPanel(
             orientation="vertical", padding=dp(14), spacing=dp(8),
-            size_hint_y=None, height=dp(470), fill=SURFACE, radius=dp(22),
+            size_hint_y=None, height=dp(520), fill=SURFACE, radius=dp(22),
         )
         api.add_widget(_aligned_label(
             text="⚙  API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
@@ -905,7 +905,7 @@ class AIScreen(BaseScreen):
             self.api_models_picker.text = "Model listesi testten sonra görünür"
             self.api_models_picker.height = 0
         if hasattr(self, "api_panel"):
-            self.api_panel.height = dp(470)
+            self.api_panel.height = dp(520)
         if hasattr(self, "api_status"):
             self.api_status.text = "Sağlayıcı değişti; model listesini görmek için bağlantıyı test et."
             self.api_status.color = MUTED
@@ -1366,12 +1366,12 @@ class AIScreen(BaseScreen):
                     self.api_models_picker.values = model_ids[:20]
                     self.api_models_picker.text = "Bulunan modelleri seç"
                     self.api_models_picker.height = dp(42)
-                    self.api_panel.height = dp(512)
+                    self.api_panel.height = dp(562)
                 else:
                     self.api_models_picker.values = ()
                     self.api_models_picker.text = "Model listesi bulunamadı"
                     self.api_models_picker.height = 0
-                    self.api_panel.height = dp(470)
+                    self.api_panel.height = dp(520)
                 if apply_success and model_ids:
                     self.api_status.text = final_message + " Alttan bir model seçebilir veya adını elle yazabilirsin."
 
