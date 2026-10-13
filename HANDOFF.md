@@ -1,6 +1,6 @@
 # RPG Engine — Current Handoff
 
-**Updated:** 2026-10-12  
+**Updated:** 2026-10-13  
 **Product version:** v1.1.4  
 **Historical engineering baseline:** v1.28.3  
 **Repository:** `akln55/AI-STORY-ENGINE`
@@ -38,14 +38,13 @@ Once a compatible local model is installed and local runtime works, offline play
 
 Never restore `android.main` or `android.file_picker`.
 
-## Latest source verification
+## Current focus: AI/network connectivity
 
-- 524 pytest tests passed.
-- Python compileall passed.
-- Android readiness passed: v1.1.4 / target API 36 / SAF enabled.
-- Mutation smoke detected 3/3 critical mutations.
+Read `docs/AI_NETWORKING_STATUS.md` for the evidence-backed state. Shared verified HTTPS transport now serves Gemini, OpenAI-compatible requests, and API model-list probes. The AI settings screen has a separate real-generation test so model-list reachability is not mistaken for working generation.
 
-The Android build workflow #122 has passed source tests and native llama.cpp cross-build and is currently at APK packaging. APK verification/provenance and artifact upload must be confirmed from the final run result before calling the build successful.
+Latest green source baseline: [run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), 538 tests passed, compileall/readiness passed, mutation smoke 3/3. The later generation-test UI change had one stale height assertion; it was updated in commit `145d3b13dc6107b893909f32ff4743082697b11a`. [Its CI run](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555) is the current gate.
+
+Do not start an Android build for this task. Physical mobile-data access and provider generation remain unverified; CI cannot establish device/carrier behavior.
 
 ## Recent implementation changes
 
@@ -54,6 +53,8 @@ The Android build workflow #122 has passed source tests and native llama.cpp cro
 - Added compact visual markers in AI settings and gameplay chat.
 - Distinguished gameplay errors from story narration and stopped showing raw exception strings in the chat.
 - Added regression coverage for provider choices, chat markers, and safe gameplay error presentation.
+- Added a shared verified HTTPS transport for remote AI endpoints; certificate verification remains enabled.
+- Added a real AI generation check in settings, separate from the lower-cost model-list probe.
 
 ## Non-negotiables
 
