@@ -122,8 +122,8 @@ class AppController:
             spec, default_model_storage_dir(), progress_callback=progress_callback
         )
 
-    def search_remote_models(self, query: str, *, limit: int = 12):
-        return search_huggingface_models(query, limit=limit)
+    def search_remote_models(self, query: str, *, limit: int = 12, sort_by: str = "downloads"):
+        return search_huggingface_models(query, limit=limit, sort_by=sort_by)
 
     def remote_model_files(self, repo_id: str):
         return list_huggingface_gguf_files(repo_id)
