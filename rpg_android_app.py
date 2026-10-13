@@ -1236,12 +1236,12 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(42),
         ))
         repo = PillInput(text=repo_id, hint_text="Örn. organization/model")
-        filename_input = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
+        filename = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
         revision = PillInput(text="main", hint_text="main veya commit etiketi")
         sha = PillInput(hint_text="İsteğe bağlı SHA-256")
         for caption, widget in (
             ("Hugging Face deposu", repo),
-            ("GGUF dosya adı", filename_input),
+            ("GGUF dosya adı", filename),
             ("Sürüm", revision),
             ("Bütünlük doğrulaması", sha),
         ):
@@ -1291,7 +1291,7 @@ class AIScreen(BaseScreen):
         def start_download(*_):
             # Snapshot every Kivy widget value on the UI thread before starting the worker.
             selected_repo = repo.text.strip()
-            selected_filename = filename_input.text.strip()
+            selected_filename = filename.text.strip()
             selected_revision = revision.text.strip() or "main"
             selected_sha = sha.text.strip() or None
             if not selected_repo or not selected_filename:
