@@ -20,6 +20,7 @@ from kivy.uix.screenmanager import Screen, ScreenManager, SlideTransition
 from kivy.uix.spinner import Spinner
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
+from kivy.uix.widget import Widget
 from kivy.storage.jsonstore import JsonStore
 from kivy.graphics import Color, RoundedRectangle, Line
 
@@ -364,9 +365,10 @@ class GameplayScreen(BaseScreen):
         top.add_widget(self.turn)
         root.add_widget(top)
 
-        self.scroll = ScrollView(do_scroll_x=False, bar_width=0)
-        self.message_box = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(6), dp(4), dp(90)], size_hint_y=None)
+        self.scroll = ScrollView(do_scroll_x=False, bar_width=dp(2), scroll_type=["bars", "content"])
+        self.message_box = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(8), dp(4), dp(18)], size_hint_y=None)
         self.message_box.bind(minimum_height=self.message_box.setter("height"))
+        self.scroll.bind(size=lambda *_: setattr(self.message_box, "width", self.scroll.width))
         self.scroll.add_widget(self.message_box)
         root.add_widget(self.scroll)
 
@@ -411,10 +413,18 @@ class GameplayScreen(BaseScreen):
     def add_message(self, text, role="npc", animate=False):
         if not text:
             return None
+        row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48), padding=[dp(2), 0, dp(2), 0])
         bubble = MessageBubble(text="" if animate else text, role=role)
-        bubble.size_hint_x = 0.88
-        bubble.pos_hint = {"right": 1} if role == "player" else {"x": 0}
-        self.message_box.add_widget(bubble)
+        bubble.size_hint = (0.88, None)
+        bubble.height = dp(48)
+        if role == "player":
+            row.add_widget(Widget())
+            row.add_widget(bubble)
+        else:
+            row.add_widget(bubble)
+            row.add_widget(Widget())
+        bubble.bind(height=lambda widget, *_: setattr(row, "height", max(dp(48), widget.height)))
+        self.message_box.add_widget(row)
         if animate:
             source = str(text)
             index = 0
@@ -446,16 +456,22 @@ class GameplayScreen(BaseScreen):
 
     def show_typing(self):
         self.remove_typing()
+        row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48), padding=[dp(2), 0, dp(2), 0])
         self._typing_bubble = MessageBubble(text="İşleniyor…", role="npc")
-        self._typing_bubble.size_hint_x = 0.38
-        self._typing_bubble.pos_hint = {"x": 0}
-        self.message_box.add_widget(self._typing_bubble)
+        self._typing_bubble.size_hint = (0.55, None)
+        self._typing_bubble.height = dp(48)
+        row.add_widget(self._typing_bubble)
+        row.add_widget(Widget())
+        self._typing_bubble.bind(height=lambda widget, *_: setattr(row, "height", max(dp(48), widget.height)))
+        self.message_box.add_widget(row)
         Clock.schedule_once(self._scroll_bottom, 0)
 
     def remove_typing(self):
         if self._typing_bubble is not None:
             try:
-                self.message_box.remove_widget(self._typing_bubble)
+                parent = self._typing_bubble.parent
+                if parent is not None:
+                    self.message_box.remove_widget(parent)
             except Exception:
                 pass
             self._typing_bubble = None
