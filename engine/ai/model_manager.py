@@ -450,25 +450,24 @@ def download_huggingface_model(
 
         written = offset
         mode = "ab" if resumed else "wb"
-        try:
-            with part.open(mode) as output:
+        with part.open(mode) as output:
+            if progress_callback:
+                progress_callback(written, total)
+            while True:
+                try:
+                    chunk = stream.read(_IO_CHUNK_SIZE)
+                except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                    # Keep the partial file so the next attempt can resume with HTTP Range.
+                    raise ModelDownloadError(_safe_huggingface_error(exc, operation="download")) from None
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    raise ModelSizeError("download exceeded the hard size ceiling")
+                output.write(chunk)
+                output.flush()
                 if progress_callback:
                     progress_callback(written, total)
-                while True:
-                    try:
-                        chunk = stream.read(_IO_CHUNK_SIZE)
-                    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                        # Keep the partial file so the next attempt can resume with HTTP Range.
-                        raise ModelDownloadError(_safe_huggingface_error(exc, operation="download")) from None
-                    if not chunk:
-                        break
-                    written += len(chunk)
-                    if written > max_bytes:
-                        raise ModelSizeError("download exceeded the hard size ceiling")
-                    output.write(chunk)
-                    output.flush()
-                    if progress_callback:
-                        progress_callback(written, total)
 
     if spec.expected_size_bytes is not None and written != spec.expected_size_bytes:
         raise ModelIntegrityError(
