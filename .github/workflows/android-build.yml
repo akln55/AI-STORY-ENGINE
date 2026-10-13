@@ -2,6 +2,17 @@ name: Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "rpg_android_app.py"
+      - "engine/ai/**"
+      - "engine/app/controller.py"
+      - "tests/**"
+      - "buildozer.spec"
+      - "android_native/**"
+      - "tools/build_llama_server_android.sh"
+      - ".github/workflows/android-build.yml"
 
 permissions:
   contents: read
