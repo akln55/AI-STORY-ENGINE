@@ -3,7 +3,7 @@
 **Canonical current handoff:** this file  
 **Canonical historical record:** `docs/PROJECT_HISTORY.md`  
 **Product release:** `v1.1.4`  
-**Last verified source CI for application code (commit `4f13ef3106d621bab616f87696d4b3436bc51c60`): [535 tests passed](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38306455458); compileall, Android readiness, and mutation smoke passed. The later changes so far are documentation-only.  
+**Current AI/network work:** see [AI networking status](docs/AI_NETWORKING_STATUS.md). Verified shared HTTPS transport was added for Gemini, OpenAI-compatible API calls, and provider connection probes. The latest UI generation-test change exposed one stale panel-height assertion; that assertion has been updated and the latest source CI is running.  
 **Current Android build:** check the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml) for the newest run. Older build #122 is historical and does not validate the recent model-download/UI fixes; APK metadata/provenance verification and artifact upload must complete before claiming packaging success.
 
 > This file describes current state only. Older checkpoint/version documents are historical evidence, not current-state authority.
@@ -49,7 +49,7 @@ The UI exposes these provider paths:
 - **OpenAI** — OpenAI API provider.
 - **OpenAI-compatible** — custom compatible endpoint and model ID.
 
-The Hugging Face catalog search is separate from connectivity diagnostics. The connection test probes reachability and does not download a model. API connectivity/model discovery and gameplay generation are separate operations.
+The Hugging Face catalog search is separate from connectivity diagnostics. The provider connection test probes the model-list endpoint and does not generate text. A separate “Gerçek AI yanıtını test et” control now calls the configured adapter's real generation endpoint. Source changes do not prove mobile-data access on the target phone; that remains unverified until an updated app is run on-device.
 
 ### Implemented in source
 
@@ -74,14 +74,9 @@ Initial local-model policy remains conservative: roughly **1.5B–3B instruct**,
 
 ## 4. Current source verification
 
-Recorded source-only evidence for the reviewed application code is [CI run 38306455458](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38306455458), at commit `4f13ef3106d621bab616f87696d4b3436bc51c60` (535 tests). For the current APK state, use the [Android build workflow run list](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml); older run #122 predates the latest review fixes.
+The last fully green networking baseline is [CI run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305): 538 tests passed, compileall passed, Android readiness passed, and mutation smoke detected 3/3. After adding the actual-generation UI control, run [38351205793](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38351205793) failed at one stale UI source assertion (`dp(512)` versus the intentionally expanded `dp(562)` panel). The assertion was updated in commit `145d3b13dc6107b893909f32ff4743082697b11a`; its CI run is the current verification gate.
 
-- **524 tests passed** in 10.09 seconds.
-- `python -m compileall -q .`: PASS.
-- Android readiness: PASS (`version=1.1.4, target_api=36, SAF=enabled`).
-- Mutation smoke: **3/3 detected**.
-
-This does not prove that an APK was successfully packaged or that Android runtime behavior works.
+No Android APK build was started for this networking task. Real mobile-data connectivity, provider authentication, and successful generation on the physical Redmi device remain unverified.
 
 ## 5. Release gates
 
