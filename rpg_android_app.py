@@ -299,10 +299,10 @@ class MessageBubble(RoundedPanel):
             if role == "player" else DANGER if role == "error" else BORDER
         )
         role_caption = {
-            "player": ("➤  SEN", ACCENT),
-            "error": ("⚠  HATA", DANGER),
+            "player": ("SEN", ACCENT),
+            "error": ("HATA", DANGER),
         }
-        caption, caption_color = role_caption.get(role, ("◉  ANLATI", MUTED))
+        caption, caption_color = role_caption.get(role, ("ANLATI", MUTED))
         self._role_label = Label(
             text=caption,
             color=caption_color,
@@ -361,7 +361,7 @@ class GameplayScreen(BaseScreen):
         self.title = Label(text="Oyun", color=TEXT, font_size=sp(18), bold=True, halign="left")
         self.title.bind(size=lambda *_: setattr(self.title, "text_size", self.title.size))
         top.add_widget(self.title)
-        self.turn = _aligned_label(text="◷  Tur 0", color=MUTED, font_size=sp(11), size_hint_x=None, width=dp(66))
+        self.turn = _aligned_label(text="Tur 0", color=MUTED, font_size=sp(11), size_hint_x=None, width=dp(66))
         top.add_widget(self.turn)
         root.add_widget(top)
 
@@ -377,7 +377,7 @@ class GameplayScreen(BaseScreen):
         self.input.bind(on_text_validate=lambda *_: self.submit())
         composer.add_widget(self.input)
         self.send_button = AccentButton(
-            text="↑  Gönder", size_hint_x=None, width=dp(92), font_size=sp(11)
+            text="Gönder", size_hint_x=None, width=dp(92), font_size=sp(11)
         )
         self.send_button.bind(on_release=lambda *_: self.submit())
         composer.add_widget(self.send_button)
@@ -478,7 +478,7 @@ class GameplayScreen(BaseScreen):
 
     def set_busy(self, busy):
         self.send_button.disabled = bool(busy)
-        self.send_button.text = "…  Bekle" if busy else "↑  Gönder"
+        self.send_button.text = "Bekle…" if busy else "Gönder"
         self.input.disabled = bool(busy)
         self.input.hint_text = "Yanıt hazırlanıyor…" if busy else "Ne yapmak istiyorsun?"
 
@@ -753,7 +753,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(354), fill=SURFACE, radius=dp(22),
         )
         self.hf_catalog.add_widget(_aligned_label(
-            text="⌕  Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
+            text="Hugging Face model kataloğu", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         self.hf_catalog.add_widget(_aligned_label(
@@ -821,7 +821,7 @@ class AIScreen(BaseScreen):
             size_hint_y=None, height=dp(520), fill=SURFACE, radius=dp(22),
         )
         api.add_widget(_aligned_label(
-            text="⚙  API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
+            text="API sağlayıcısı", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         self.api_provider = Spinner(
