@@ -16,7 +16,7 @@
 
 - Last fully green source baseline for the shared HTTPS change: [GitHub Actions run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305). It passed 538 tests, Python compileall, Android readiness, and mutation smoke 3/3.
 - The generation-test UI change then exposed one stale test assertion expecting the former AI settings panel height `dp(512)` after the panel was expanded to `dp(562)`. Run [38351205793](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38351205793) failed with 1 failed and 537 passed. The assertion was updated in commit `145d3b13dc6107b893909f32ff4743082697b11a`.
-- Latest source verification after that change and the documentation updates: [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555). Check its final conclusion before claiming the current tree is green.
+- Latest source verification for the code/test fix: [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555) succeeded with 538 tests passed in 9.99 seconds, compileall passed, Android readiness passed, and mutation smoke detected 3/3. Later commits in this documentation refresh update Markdown only; their own CI run may still be pending.
 
 ## What is not proven
 
