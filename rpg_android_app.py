@@ -1213,38 +1213,31 @@ class AIScreen(BaseScreen):
         if getattr(self.app_ref, "_model_download_in_progress", False):
             self.app_ref.notify("Model indirme zaten devam ediyor.")
             return
-        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(8))
+        box = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(10))
         box.add_widget(_aligned_label(
-            text="Yalnızca seçtiğin GGUF dosyası indirilir. Dosya boyutu ve bütünlüğü kontrol edilir.",
-            color=MUTED, font_size=sp(11), valign="top",
-            size_hint_y=None, height=dp(42),
+            text="Seçtiğin GGUF dosyası indirilir. Yarım kalan indirme yeniden denendiğinde destekleniyorsa devam eder.",
+            color=MUTED, font_size=sp(12), valign="top",
+            size_hint_y=None, height=dp(54),
         ))
-        repo = PillInput(text=repo_id, hint_text="Örn. organization/model")
-        filename = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
-        revision = PillInput(text="main", hint_text="main veya commit etiketi")
-        sha = PillInput(hint_text="İsteğe bağlı SHA-256")
-        for caption, widget in (
-            ("Hugging Face deposu", repo),
-            ("GGUF dosya adı", filename),
-            ("Sürüm", revision),
-            ("Bütünlük doğrulaması", sha),
-        ):
-            box.add_widget(_field_group(caption, widget))
+        box.add_widget(_aligned_label(
+            text=f"{repo_id} / {filename}", color=TEXT, font_size=sp(13),
+            size_hint_y=None, height=dp(44),
+        ))
         progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(8))
-        status = _aligned_label(
-            text="İndirmeye hazır.", color=MUTED, font_size=sp(11), valign="top",
-            size_hint_y=None, height=dp(34),
-        )
         box.add_widget(progress)
+        status = _aligned_label(
+            text="İndirmeye hazır.", color=MUTED, font_size=sp(12), valign="top",
+            size_hint_y=None, height=dp(44),
+        )
         box.add_widget(status)
-        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        cancel = SoftButton(text="İptal")
-        start = AccentButton(text="İndir")
+        actions = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
+        cancel = SoftButton(text="Kapat")
+        start = AccentButton(text="İndir / devam et")
         actions.add_widget(cancel)
         actions.add_widget(start)
         box.add_widget(actions)
         popup = Popup(
-            title="Model indir", content=box, size_hint=(0.94, 0.80),
+            title="Model indir", content=box, size_hint=(0.92, 0.54),
             background_color=SURFACE, separator_color=ACCENT, auto_dismiss=False,
         )
         cancel.bind(on_release=lambda *_: popup.dismiss())
@@ -1254,49 +1247,42 @@ class AIScreen(BaseScreen):
                 def progress_callback(written, total):
                     def update(*_):
                         if total:
-                            progress.value = min(100, (written / total) * 100)
+                            progress.value = min(100, written * 100 / total)
                             status.text = f"{written / (1024 ** 3):.2f} / {total / (1024 ** 3):.2f} GiB"
                         else:
                             status.text = f"{written / (1024 ** 3):.2f} GiB indirildi"
                     Clock.schedule_once(update, 0)
-
                 installed = self.app_ref.controller.download_local_model(
                     spec, progress_callback=progress_callback
                 )
-                message = f"Model indirildi: {installed.name}"
+                message = f"Model indirildi ve doğrulandı: {installed.name}"
             except Exception as exc:
-                message = f"Model indirilemedi: {exc}"
+                message = f"İndirme tamamlanmadı; tekrar deneyerek devam edebilirsin. {exc}"
 
             def finish(*_):
                 self.app_ref._model_download_in_progress = False
-                popup.dismiss()
+                start.disabled = False
+                cancel.disabled = False
+                status.text = message
+                start.text = "Tekrar dene / devam et"
                 self.app_ref.notify(message)
                 self.refresh()
-
             Clock.schedule_once(finish, 0)
 
         def start_download(*_):
-            repo_id = repo.text.strip()
-            selected_filename = filename.text.strip()
-            if not repo_id or not selected_filename:
-                status.text = "Repository ve GGUF dosya adı zorunlu."
+            if not repo_id or not filename:
+                status.text = "Önce katalogdan bir GGUF dosyası seç."
                 return
-            spec = ModelSpec(
-                repo_id,
-                selected_filename,
-                revision=revision.text.strip() or "main",
-                expected_size_bytes=expected_size_bytes,
-                expected_sha256=sha.text.strip() or None,
-            )
+            spec = ModelSpec(repo_id, filename, revision="main", expected_size_bytes=expected_size_bytes)
             try:
                 spec.validate()
             except Exception as exc:
-                status.text = f"Model bilgileri geçersiz: {exc}"
+                status.text = f"Model bilgisi geçersiz: {exc}"
                 return
             self.app_ref._model_download_in_progress = True
             start.disabled = True
             cancel.disabled = True
-            status.text = "Model doğrulanıyor ve indiriliyor…"
+            status.text = "İndirme başlatılıyor…"
             Thread(target=worker, args=(spec,), daemon=True).start()
 
         start.bind(on_release=start_download)
