@@ -100,7 +100,7 @@ def test_gameplay_failures_are_separate_from_story_and_do_not_expose_raw_errors(
     assert "API ayarlarını ve bağlantını kontrol edip tekrar dene." in worker
     assert "f\"[İşlem başarısız: {exc}]\"" not in worker
     assert 'self.game.append(result, role="error" if error else "npc")' in finish
-    assert '"error": ("⚠  HATA", DANGER)' in bubble
+    assert '"error": ("HATA", DANGER)' in bubble
 
 
 def test_stage_four_version_is_consistent():
@@ -153,7 +153,7 @@ def test_ai_forms_are_labelled_and_catalog_errors_are_user_friendly():
     assert '_field_group("API anahtarı", self.api_key)' in ai
     assert 'def _friendly_catalog_error(self, error)' in ai
     assert 'text="Tekrar dene"' in ai
-    assert 'text="⌕  Hugging Face model kataloğu"' in ai
+    assert 'text="Hugging Face model kataloğu"' in ai
     assert 'Arama başarısız: {error}' not in ai
 
 
