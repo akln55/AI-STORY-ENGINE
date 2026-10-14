@@ -108,3 +108,12 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Manifest chapter count, chapter pack IDs, embedded canonical IDs, and explicit `references` targets passed manual structural checks.
 - Improved the goal validation error, added a regression test, and created `docs/SCENARIO_CREATION_GUIDE.md`. Corrected local ZIP has only passed manual structural checks, not actual engine validation.
 - Keep the import task unchecked until the real validator and app import path pass.
+
+## 2026-10-14 — Implementation started under approved campaign
+
+- Full campaign was approved by the user; execution has started.
+- Actual archive issues confirmed: `data/characters.json:npc_kim_minjae.goals[0]` is a string rather than an object; `world.json.relationships` keys do not follow canonical sorted-party-ID key format.
+- Created `docs/SCENARIO_CREATION_GUIDE.md` and `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md`; the in-game behaviour rules were added to runtime context.
+- Modified scenario validation diagnostics, gameplay composer, provider settings, rejected-event memory gating, memory secondary indexes, and resource integer validation. Regression tests were added but latest CI is pending.
+- A corrected archive is available locally; it passed manual structure checks only, not the official engine validator or Android import.
+- Keep all relevant tasks unchecked until tests pass and update these documents after each completed task.
