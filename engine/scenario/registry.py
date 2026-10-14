@@ -70,9 +70,13 @@ class ScenarioRegistry:
                     if not isinstance(goals, list):
                         raise ScenarioError(f"scenario data {filename}:{record_id}.goals must be a list")
                     allowed_goal_kinds = {"passive", "move_to", "follow_npc", "meet_npc", "patrol", "survive"}
-                    for goal in goals:
+                    for goal_index, goal in enumerate(goals):
                         if not isinstance(goal, Mapping):
-                            raise ScenarioError(f"scenario data {filename}:{record_id}.goals entries must be objects")
+                            raise ScenarioError(
+                                f"scenario data {filename}:{record_id}.goals[{goal_index}] must be an object "
+                                "with id, description, and priority; "
+                                f"got {type(goal).__name__}"
+                            )
                         for key in ("id", "description", "priority"):
                             if key not in goal:
                                 raise ScenarioError(f"scenario data {filename}:{record_id}.goal requires {key}")
