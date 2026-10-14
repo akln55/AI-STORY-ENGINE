@@ -156,3 +156,17 @@ Prioritized work list and acceptance criteria: docs/DEVELOPMENT_PLAN.md. Before 
 - Scenario import root cause is not known until the actual failing archive is inspected.
 
 This is a documentation-only commit. No code fix or Android build is included.
+
+
+## 10. Revised implementation campaign — 2026-10-14
+
+The user has requested a unified implementation campaign covering scenario import and generation, long chapter-series source processing, runtime AI behaviour, scenario-building UX, chat composer, provider settings, known engine correctness bugs, download resume reliability, testing, and a fresh Android release gate.
+
+- Master task list and weighted scores: [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+- Priority scores are engineering estimates based on user impact, blocking severity, dependencies and data-integrity risk—not telemetry. Only mark tasks complete after tests/evidence meet their acceptance criteria.
+- Use checkbox status in the plan. Keep completed work marked [x] with evidence; do not delete it merely to shorten the list. After each completed task, update the plan and relevant handoff docs.
+- The failed scenario archive has not been provided. The exact import root cause is unknown until its JSON data is inspected; do not guess and do not weaken validation to hide the error.
+- The user's uploaded Scenario Data Creation Master Specification is a requirements source, not automatic proof that every illustrated field is compatible with the current engine schema. Align the new ChatGPT guide with real loader/registry validation.
+- A separate in-game AI behaviour guide is only useful when actually included in every applicable backend's runtime prompt/context path and covered by tests.
+- Source-based chapter processing must be resumable, preserve the original source files, merge by stable IDs, and keep canon separate from player runtime state.
+- No source code/UI/product behaviour or APK was modified by the plan revision. The campaign awaits explicit user approval.
