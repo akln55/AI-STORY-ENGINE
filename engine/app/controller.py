@@ -120,8 +120,12 @@ class AppController:
         if registry is not None:
             for category in registry.categories():
                 for record in registry.all(category):
-                    known.append({"category": record.category, "id": record.id,
-                                  "name": str(record.data.get("name") or record.id)})
+                    aliases = record.data.get("aliases", ())
+                    known.append({
+                        "category": record.category, "id": record.id,
+                        "name": str(record.data.get("name") or record.id),
+                        "aliases": [value for value in aliases if isinstance(value, str)] if isinstance(aliases, (list, tuple)) else [],
+                    })
         for saved in manager.read_batch_results(workspace_id):
             extraction = saved.get("extraction", {})
             for entity in extraction.get("entities", []):
@@ -130,16 +134,20 @@ class AppController:
                         "category": entity.get("category"),
                         "id": entity.get("canonical_id") or entity.get("id_candidate"),
                         "name": entity.get("name"),
+                        "aliases": entity.get("aliases", []),
                     })
         # Stable dedup keeps the prompt index bounded and ordered.
         seen = set()
         known_index = []
         for entity in known:
-            key = (entity.get("category"), entity.get("id"), entity.get("name"))
+            aliases = tuple(sorted(value for value in entity.get("aliases", []) if isinstance(value, str)))
+            key = (entity.get("category"), entity.get("id"), entity.get("name"), aliases)
             if key in seen or not all(isinstance(value, str) and value for value in key):
                 continue
             seen.add(key)
-            known_index.append(entity)
+            normalized_entity = dict(entity)
+            normalized_entity["aliases"] = list(aliases)
+            known_index.append(normalized_entity)
 
         completed = 0
         while max_batches is None or completed < max_batches:
