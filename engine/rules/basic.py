@@ -191,6 +191,75 @@ class AttackRule:
         return RuleResult(effects, hint)
 
 
+class InteractionRule:
+    """Resolve a player's explicit inspection of an accessible world entity."""
+
+    name = "interact"
+
+    @staticmethod
+    def _matches(query: str, entity_id: str, name: str) -> bool:
+        query = query.strip().casefold()
+        entity_id = entity_id.casefold()
+        name = name.strip().casefold()
+        if not query:
+            return False
+        if query in (entity_id, name):
+            return True
+        query_terms = query.replace("-", " ").replace("_", " ").split()
+        id_terms = entity_id.replace("-", " ").replace("_", " ").split()
+        name_terms = name.replace("-", " ").replace("_", " ").split()
+        # A short natural-language token may name an entity in a longer display
+        # name (e.g. "telefon" matching "Akıllı telefon").
+        return any(
+            q == candidate or q.startswith(candidate) or candidate.startswith(q)
+            for q in query_terms
+            for candidate in (*id_terms, *name_terms)
+            if len(q) >= 3 and len(candidate) >= 3
+        )
+
+    def resolve(self, intent: Intent, state: GameState) -> RuleResult | None:
+        if intent.action != "interact":
+            return None
+        if not intent.target:
+            return RuleResult([], "Inspect what?")
+
+        query = intent.target.strip()
+        matches: list[tuple[str, str, str, bool]] = []
+        # Stable IDs win over fuzzy display-name matches.
+        if query in state.world.items:
+            item = state.world.items[query]
+            matches = [("item", item.id, item.name, item.owner == "player" or item.location_id == state.character.location_id or item.id in state.character.inventory)]
+        elif query in state.world.npcs:
+            npc = state.world.npcs[query]
+            matches = [("npc", npc.id, npc.name, npc.alive and npc.location_id == state.character.location_id)]
+        elif query in state.world.locations:
+            name = state.world.locations[query]
+            matches = [("location", query, name, state.character.location_id == query)]
+        else:
+            for item in state.world.items.values():
+                if self._matches(query, item.id, item.name):
+                    accessible = item.owner == "player" or item.location_id == state.character.location_id or item.id in state.character.inventory
+                    matches.append(("item", item.id, item.name, accessible))
+            for npc in state.world.npcs.values():
+                if self._matches(query, npc.id, npc.name):
+                    matches.append(("npc", npc.id, npc.name, npc.alive and npc.location_id == state.character.location_id))
+            for location_id, name in state.world.locations.items():
+                if self._matches(query, location_id, name):
+                    matches.append(("location", location_id, name, state.character.location_id == location_id))
+
+        # Do not silently select an arbitrary entity if the phrase is ambiguous.
+        unique = {(kind, entity_id): (kind, entity_id, name, accessible) for kind, entity_id, name, accessible in matches}
+        if not unique:
+            return RuleResult([], f"You cannot find an interactable target matching '{query}'.")
+        if len(unique) > 1:
+            labels = sorted(value[2] for value in unique.values())
+            return RuleResult([], "That name is ambiguous. Specify one: " + ", ".join(labels[:4]) + ".")
+        kind, entity_id, name, accessible = next(iter(unique.values()))
+        if not accessible:
+            return RuleResult([], f"You cannot reach or inspect {name} from here.")
+        return RuleResult([], f"You inspect {name}.", interaction_target=entity_id)
+
+
 class TechniqueRule:
     name = "technique"
 
