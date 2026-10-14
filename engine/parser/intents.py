@@ -13,12 +13,12 @@ from dataclasses import dataclass
 META_ACTIONS = {"look", "inventory", "status", "help", "recover", "quit"}
 
 # Rule-backed game intents.
-RULE_ACTIONS = {"go", "take", "drop", "attack", "use", "accept", "abandon"}
+RULE_ACTIONS = {"go", "take", "drop", "attack", "use", "interact", "accept", "abandon"}
 
 
 @dataclass
 class Intent:
-    action: str          # go|take|drop|attack|use|accept|abandon|talk|free|look|inventory|status|help|quit
+    action: str          # go|take|drop|attack|use|interact|accept|abandon|talk|free|look|inventory|status|help|quit
     target: str          # normalized target id/phrase ("" if none)
     raw: str             # original player input
     topic: str = ""      # optional dialogue topic
@@ -34,6 +34,7 @@ _VERBS = {
     "drop": "drop",
     "attack": "attack", "hit": "attack", "strike": "attack", "fight": "attack",
     "use": "use", "cast": "use",
+    "interact": "interact", "inspect": "interact", "examine": "interact", "check": "interact", "incele": "interact", "kontrol": "interact",
     "talk": "talk", "speak": "talk", "ask": "talk",
     "accept": "accept", "takequest": "accept",
     "abandon": "abandon", "quitquest": "abandon",
@@ -56,6 +57,9 @@ def parse_input(text: str) -> Intent:
         return Intent(aliases.get(text, text), "", raw)
 
     words = text.split()
+    # Natural-language inspection forms use the same explicit interaction path.
+    if len(words) >= 3 and words[:2] == ["look", "at"]:
+        return Intent("interact", _normalize_target(words[2:]), raw)
     verb = _VERBS.get(words[0])
     rest = words[1:]
 
@@ -75,6 +79,15 @@ def parse_input(text: str) -> Intent:
 
     if verb == "take" and rest[:1] == ["up"]:
         rest = rest[1:]
+
+    if verb == "interact":
+        if rest[:1] in (["with"], ["at"]):
+            rest = rest[1:]
+        if rest[:1] in (["the"], ["a"], ["an"]):
+            rest = rest[1:]
+        if words[0] == "kontrol" and rest[:1] == ["et"]:
+            rest = rest[1:]
+        return Intent("interact", _normalize_target(rest), raw)
 
     if verb in ("go", "take", "drop", "attack", "use", "accept", "abandon"):
         return Intent(verb, _normalize_target(rest), raw)
