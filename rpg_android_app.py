@@ -57,7 +57,7 @@ def _normalize_entity_name(value):
     text = unicodedata.normalize("NFKD", str(value or "").casefold())
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"[_/\\-]+", " ", text)
-    return " ".join(re.findall(r"[\\w]+", text, flags=re.UNICODE))
+    return " ".join(re.findall(r"[\w]+", text, flags=re.UNICODE))
 
 
 def _aligned_label(text="", **kwargs):
