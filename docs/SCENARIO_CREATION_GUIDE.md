@@ -156,6 +156,12 @@ Koşullu alanlar:
 
 Aynı hedefi `data/characters.json` ve `world.json` içinde tanımlıyorsan iki yerde de nesne kullan. Kanonik kayıttaki hedef açıklaması ile başlangıç oyun durumundaki hedefi çeliştirme. Oyuncu eylemleriyle değişen aktif hedef ilerlemesi runtime/save durumuna aittir; kaynak kanonunu sessizce değiştirme.
 
+### Runtime relationship key rule
+
+`world.json` içindeki `relationships` nesnesinin anahtarı, ilişki kaydının açıklayıcı ID'si değildir. Motorun beklediği anahtar, `party_a` ve `party_b` değerlerini alfabetik sıralayıp `|` ile birleştirmektir.
+
+Örnek: taraflar `npc_kim_minjae` ve `npc_seo_yuna` ise anahtar `npc_kim_minjae|npc_seo_yuna` olmalıdır. `rel_minjae_yuna` gibi keyfî bir ad, mevcut runtime invariant kontrolünden geçmez. Kanonik `data/relationships.json` kaydının kendi ID'si ayrı kalabilir; bu kural yalnızca `world.json` içindeki aktif runtime ilişkilerine uygulanır.
+
 ## 7. world.json — başlangıç oyun durumu
 
 `world.json`, motorun başlangıç durumunu kurduğu dosyadır. `character` ve `locations` nesne olmalıdır. Başlangıç karakterinin `location_id` değeri `locations` içinde bulunmalıdır. Çıkışlar var olan lokasyon ID'lerini göstermelidir. Eşya, NPC, ilişki, olay ve görevler motorun beklediği alanlarla tanımlanmalıdır.
