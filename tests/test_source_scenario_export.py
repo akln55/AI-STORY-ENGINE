@@ -173,3 +173,109 @@ def test_typed_relation_endpoints_resolve_duplicate_ids_across_categories(tmp_pa
     from engine.scenario.loader import load_scenario
     pack = load_scenario(archive)
     assert pack.build_state().world.items["item_phone"].location_id == "shared_id"
+
+def test_user_confirmed_identity_merge_preserves_facts_aliases_and_relations(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source = tmp_path / "identity-merge.md"
+    source.write_text("Kim and Min-jae are the same character in this example.", encoding="utf-8")
+    wid = manager.create("Identity merge")
+    manager.add_source(wid, source)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [
+            {
+                "category": "locations", "id_candidate": "loc_start", "name": "Apartment",
+                "aliases": [], "facts": [],
+            },
+            {
+                "category": "characters", "id_candidate": "char_kim", "name": "Kim",
+                "aliases": ["K."], "facts": [{
+                    "field": "summary", "value": "Kim lives nearby.",
+                    "support": "explicit", "evidence": {"location_hint": "scene one"},
+                }],
+            },
+            {
+                "category": "characters", "id_candidate": "char_minjae", "name": "Min-jae",
+                "aliases": ["Kim"], "facts": [{
+                    "field": "location_id", "value": "loc_start",
+                    "support": "explicit", "evidence": {"location_hint": "scene two"},
+                }],
+            },
+        ],
+        "relations": [{
+            "source_id": "char_minjae", "source_category": "characters",
+            "relation": "located_at", "target_id": "loc_start", "target_category": "locations",
+            "support": "explicit", "evidence": {"location_hint": "scene two"},
+        }],
+        "unresolved": [],
+    })
+
+    before = manager.candidate_index(wid)
+    assert before["possible_duplicates"]
+    with pytest.raises(ScenarioError, match="possible duplicate"):
+        manager.export_scenario_archive(
+            wid, tmp_path / "blocked.rpgscenario.zip",
+            scenario_id="identity-merge", scenario_name="Identity Merge",
+            player_name="Player", start_location_id="loc_start",
+        )
+
+    after = manager.resolve_candidate_identity(
+        wid, category="characters", source_id="char_minjae", target_id="char_kim",
+    )
+    assert not after["possible_duplicates"]
+    assert not after["conflicts"]
+    survivors = [entity for entity in after["entities"] if entity["category"] == "characters"]
+    assert len(survivors) == 1
+    survivor = survivors[0]
+    assert survivor["id_candidate"] == "char_kim"
+    assert survivor["name"] == "Kim"
+    assert "Min-jae" in survivor["aliases"]
+    assert {fact["field"] for fact in survivor["facts"]} == {"summary", "location_id"}
+    assert after["relations"][0]["source_id"] == "char_kim"
+
+    decisions = json.loads((tmp_path / "ws" / wid / "identity_decisions.json").read_text(encoding="utf-8"))
+    assert decisions[0]["action"] == "merge_candidate_identity"
+    assert decisions[0]["updated_relation_endpoints"] == 1
+
+    archive = manager.export_scenario_archive(
+        wid, tmp_path / "merged.rpgscenario.zip",
+        scenario_id="identity-merge", scenario_name="Identity Merge",
+        player_name="Player", start_location_id="loc_start",
+    )
+    pack = load_scenario(archive)
+    assert pack.build_state().world.npcs["char_kim"].location_id == "loc_start"
+
+
+def test_user_confirmed_canonical_name_choice_resolves_same_id_conflict(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    wid = manager.create("Name conflict")
+    for filename, name in (("one.md", "Kim"), ("two.md", "Min-jae")):
+        source = tmp_path / filename
+        source.write_text(f"Evidence naming {name}.", encoding="utf-8")
+        manager.add_source(wid, source)
+        batch = manager.next_batch(wid)
+        assert batch is not None
+        manager.complete_batch(batch, {
+            "entities": [{
+                "category": "characters", "id_candidate": "char_kim", "name": name,
+                "aliases": [], "facts": [{
+                    "field": "summary", "value": f"Known as {name}.",
+                    "support": "explicit", "evidence": {"location_hint": filename},
+                }],
+            }],
+            "relations": [], "unresolved": [],
+        })
+
+    before = manager.candidate_index(wid)
+    assert before["conflicts"]
+    after = manager.resolve_candidate_identity(
+        wid, category="characters", source_id="char_kim", target_id="char_kim",
+        preferred_name="Kim",
+    )
+    assert not after["conflicts"]
+    assert len([item for item in after["entities"] if item["id_candidate"] == "char_kim"]) == 1
+    survivor = after["entities"][0]
+    assert survivor["name"] == "Kim"
+    assert "Min-jae" in survivor["aliases"]
+    assert len(survivor["facts"]) == 2
