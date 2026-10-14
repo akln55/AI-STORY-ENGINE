@@ -211,11 +211,11 @@ The uploaded archive's quest `quest_confirm_date` contains objective `obj_check_
 
 ### Test status
 
-Workflow `38621523674` had 552 passed / 2 failures: a stale UI-height test assertion and a small context-budget regression. Follow-up commits updated the test to assert dynamic sizing and omitted the expanded behaviour prose when an explicit context budget is under 2500 chars. A knowledge-graph test file and interaction tests were added afterward. **Check a fresh Actions run before claiming a green build.**
+The first follow-up run found a self-referential `contract_lines` bug; the next exposed ordinary inspection commands being intercepted from the AI memory path. Both were corrected. Fresh Actions run [38624639579](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38624639579) passed 560 tests, Python compileall, Android readiness, and mutation smoke 3/3.
 
 ### Acceptance still open
 
-- Run full pytest, compileall, Android readiness contract, and mutation smoke on current HEAD.
-- Run `python tools/validate_scenario.py <corrected-archive>` using the real project runtime; do not substitute manual JSON checks.
+- Full pytest (560 passed), compileall, Android readiness contract, and mutation smoke 3/3 passed on commit `1445c55297ab73ab98d5845d0daf34f01de2f93f`.
+- Still run `python tools/validate_scenario.py <corrected-archive>` using the real project runtime; do not substitute manual JSON checks.
 - Confirm APK scenario import and play the objective on Android.
 - Build a fresh APK only after source gates pass; device UI/inference remains a separate gate.

@@ -260,6 +260,63 @@ Yapılandırılmış senaryo verileri, metin özetlerinin yanı sıra motorun ar
 
 Uygulamadaki yapılandırılmış bilgi grafiği, bilinen kayıtları ID/isim/alias üzerinden çözebilir ve JSON kayıtlarındaki açık bağlantıları izleyebilir. Bu mekanizma şu an serbest bölüm metninden otomatik olarak yeni gerçekler çıkardığını garanti etmez. Chapter metninde geçen ama JSON kayıtlarında bulunmayan her karakterin/nesnenin otomatik keşfedildiğini varsayma; kaynak işleme aşaması açıkça tamamlanmalı ve çıkarılan veriler doğrulanmalıdır.
 
+### 9.1 ChatGPT'nin bölüm okuma çıktısı — ara format
+
+Kaynak okuma sırasında ham bölüm metnini doğrudan `data/*.json` içine yazma. Önce her bölüm veya küçük bölüm paketi için ayrı bir ara çıktı üret. Aşağıdaki örnek bir **işleme sözleşmesidir**; `source`, `facts`, `evidence` alanları doğrudan engine'in kanonik `items.json` şeması olarak kabul edilmemelidir.
+
+Her kaynak parçası için `batch_id`, `source_path` ve kaynak bölüm numarası; her kayıtta kategori, aday/kanonik ID, ad, alias'lar, desteklenen olgular, ilişkiler ve çözülemeyen belirsizlikler üret.
+
+- `entities`: `characters`, `locations`, `items`, `factions`, `creatures`, `events`, `techniques`, `realms` veya `knowledge` gibi uygun kategori.
+- `facts`: yalnızca kaynağın desteklediği nitelikler. Her önemli bilgiye kaynak dosyası/bölümü ve kısa bir konum ipucu bağla. Uzun pasaj kopyalamak yerine kısa açıklama/parafraz kullan.
+- `relations`: kaynak ID, ilişki türü, hedef ID ve bağlantıyı destekleyen kaynak referansı. İsim benzerliği tek başına bir ilişkiyi doğrulamaz.
+- `unresolved`: birleştirilmesi belirsiz kişiler, çelişen tarihler, kaynağı belirsiz söylentiler veya henüz hedef ID'si bulunmayan bağlantılar.
+
+Örnek ara kayıt:
+
+```json
+{
+  "batch_id": "chapter_0001",
+  "source_path": "chapters/chapter_0001.md",
+  "chapter": 1,
+  "entities": [
+    {
+      "category": "items",
+      "id_candidate": "item_phone",
+      "canonical_id": "item_phone",
+      "name": "Akıllı telefon",
+      "aliases": ["telefon", "cep telefonu"],
+      "facts": [
+        {
+          "field": "summary",
+          "value": "Oyuncunun yanında bulunan telefon; haberleri incelemek için kullanılıyor.",
+          "support": "explicit",
+          "evidence": {
+            "source_path": "chapters/chapter_0001.md",
+            "chapter": 1,
+            "location_hint": "telefonun ilk göründüğü sahne"
+          }
+        }
+      ]
+    }
+  ],
+  "relations": [],
+  "unresolved": []
+}
+```
+
+`support` değeri `explicit`, `inference`, `rumor` veya `disputed` olabilir. Kaynakta doğrudan yazmayan bir çıkarımı `explicit` olarak işaretleme. Bilgi bir karakterin yalnızca inancıysa evrenin nesnel gerçeği olarak değil, o karakterin bilgisi/inancı olarak sakla.
+
+### 9.2 Bölümler arası birleştirme ve devam etme
+
+1. Yeni parçayı işlemeye başlamadan önce mevcut kanonik kayıtları ve alias indeksini ara.
+2. Aynı varlık olduğuna yeterli dayanak varsa mevcut ID'yi sürdür; yalnızca farklı yazım gördün diye yeni ID açma. Kimlik eşleşmesi belirsizse `unresolved` listesine taşı.
+3. Her bölüm tamamlandığında aday kayıtları doğrula, kanonik kategori dosyalarına birleştir ve checkpoint yaz. Devam ederken son onaylı checkpoint'ten başla; bitmemiş partiyi tamamlanmış sayma.
+4. Orijinal bölüm metnini salt okunur kaynak olarak koru. Çıkarılan özet ve ilişkiler kaynak metnin yerine geçmez.
+5. Kanonik pakete yalnızca engine'in desteklediği alanları aktar. Ara format alanlarını kanonik dosyalara körlemesine kopyalama.
+6. Merge sonrasında JSON şema/ID/referans kontrollerini ve gerçek scenario validator'ını çalıştır. Kaynak okuma çıktısı tamamlanmış olsa bile import testi geçmeden paketi oynanabilir ilan etme.
+
+Bu yönerge ChatGPT'nin üreteceği ara çıktıyı standartlaştırır. Uygulamanın uzun kaynak kuyruğunun bu ara çıktıyı otomatik okuması, checkpoint/resume ve kaynak kanıtlarını arayüzde göstermesi henüz ayrı bir ürün kabul işidir.
+
 ## 10. Kaynak kanonu, alternatif zaman çizgisi ve NPC yaşamı
 
 
