@@ -72,6 +72,12 @@ class AppController:
     def load_installed_scenario(self, scenario_id: str) -> ScenarioPack:
         return ScenarioManager().load(scenario_id)
 
+    def remove_installed_scenario(self, scenario_id: str) -> bool:
+        """Remove an installed package, never its save slots or active session."""
+        if self.scenario_pack is not None and self.scenario_id == scenario_id:
+            raise RuntimeError("Aktif kampanya senaryosu kaldırılamaz; önce başka bir dünya aç.")
+        return ScenarioManager().remove(scenario_id)
+
     def install_scenario(self, archive: Path | str, *, replace: bool = False) -> ScenarioPack:
         manager = ScenarioManager()
         pack = manager.install(archive, replace=replace)
