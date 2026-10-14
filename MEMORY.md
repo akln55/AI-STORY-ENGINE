@@ -63,3 +63,16 @@
 - Preserve solved Android/security fixes.
 - Never commit API keys, tokens, passwords, signing material, model files, local saves, APKs, build caches, or secret `.env` files.
 - Do not confuse product version v1.1.4 with historical engineering baseline v1.28.3.
+
+## User-reported blockers for the next implementation pass (2026-10-14)
+
+These are open requirements, not completed features:
+
+- Chat bubbles are improved, but text-entry fields/composer remain broken.
+- API settings still request unnecessary information; provider-specific minimal forms are required.
+- Settings screen has not received the meaningful changes expected by the user; UI symbols/icons remain malformed or inconsistent.
+- Scenario import fails for the user's generated scenario: `characters.json:npc_kim_minjae.goals entries must be objects`. Inspect the real archive and schema producer/consumer; preserve goal data and add regression tests.
+
+User expects implementation, tests, GitHub changes, and a new APK build—not just an audit or plan. Never claim the current old APK includes these fixes.
+
+Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595), success on `ad611254d90578e375b53f7445d1e7f1d4d243ae`; artifact `rpg-engine-v1.1.4-android-debug`, ID `11845055403`, digest `sha256:513c11b5287e35a1122ee583ce62ad584afd5e661222c5f5653c70cae5e2657e`. This is only a successful baseline packaging run; device launch/rendering, gameplay, and SAF scenario import remain unproven.
