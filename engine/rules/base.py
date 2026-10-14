@@ -58,6 +58,8 @@ class Effect:
 class RuleResult:
     effects: list[Effect]
     narration_hint: str = ""
+    # Explicit, deterministic interaction signal for quest objectives.
+    interaction_target: str | None = None
 
 
 class Rule(Protocol):
