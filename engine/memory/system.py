@@ -194,6 +194,9 @@ class MemorySystem:
         existing_id = self._dedup.get(key)
         if existing_id and existing_id in self._records:
             rec = self._records[existing_id]
+            # Indexed fields can change during dedup. Remove the old index entries
+            # before mutating the record, then index the complete updated record.
+            self._deindex_record(rec)
             rec.last_updated_turn = max(rec.last_updated_turn, created_turn)
             rec.importance = max(rec.importance, importance)
             if tags_v:
@@ -205,6 +208,7 @@ class MemorySystem:
                 rec.location_id = location_id
             if event_id and not rec.event_id:
                 rec.event_id = event_id
+            self._index_record(rec)
             return rec
 
         rid = record_id or _new_id()
@@ -276,6 +280,28 @@ class MemorySystem:
         if key is None or not key:
             return
         index.setdefault(key, set()).add(record_id)
+
+    @staticmethod
+    def _index_remove(index: dict[str, set[str]], key: str | None, record_id: str) -> None:
+        if key is None or not key:
+            return
+        record_ids = index.get(key)
+        if record_ids is None:
+            return
+        record_ids.discard(record_id)
+        if not record_ids:
+            index.pop(key, None)
+
+    def _deindex_record(self, rec: MemoryRecord) -> None:
+        self._index_remove(self._store_index, rec.store, rec.id)
+        self._index_remove(self._visibility_index, rec.visibility, rec.id)
+        self._index_remove(self._entity_index, rec.entity_id, rec.id)
+        self._index_remove(self._location_index, rec.location_id, rec.id)
+        self._index_remove(self._event_index, rec.event_id, rec.id)
+        for tag in rec.tags:
+            self._index_remove(self._tag_index, tag, rec.id)
+        for gram in _trigrams(rec.content + " " + " ".join(rec.tags)):
+            self._index_remove(self._gram_index, gram, rec.id)
 
     def _index_record(self, rec: MemoryRecord) -> None:
         self._index_add(self._store_index, rec.store, rec.id)
