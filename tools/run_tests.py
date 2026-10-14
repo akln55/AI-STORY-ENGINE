@@ -1,21 +1,19 @@
 """Minimal stdlib test runner for environments without pytest.
 
-Runs the pytest-style test files in tests/ (plain test_* functions, fixtures
-resolved by name from tests/conftest.py). When pytest is available, prefer:
-    python -m pytest -v
-This runner exists so the suite also runs on bare Python (Android/Termux,
-CONVENTIONS §4: no network calls, no extra dependencies).
+Runs isolated pytest-style smoke directories with a minimal stdlib fixture resolver.
+For the project test suite, it delegates to pytest when installed and refuses to
+misrepresent a partial stdlib run as the complete project suite when pytest is missing.
+Use the project-wide command:
+    python -m pytest -q tests
+For standalone fixture-free/supported smoke directories, the stdlib runner remains useful.
 
 Usage:
     python tools/run_tests.py [TESTS_DIR]     # default: <project>/tests
 
 Exit code: 0 if every test passed (and at least one ran), 1 otherwise.
 
-pytest handling: conftest fixtures are plain factories that get wrapped with
-``pytest.fixture`` only when pytest is importable. Wrapped fixtures cannot be
-called directly, so this runner hides pytest from the code it loads; conftest
-then takes its bare-Python branch and the factories stay callable. The runner
-itself never imports or depends on pytest.
+Project-wide test execution must use pytest. The stdlib smoke mode intentionally hides
+pytest only after it has selected a non-project test directory.
 """
 
 from __future__ import annotations
@@ -25,6 +23,7 @@ import inspect
 import asyncio
 import sys
 import tempfile
+import subprocess
 import traceback
 from pathlib import Path
 
@@ -63,6 +62,21 @@ def main(argv: list[str] | None = None) -> int:
     if not tests_dir.is_dir():
         print(f"error: tests directory not found: {tests_dir}")
         return 1
+
+    if tests_dir == DEFAULT_TESTS_DIR:
+        try:
+            pytest_available = importlib.util.find_spec("pytest") is not None
+        except (ImportError, ValueError):
+            pytest_available = False
+        if not pytest_available:
+            print("error: the full project suite requires pytest.")
+            print("Install pytest, then run: python -m pytest -q tests")
+            print("The stdlib helper supports isolated smoke directories only; it is not a full-suite substitute.")
+            return 2
+        return subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", str(tests_dir)],
+            check=False,
+        ).returncode
 
     _hide_pytest()
     sys.path.insert(0, str(PROJECT_ROOT))
