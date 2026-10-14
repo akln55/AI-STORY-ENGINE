@@ -644,7 +644,7 @@ class SourceWorkspaceManager:
                     valid_type = isinstance(value, bool)
                 elif field in object_fields:
                     valid_type = isinstance(value, Mapping)
-                elif field in {"description", "summary", "first_appearance", "last_appearance", "date", "type", "status", "location_id", "owner", "faction_id", "leader_id", "ideology", "event_id", "entity_id", "content", "fact", "visibility", "target_id", "target_location"}:
+                elif field in {"description", "summary", "first_appearance", "last_appearance", "date", "type", "status", "location_id", "owner", "faction_id", "leader_id", "ideology", "event_id", "entity_id", "content", "fact", "visibility", "target_id", "target_location", "party_a", "party_b", "rarity"}:
                     valid_type = isinstance(value, str)
                 if support != "explicit" or not allowed or not valid_type:
                     review_claims.append({
