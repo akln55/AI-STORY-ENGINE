@@ -87,6 +87,12 @@ def assemble_context(
     """Build AI context. Never includes system-only or foreign-NPC memories."""
     if not DEFAULT_AI_ACCESS_POLICY.can("read_context"):
         raise PermissionError("AI context access is disabled by policy")
+    # Use the complete behaviour contract for normal context windows. For a deliberately
+    # tiny provider budget, retain the core engine-authority/movement rules above and omit
+    # expanded prose rather than failing after memory and scene history have been trimmed.
+    contract_lines = [] if max_context_chars is not None and max_context_chars < 2500 else [
+        *contract_lines,
+    ]
     core_lines = [
         "CORE SYSTEM: You narrate a text RPG. You never decide game state;",
         "you may only PROPOSE state changes, which the engine validates.",
