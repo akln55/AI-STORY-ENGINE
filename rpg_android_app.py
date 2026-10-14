@@ -1028,8 +1028,8 @@ class SourceWorkspaceScreen(BaseScreen):
             self.status_label.text = "Önce bir çalışma alanı seç."
             return
         try:
-            records = self.app_ref.controller.source_workspace_manager().read_batch_results(self.active_workspace_id)
-            text = __import__("json").dumps(records, ensure_ascii=False, indent=2) if records else "Henüz işlenmiş parça yok."
+            records = self.app_ref.controller.source_workspace_manager().candidate_index(self.active_workspace_id)
+            text = __import__("json").dumps(records, ensure_ascii=False, indent=2) if records.get("source_batch_count") else "Henüz işlenmiş parça yok."
         except Exception as exc:
             text = f"Adaylar okunamadı: {type(exc).__name__}"
         viewer = TextInput(
