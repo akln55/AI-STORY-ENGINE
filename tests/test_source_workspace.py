@@ -220,3 +220,38 @@ def test_source_order_and_removal_lock_after_first_checkpoint(tmp_path):
         manager.reorder_source(wid, b.source_id, -1)
     with pytest.raises(ScenarioError, match="cannot remove"):
         manager.remove_source(wid, a.source_id)
+
+def test_identical_source_is_rejected_without_modifying_workspace(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source_a = tmp_path / "chapter-one.md"
+    source_b = tmp_path / "renamed-copy.md"
+    content = "The same chapter content."
+    source_a.write_text(content, encoding="utf-8")
+    source_b.write_text(content, encoding="utf-8")
+    wid = manager.create("Deduplicate")
+    manager.add_source(wid, source_a)
+    with pytest.raises(ScenarioError, match="identical source content"):
+        manager.add_source(wid, source_b)
+    sources = manager.get_workspace(wid)["sources"]
+    assert len(sources) == 1
+    assert sources[0]["original_name"] == "chapter-one.md"
+
+
+def test_removal_is_locked_if_any_source_has_completed_batches(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source_a = tmp_path / "a.md"
+    source_b = tmp_path / "b.md"
+    source_a.write_text("A chapter.", encoding="utf-8")
+    source_b.write_text("B chapter.", encoding="utf-8")
+    wid = manager.create("Preserve order")
+    a = manager.add_source(wid, source_a)
+    manager.add_source(wid, source_b)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [{"category": "locations", "id_candidate": "loc_start", "name": "Start", "facts": []}],
+        "relations": [], "unresolved": [],
+    })
+    with pytest.raises(ScenarioError, match="cannot remove sources"):
+        manager.remove_source(wid, a.source_id)
+    assert len(manager.get_workspace(wid)["sources"]) == 2
