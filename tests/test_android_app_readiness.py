@@ -291,3 +291,14 @@ def test_test_runner_delegates_full_project_suite_and_never_claims_partial_passe
     assert '"-m", "pytest", "-q", str(tests_dir)' in source
     assert "the full project suite requires pytest" in source
     assert "isolated smoke directories only" in source
+
+def test_scenario_studio_exposes_candidate_identity_resolution():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    studio = source[source.index("class SourceWorkspaceScreen"):source.index("class AIScreen(BaseScreen):")]
+    manager = (ROOT / "engine/scenario/source_workspace.py").read_text()
+    assert 'text="Kimlik çakışmalarını çöz"' in studio
+    assert "def _resolve_identity_dialog(self):" in studio
+    assert "resolve_candidate_identity(" in studio
+    assert "def _record_identity_decision(" in manager
+    assert "identity_decisions.json" in manager
+    assert "resolve possible duplicate identities before export" in manager
