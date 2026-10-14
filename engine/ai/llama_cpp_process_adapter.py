@@ -159,6 +159,15 @@ class LlamaCppProcessAdapter(AIAdapter):
         text = _strip_code_fence(text)
         return parse_structured_response_json(text)
 
+    def generate_text(self, prompt: str, *, system_instruction: str | None = None) -> str:
+        """Generate raw text for bounded non-gameplay tasks such as scenario extraction."""
+        text_prompt = prompt
+        if system_instruction:
+            text_prompt = system_instruction.strip() + "\n\n" + text_prompt
+        text_prompt += "\n\nReturn only the requested JSON object. Do not add Markdown fences or commentary."
+        envelope = self._call_server(text_prompt)
+        return _strip_code_fence(self._extract_text(envelope)).strip()
+
     # ------------------------------------------------------------ helpers
 
     @staticmethod
