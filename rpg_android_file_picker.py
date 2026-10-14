@@ -93,6 +93,48 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
     return target
 
 
+def open_source_document(on_path: Callable[[str], None]) -> bool:
+    """Open Android SAF for a UTF-8 source text file (.txt or .md)."""
+    try:
+        from android import activity
+        from jnius import autoclass
+    except ImportError:
+        return False
+
+    Intent = autoclass("android.content.Intent")
+    PythonActivity = autoclass("org.kivy.android.PythonActivity")
+    request_code = 18429
+
+    def on_result(request, result, intent):
+        if request != request_code:
+            return
+        try:
+            activity.unbind(on_activity_result=on_result)
+        except Exception:
+            pass
+        if result != -1 or intent is None:
+            return
+        uri = intent.getData()
+        if uri is None:
+            return
+        resolver = PythonActivity.mActivity.getContentResolver()
+        name = _display_name(resolver, uri)
+        if Path(name).suffix.casefold() not in {".txt", ".md"}:
+            raise ValueError("Yalnızca .txt ve .md kaynak dosyaları destekleniyor")
+        destination = _copy_uri_to_cache(
+            resolver, uri, name, subdir="source_imports", max_bytes=32 * 1024 * 1024,
+        )
+        on_path(str(destination))
+
+    activity.bind(on_activity_result=on_result)
+    intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+    intent.addCategory(Intent.CATEGORY_OPENABLE)
+    intent.setType("text/plain")
+    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, False)
+    PythonActivity.mActivity.startActivityForResult(intent, request_code)
+    return True
+
+
 def open_model_document(on_path: Callable[[str], None]) -> bool:
     """Open Android SAF for a local GGUF model and copy it to app-private storage."""
     try:
