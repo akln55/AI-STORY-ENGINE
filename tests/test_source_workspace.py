@@ -197,3 +197,26 @@ def test_extraction_prompt_contains_order_provenance_and_no_runtime_mutation_per
     assert "loc_hospital" in prompt
     assert "Do not write canonical files or mutate gameplay state" in prompt
     assert "A person enters the hospital." in prompt
+
+def test_source_order_and_removal_lock_after_first_checkpoint(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source_a = tmp_path / "a.md"
+    source_b = tmp_path / "b.md"
+    source_a.write_text("First chapter source.", encoding="utf-8")
+    source_b.write_text("Second chapter source.", encoding="utf-8")
+    wid = manager.create("Locked order")
+    a = manager.add_source(wid, source_a)
+    b = manager.add_source(wid, source_b)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [{
+            "category": "locations", "id_candidate": "loc_start", "name": "Starting location",
+            "aliases": [], "facts": [],
+        }],
+        "relations": [], "unresolved": [],
+    })
+    with pytest.raises(ScenarioError, match="order is locked"):
+        manager.reorder_source(wid, b.source_id, -1)
+    with pytest.raises(ScenarioError, match="cannot remove"):
+        manager.remove_source(wid, a.source_id)
