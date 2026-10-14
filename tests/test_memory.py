@@ -229,3 +229,23 @@ def test_indexed_retrieval_preserves_substring_semantics():
     ms.add("event", "quiet day", visibility="player", importance=100, created_turn=3)
     ranked = retrieve(ms, viewer="player", query_terms=["olf"], limit=10)
     assert [r.content for r in ranked] == ["the wolf attacked", "wolf tracks"]
+
+
+def test_dedup_updates_all_secondary_indexes():
+    ms = MemorySystem()
+    first = ms.add(
+        "location", "The survivor reached the old station",
+        visibility="player", created_turn=1,
+    )
+    updated = ms.add(
+        "location", "the survivor reached the old station",
+        visibility="player", created_turn=3,
+        entity_id="npc_survivor", location_id="loc_station",
+        event_id="event_arrival", tags=["arrival", "survivor"],
+    )
+    assert updated.id == first.id
+    assert [r.id for r in retrieve(ms, viewer="player", entity_id="npc_survivor")] == [first.id]
+    assert [r.id for r in retrieve(ms, viewer="player", location_id="loc_station")] == [first.id]
+    assert [r.id for r in retrieve(ms, viewer="player", event_id="event_arrival")] == [first.id]
+    assert [r.id for r in retrieve(ms, viewer="player", tags=["arrival"])] == [first.id]
+    assert not retrieve(ms, viewer="player", tags=["obsolete-tag"])
