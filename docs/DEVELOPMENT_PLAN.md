@@ -21,21 +21,21 @@ Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler
 
 ## 2. Güncellenmiş, öncelik sıralı ana görev listesi
 
-| Sıra | Görev paketi | Etki | Engel | Bağımlılık | Bütünlük riski | Puan / 10 | Durum |
-|---:|---|---:|---:|---:|---:|---:|---|
-| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | [ ] ZIP bekleniyor; kök neden bilinmiyor |
-| 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | [ ] Planlandı |
-| 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | [ ] Planlandı |
-| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | [ ] Planlandı |
-| 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | [ ] Planlandı |
-| 6 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | [ ] Planlandı |
-| 7 | Motor bütünlüğü düzeltmeleri: reddedilmiş event'ten sahte memory yazılmasını engelle; dedup sonrası indeksleri yenile; resource integer doğrulamasında bool reddet | 8.3 | 8.3 | 7.8 | 9.7 | **8.5** | [ ] Kod incelemesinde yeniden üretildi; düzeltilmedi |
-| 8 | Oyun/Senaryolar listesi ve demo yönetimi: demo sabitlenmesini kaldırma, silme onayı ve save koruması | 8.2 | 8.0 | 7.0 | 8.0 | **7.9** | [ ] Planlandı; güvenli silme varsayımı açıkça korunacak |
-| 9 | Sohbet yazma alanı: yuvarlak composer, metin/imleç/hint hizası, uzun metin, klavye ve gönderme kontrolü | 8.8 | 7.0 | 7.0 | 7.0 | **7.6** | [ ] Ekran görüntüsü var; cihazda doğrulanmadı |
-| 10 | AI/API ayarlarını sadeleştir: sağlayıcı seçimi + anahtar; OpenAI-compatible için gerekli gelişmiş alanları koşullu göster; API anahtarı girişi tasarımı | 7.8 | 7.0 | 7.5 | 7.7 | **7.5** | [ ] Mevcut UX kullanıcı beklentisini karşılamıyor |
-| 11 | Hugging Face indirmesinde partial dosyayı koruma ve uygulama yeniden açılınca devam etme akışını doğrula | 7.5 | 6.8 | 6.8 | 8.2 | **7.3** | [ ] Kısmi altyapı var; lifecycle testi eksik |
-| 12 | tools/run_tests.py davranışını düzelt veya desteklenen test komutunu açıkça belgele | 6.5 | 5.5 | 5.8 | 6.5 | **6.1** | [ ] 31 geçti, 5 test helper/fixture uyumsuzluğu nedeniyle başarısız |
-| 13 | Tam regresyon, CI, güncel APK build, artifact/provenance ve gerçek cihaz kabul kapısı | 9.0 | 8.0 | 9.5 | 9.2 | **8.9** | [ ] En sonda; eski APK yeni değişiklikleri kanıtlamaz |
+| Öncelik | Görev paketi | Etki | Engel | Bağımlılık | Bütünlük riski | Puan / 10 | Uygulama paketi | Durum |
+|---:|---|---:|---:|---:|---:|---:|---|---|
+| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] ZIP bekleniyor; kök neden bilinmiyor |
+| 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | 1 | [ ] Planlandı |
+| 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | 1 | [ ] Planlandı |
+| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [ ] Planlandı |
+| 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | 1, 5 | [ ] Planlandı |
+| 6 | Tam regresyon, CI, güncel APK build, artifact/provenance ve gerçek cihaz kabul kapısı | 9.0 | 8.0 | 9.5 | 9.2 | **8.9** | 5 (son kapı) | [ ] Bağımlı işlerin ardından |
+| 7 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | 3 | [ ] Planlandı |
+| 8 | Motor bütünlüğü düzeltmeleri: reddedilmiş event'ten sahte memory yazılmasını engelle; dedup sonrası indeksleri yenile; resource integer doğrulamasında bool reddet | 8.3 | 8.3 | 7.8 | 9.7 | **8.5** | 4 | [ ] Kod incelemesinde yeniden üretildi; düzeltilmedi |
+| 9 | Oyun/Senaryolar listesi ve demo yönetimi: demo sabitlenmesini kaldırma, silme onayı ve save koruması | 8.2 | 8.0 | 7.0 | 8.0 | **7.9** | 3 | [ ] Planlandı; güvenli silme varsayımı açıkça korunacak |
+| 10 | Sohbet yazma alanı: yuvarlak composer, metin/imleç/hint hizası, uzun metin, klavye ve gönderme kontrolü | 8.8 | 7.0 | 7.0 | 7.0 | **7.6** | 3 | [ ] Ekran görüntüsü var; cihazda doğrulanmadı |
+| 11 | AI/API ayarlarını sadeleştir: sağlayıcı seçimi + anahtar; OpenAI-compatible için gerekli gelişmiş alanları koşullu göster; API anahtarı girişi tasarımı | 7.8 | 7.0 | 7.5 | 7.7 | **7.5** | 3 | [ ] Mevcut UX kullanıcı beklentisini karşılamıyor |
+| 12 | Hugging Face indirmesinde partial dosyayı koruma ve uygulama yeniden açılınca devam etme akışını doğrula | 7.5 | 6.8 | 6.8 | 8.2 | **7.3** | 4 | [ ] Kısmi altyapı var; lifecycle testi eksik |
+| 13 | tools/run_tests.py davranışını düzelt veya desteklenen test komutunu açıkça belgele | 6.5 | 5.5 | 5.8 | 6.5 | **6.1** | 4 | [ ] 31 geçti, 5 test helper/fixture uyumsuzluğu nedeniyle başarısız |
 
 Görev 13'ün puanı yüksek olsa da diğer işler tamamlanmadan APK üretmek doğru sıralama değildir. Puan önem/etkiyi, aşağıdaki kampanya akışı ise bağımlılıkları gösterir.
 
@@ -280,6 +280,14 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 - Görev ancak kabul kriterleri ve gerekli test/kanıtlar geçince [x] yapılacak. Başlamadıysa veya kısmen yapıldıysa [ ] kalacak.
 - Tamamlanan iş varsayılan olarak silinmek yerine [x] ve kanıtla korunacak; geçmiş görünür kalacak.
 - Her görev sonrasında bu plan, ilgili teknik belgeler, AI_START_HERE.md, HANDOFF.md ve MEMORY.md güncellenecek. Eski işler yalnızca görünümü temizlemek için tamamlandı işaretlenmeyecek.
+
+## 12.5. Bu planlama görevinin durumu
+
+- [x] Yeni gereksinimler önceki teknik görevlerle birleştirildi.
+- [x] Görevler ağırlıklı puanlama yöntemiyle yeniden sıralandı; uygulama sırası ve puan sırası ayrı gösterildi.
+- [x] Tek onayla ilerleyecek kampanya, bağımlılıkları ve kabul kapıları yazıldı.
+- [x] AI_START_HERE.md, HANDOFF.md, MEMORY.md ve APP_READINESS_CHECKLIST.md plana göre güncellendi.
+- [ ] Uygulama işleri: kullanıcı kampanya onayı ve ilgili gerçek girdiler gelmeden başlamaz.
 
 ## 13. Şu anki blokaj ve onay kapısı
 
