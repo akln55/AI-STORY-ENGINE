@@ -58,7 +58,7 @@ Detailed plan: docs/DEVELOPMENT_PLAN.md. This commit updates documentation only;
 
 ## 2026-10-14 — Revised campaign acceptance backlog (not yet implemented)
 
-- [ ] Inspect the actual failed scenario archive and confirm root cause; archive not yet supplied.
+- [x] Inspect the actual failed scenario archive and confirm root cause: string-valued NPC goal plus non-canonical runtime relationship keys. Actual engine validator/app import still pending.
 - [ ] Create a schema-aligned ChatGPT scenario pack guide and validation examples.
 - [ ] Add incremental ordered chapter/source processing, checkpoints, stable-ID merging, source retention and support for later chapter packages.
 - [ ] Create and runtime-wire the in-game AI behaviour prompt/guide.
@@ -71,3 +71,6 @@ Detailed plan: docs/DEVELOPMENT_PLAN.md. This commit updates documentation only;
 - [ ] Run complete tests/CI, build and verify a fresh APK, and execute available device acceptance tests.
 
 Task statuses must stay unchecked until the listed acceptance criteria are actually evidenced. This section records planned work only; no implementation is claimed.
+
+
+Note: `docs/SCENARIO_CREATION_GUIDE.md` has been created and aligned to the current loader/registry contract. The broader schema/validator acceptance task remains unchecked until the corrected pack passes the real engine validator and import path.
