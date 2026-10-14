@@ -4,6 +4,8 @@ from pathlib import Path
 from threading import Thread
 from types import SimpleNamespace
 import json
+import re
+import unicodedata
 
 from kivy.app import App
 from kivy.animation import Animation
@@ -49,6 +51,13 @@ FOOTER_SURFACE = (10 / 255, 10 / 255, 10 / 255, 1)
 
 # Backwards-compatible alias while screens migrate to semantic names.
 MUTED = TEXT_MUTED
+
+
+def _normalize_entity_name(value):
+    text = unicodedata.normalize("NFKD", str(value or "").casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[_/\\-]+", " ", text)
+    return " ".join(re.findall(r"[\\w]+", text, flags=re.UNICODE))
 
 
 def _aligned_label(text="", **kwargs):
@@ -821,6 +830,12 @@ class SourceWorkspaceScreen(BaseScreen):
         candidate_button.bind(on_release=lambda *_: self._show_candidates())
         root.add_widget(candidate_button)
 
+        self.resolve_identity_button = SoftButton(
+            text="Kimlik çakışmalarını çöz", size_hint_y=None, height=dp(36), font_size=sp(11),
+        )
+        self.resolve_identity_button.bind(on_release=lambda *_: self._resolve_identity_dialog())
+        root.add_widget(self.resolve_identity_button)
+
         self._export_running = False
         self.export_button = AccentButton(
             text="İncelenmiş veriden senaryo ZIP'i oluştur",
@@ -874,6 +889,7 @@ class SourceWorkspaceScreen(BaseScreen):
         self.add_source_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
         self.process_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
         self.export_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
+        self.resolve_identity_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
         if self.active_workspace_id is None:
             self.status_label.text = "Henüz çalışma alanı yok. + Yeni ile başla."
             empty = RoundedPanel(
@@ -1159,6 +1175,131 @@ class SourceWorkspaceScreen(BaseScreen):
             Thread(target=worker, daemon=True).start()
 
         actions.add_widget(AccentButton(text="ZIP oluştur", on_release=start_export))
+        box.add_widget(actions)
+        popup.open()
+
+    def _resolve_identity_dialog(self):
+        if self.active_workspace_id is None or self._queue_running or self._export_running:
+            self.status_label.text = "Önce bir çalışma alanı seç ve etkin işlem yokken kimlikleri düzenle."
+            return
+        manager = self.app_ref.controller.source_workspace_manager()
+        try:
+            index = manager.candidate_index(self.active_workspace_id)
+        except Exception as exc:
+            self.status_label.text = f"Adaylar okunamadı: {type(exc).__name__}"
+            return
+        entities = index.get("entities", [])
+        if len(entities) < 2:
+            self.status_label.text = "Karşılaştırılacak en az iki aday kayıt gerekli."
+            return
+
+        def label_for(entity):
+            return f"{entity['category']} · {entity['id_candidate']} — {entity['name']}"
+
+        entity_by_label = {label_for(entity): entity for entity in entities}
+        all_labels = tuple(entity_by_label)
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(9))
+        source_picker = Spinner(
+            text=all_labels[0], values=all_labels,
+            background_normal="", background_color=SURFACE_2,
+            color=TEXT, font_size=sp(10),
+        )
+        target_picker = Spinner(
+            text="", values=(),
+            background_normal="", background_color=SURFACE_2,
+            color=TEXT, font_size=sp(10),
+        )
+        box.add_widget(_field_group("Aday / kaynak kimlik", source_picker))
+        box.add_widget(_field_group("Kanonik kayıt / tercih edilen ad", target_picker))
+        box.add_widget(_aligned_label(
+            text=(
+                "Farklı ID'ler seçilirse kaynak kimlik kanonik hedefe birleştirilir. "
+                "Aynı ID altında farklı adlar seçilirse hedef ad kanonik ad olur. "
+                "Tüm alanlar ve kaynak kanıtları korunur; karar günlüğe yazılır."
+            ),
+            color=MUTED, font_size=sp(10), valign="top",
+            size_hint_y=None, height=dp(58),
+        ))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(
+            title="Varlık kimliğini eşleştir", content=box,
+            size_hint=(0.96, None), height=dp(390), background_color=SURFACE,
+        )
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+
+        target_labels = []
+
+        def update_target_options(*_):
+            source = entity_by_label.get(source_picker.text)
+            if source is None:
+                return
+            compatible = [
+                label for label, entity in entity_by_label.items()
+                if entity["category"] == source["category"]
+                and label != source_picker.text
+            ]
+            # Prefer another ID sharing the same name/alias; same-ID name variants
+            # remain available so a user can explicitly choose the canonical name.
+            same_id = [
+                label for label in compatible
+                if entity_by_label[label]["id_candidate"] == source["id_candidate"]
+            ]
+            different_id = [
+                label for label in compatible
+                if entity_by_label[label]["id_candidate"] != source["id_candidate"]
+            ]
+            target_labels[:] = same_id + different_id
+            target_picker.values = tuple(target_labels)
+            target_picker.text = target_labels[0] if target_labels else ""
+
+        source_picker.bind(text=update_target_options)
+        update_target_options()
+
+        def apply_decision(*_):
+            source = entity_by_label.get(source_picker.text)
+            target = entity_by_label.get(target_picker.text)
+            if source is None or target is None:
+                self.status_label.text = "Aynı kategoriden iki aday seç."
+                return
+            if source["category"] != target["category"]:
+                self.status_label.text = "Yalnızca aynı kategorideki varlıklar birleştirilebilir."
+                return
+            if source["id_candidate"] == target["id_candidate"]:
+                if _normalize_entity_name(source["name"]) == _normalize_entity_name(target["name"]):
+                    self.status_label.text = "Bu iki seçim aynı kimliği temsil ediyor."
+                    return
+                try:
+                    result = manager.resolve_candidate_identity(
+                        self.active_workspace_id,
+                        category=source["category"],
+                        source_id=source["id_candidate"],
+                        target_id=target["id_candidate"],
+                        preferred_name=target["name"],
+                    )
+                    message = f"Kanonik ad seçildi: {target['name']}"
+                except Exception as exc:
+                    self.status_label.text = f"Ad çakışması çözülemedi: {exc}"
+                    return
+            else:
+                try:
+                    result = manager.resolve_candidate_identity(
+                        self.active_workspace_id,
+                        category=source["category"],
+                        source_id=source["id_candidate"],
+                        target_id=target["id_candidate"],
+                    )
+                    message = f"{source['id_candidate']} → {target['id_candidate']} birleştirildi."
+                except Exception as exc:
+                    self.status_label.text = f"Kimlik birleştirilemedi: {exc}"
+                    return
+            popup.dismiss()
+            self.status_label.text = (
+                message + f" · {len(result['conflicts'])} ID/ad çakışması, "
+                f"{len(result['possible_duplicates'])} olası mükerrer kaldı."
+            )
+            self.refresh()
+
+        actions.add_widget(AccentButton(text="Kararı uygula", on_release=apply_decision))
         box.add_widget(actions)
         popup.open()
 
