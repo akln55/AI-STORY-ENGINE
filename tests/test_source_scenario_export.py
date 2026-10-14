@@ -290,6 +290,7 @@ def test_exporter_does_not_promote_wrong_types_for_relationship_parties(tmp_path
     assert batch is not None
     manager.complete_batch(batch, {
         "entities": [
+            {"category": "locations", "id_candidate": "loc_start", "name": "Starting location", "aliases": [], "facts": []},
             {"category": "characters", "id_candidate": "char_a", "name": "A", "aliases": [], "facts": []},
             {"category": "characters", "id_candidate": "char_b", "name": "B", "aliases": [], "facts": []},
         ],
@@ -312,5 +313,11 @@ def test_exporter_does_not_promote_wrong_types_for_relationship_parties(tmp_path
     archive = manager.export_scenario_archive(
         wid, tmp_path / "relationship-types.rpgscenario.zip",
         scenario_id="relationship-types", scenario_name="Relationship Types",
-        player_name="Player", start_location_id="loc_unused",
+        player_name="Player", start_location_id="loc_start",
     )
+    with zipfile.ZipFile(archive) as bundle:
+        relationships = json.loads(bundle.read("data/relationships.json"))
+        assert "party_a" not in relationships["rel_a_b"]
+        assert relationships["rel_a_b"]["party_b"] == "char_b"
+        review = bundle.read("lore/extraction-review.md").decode("utf-8")
+        assert "relationships:rel_a_b:party_a" in review
