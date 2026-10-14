@@ -388,6 +388,91 @@ class SourceWorkspaceManager:
             results.append(_read_json(path))
         return tuple(results)
 
+    def candidate_index(self, workspace_id: str) -> dict[str, Any]:
+        """Merge matching intermediate candidates while preserving every source claim."""
+        entities: dict[tuple[str, str, str], dict[str, Any]] = {}
+        names_by_id: dict[tuple[str, str], dict[str, list[dict[str, Any]]]] = {}
+        relations: dict[str, dict[str, Any]] = {}
+        unresolved: list[dict[str, Any]] = []
+        for batch_output in self.read_batch_results(workspace_id):
+            provenance = dict(batch_output.get("provenance", {}))
+            extraction = batch_output.get("extraction", {})
+            for raw_entity in extraction.get("entities", []):
+                category = str(raw_entity["category"])
+                record_id = str(raw_entity.get("canonical_id") or raw_entity["id_candidate"])
+                name = str(raw_entity["name"]).strip()
+                normalized_name = _normalize(name)
+                key = (category, record_id, normalized_name)
+                if key not in entities:
+                    entities[key] = {
+                        "category": category, "id_candidate": record_id, "name": name,
+                        "aliases": [], "facts": [], "sources": [],
+                    }
+                item = entities[key]
+                item["aliases"] = sorted(set(item["aliases"]) | set(raw_entity.get("aliases", [])))
+                if provenance not in item["sources"]:
+                    item["sources"].append(provenance)
+                names_by_id.setdefault((category, record_id), {}).setdefault(normalized_name, []).append(provenance)
+                for raw_fact in raw_entity.get("facts", []):
+                    fact = dict(raw_fact)
+                    fact["source_provenance"] = provenance
+                    # Keep conflicting values; deduplicate only identical claims with the same provenance.
+                    fingerprint = json.dumps(fact, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                    current = {
+                        json.dumps(existing, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                        for existing in item["facts"]
+                    }
+                    if fingerprint not in current:
+                        item["facts"].append(fact)
+            for raw_relation in extraction.get("relations", []):
+                relation = dict(raw_relation)
+                relation["source_provenance"] = provenance
+                identity = json.dumps({
+                    "source_id": relation.get("source_id"),
+                    "relation": relation.get("relation"),
+                    "target_id": relation.get("target_id"),
+                    "support": relation.get("support"),
+                }, ensure_ascii=False, sort_keys=True)
+                existing = relations.setdefault(identity, {
+                    key: relation[key] for key in ("source_id", "relation", "target_id", "support")
+                } | {"evidence_records": []})
+                claim = {"evidence": relation.get("evidence", {}), "source_provenance": provenance}
+                if claim not in existing["evidence_records"]:
+                    existing["evidence_records"].append(claim)
+            for raw_unresolved in extraction.get("unresolved", []):
+                item = dict(raw_unresolved)
+                item["source_provenance"] = provenance
+                unresolved.append(item)
+
+        conflicts = []
+        for (category, record_id), names in sorted(names_by_id.items()):
+            if len(names) > 1:
+                conflicts.append({
+                    "category": category, "id_candidate": record_id,
+                    "candidate_names": sorted(names),
+                    "reason": "same candidate ID was emitted with different names; review before canonical merge",
+                    "sources_by_name": names,
+                })
+        merged_entities = sorted(entities.values(), key=lambda x: (x["category"], x["id_candidate"], _normalize(x["name"])))
+        for entity in merged_entities:
+            entity["sources"].sort(key=lambda x: (int(x.get("sequence", 0)), str(x.get("source_path", "")), int(x.get("chunk_index", 0))))
+            entity["facts"].sort(key=lambda x: (str(x.get("field", "")), str(x.get("support", "")), str(x.get("value", ""))))
+        return {
+            "format_version": 1,
+            "entities": merged_entities,
+            "relations": [relations[key] for key in sorted(relations)],
+            "unresolved": unresolved,
+            "conflicts": conflicts,
+            "source_batch_count": len(self.read_batch_results(workspace_id)),
+            "canonical_pack_modified": False,
+        }
+
+    def export_candidate_index(self, workspace_id: str) -> Path:
+        """Write a portable review artifact; it is not an importable scenario pack."""
+        path = self._workspace_path(workspace_id) / "candidate_index.json"
+        _atomic_json(path, self.candidate_index(workspace_id))
+        return path
+
     @staticmethod
     def build_extraction_prompt(batch: SourceBatch, *, existing_entities: Iterable[Mapping[str, Any]] = ()) -> str:
         known = []
