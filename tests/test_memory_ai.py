@@ -137,3 +137,28 @@ def test_multiple_memory_updates():
     s = build_session(adapter=fake)
     s.handle_input("write in journal")
     assert len(retrieve(s.memory, viewer="player")) == 2
+
+
+def test_rejected_event_trigger_blocks_accompanying_memory():
+    from engine.core.state import EventState
+
+    fake = FakeAdapter(handlers={
+        "repeat": {
+            "narrative": "The old festival starts again.",
+            "events_triggered": ["festival"],
+            "memory_updates": [{
+                "store": "event",
+                "content": "The festival was triggered this turn",
+                "visibility": "player",
+                "importance": 20,
+                "event_id": "festival",
+            }],
+        },
+    })
+    s = build_session(adapter=fake)
+    s.state.world.events["festival"] = EventState(
+        id="festival", type="festival", status="active", start_turn=0
+    )
+    s.handle_input("repeat the festival")
+    assert s.last_report is not None and s.last_report.rejected
+    assert len(s.memory) == 0
