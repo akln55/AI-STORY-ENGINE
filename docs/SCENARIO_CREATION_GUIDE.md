@@ -203,7 +203,65 @@ Başlangıç NPC'si örneği:
 
 Bu nesne, `world.json` içindeki `npcs` nesnesinin içindeki bir kayıttır. `world.json` ayrıca en azından başlangıç `character`, `locations`, `exits`, `items`, `npcs`, `relationships`, `events`, `techniques` ve `quests` nesnelerini tutarlı şekilde içermelidir. Kullanılmayan kategoriler boş nesne olabilir.
 
-## 8. Kaynak kanonu, alternatif zaman çizgisi ve NPC yaşamı
+## 8. Quest objectives — görev hedeflerinin motor sözleşmesi
+
+`world.json` içindeki her quest'in `objectives` listesi motor tarafından doğrulanır. Desteklenen hedef türleri:
+
+
+| type | target_id neyi göstermeli? | İlerlemenin nasıl doğrulandığı |
+|---|---|---|
+| `collect` | `world.json.items` içindeki eşya ID'si | Eşyanın oyuncunun envanterinde bulunması |
+| `reach` | `world.json.locations` içindeki mekân ID'si | Oyuncunun o mekânda olması |
+| `defeat` | `world.json.npcs` içindeki NPC ID'si | NPC'nin runtime durumunda hayatta olmaması |
+| `talk` | `player` veya mevcut NPC ID'si | Motorun tanıdığı konuşma eylemi |
+| `interact` | Eşya, NPC veya mekân ID'si | Oyuncunun erişebildiği hedefi açıkça incelemesi/etkileşmesi |
+
+Örnek — oyuncunun başlangıç envanterindeki telefonu incelemesi:
+
+```json
+{
+  "id": "obj_check_phone",
+  "description": "Telefon ve haber akışını incele",
+  "type": "interact",
+  "target_id": "item_phone",
+  "required_count": 1
+}
+```
+
+Bu örnekte `item_phone` hem `world.json.items` içinde tanımlanmalı hem de oyuncunun gerçekten erişebildiği bir konuma veya sahipliğe sahip olmalıdır. `interact` hedefini yalnızca açıklama metniyle tanımlama. Oyuncu açık bir inceleme eylemi gerçekleştirmeden bu hedef tamamlanmaz; anlatıcı AI'nın “inceledin” demesi tek başına ilerleme sağlamaz. Uygulamanın bu sürümünde oyuncu komutları için `inspect phone`, `interact with item_phone`, `telefonu incele` veya `telefonu kontrol et` benzeri açık eylemler kullanılabilir. Hedef erişilebilir değilse motor hedefi tamamlamaz.
+
+Türü bilinmeyen bir hedef türü (ör. `interact`) eski engine sürümlerinde import hatası üretebilir. Yeni paket üretmeden önce bu rehberin desteklenen türler bölümüyle kullanılan uygulama sürümünü eşleştir; doğrulamayı kapatarak veya hedef alanını silerek hatayı gizleme.
+
+## 9. Varlık grafiği ve kimlik sürekliliği
+
+Yapılandırılmış senaryo verileri, metin özetlerinin yanı sıra motorun arayabileceği kalıcı kayıtlar üretmelidir. Her kişi, eşya, mekân, grup, yaratık, teknik, olay, ilişki ve bilgi kaydının sabit ID'sini koru. Aynı varlık farklı bölümlerde yeniden geçtiğinde aynı ID'yi kullan; yalnızca isim varyantı veya lakap nedeniyle yeni kayıt oluşturma.
+
+- `name`: okuyucuya gösterilen isim.
+- `aliases`: kaynakta kullanılan lakaplar, yazım varyantları veya bilinen alternatif adlar.
+- `references`: kategori adını ilgili kayıt ID'lerine bağlayan açık referanslar.
+- `location_id`, `target_id`, `faction_id`, `related_ids` gibi desteklenen referans alanları: yalnızca hedefi gerçekten belli olduğunda kullan.
+- Bir bağlantı açık kanıta dayanmıyorsa uydurma. İki kaydın aynı varlık olduğunu doğrulayamıyorsan belirsizliği lore notuna yaz; keyfî biçimde ID birleştirme.
+
+Örnek:
+
+```json
+{
+  "item_phone": {
+    "id": "item_phone",
+    "name": "Akıllı telefon",
+    "aliases": ["cep telefonu", "telefon"],
+    "location_id": "loc_guro_apartment",
+    "references": {
+      "locations": ["loc_guro_apartment"]
+    }
+  }
+}
+```
+
+Uygulamadaki yapılandırılmış bilgi grafiği, bilinen kayıtları ID/isim/alias üzerinden çözebilir ve JSON kayıtlarındaki açık bağlantıları izleyebilir. Bu mekanizma şu an serbest bölüm metninden otomatik olarak yeni gerçekler çıkardığını garanti etmez. Chapter metninde geçen ama JSON kayıtlarında bulunmayan her karakterin/nesnenin otomatik keşfedildiğini varsayma; kaynak işleme aşaması açıkça tamamlanmalı ve çıkarılan veriler doğrulanmalıdır.
+
+## 10. Kaynak kanonu, alternatif zaman çizgisi ve NPC yaşamı
+
 
 - Kaynak eserde gerçekten gerçekleşen olayları kanonik bilgi olarak kaydet.
 - Oyuncunun oyun sırasında yaptığı değişiklikleri ayrı runtime durumunda tut.
@@ -212,7 +270,7 @@ Bu nesne, `world.json` içindeki `npcs` nesnesinin içindeki bir kayıttır. `wo
 - Bir NPC'nin gizli bilgisi herkese açık bilgi değildir. `knowledge.json` içindeki görünürlük ve kimin bildiği bilgilerini tutarlı kullan.
 - Oyuncu bir karakterle veya eşyayla karşılaşmak istedi diye onu anında bulunduğu yere taşıma. Dünya konumu ve erişim koşulları başlangıç verileri ve motor kurallarıyla tutarlı olmalı.
 
-## 9. Hatalı paketler ve doğrulama
+## 11. Hatalı paketler ve doğrulama
 
 Paket oluşturmadan önce şu kontrol listesini uygula:
 
@@ -237,7 +295,7 @@ python tools/validate_scenario.py path/to/MyScenario.rpgscenario.zip
 
 Validator `INVALID` döndürürse hata mesajında adı geçen dosya ve alanı düzelt; hatayı gizlemek için alanı silme veya motor doğrulamasını kapatma. Bu komut yalnızca paket yükleme/başlangıç durumu doğrulamasıdır; AI'nin runtime davranışını tek başına kanıtlamaz.
 
-## 10. ChatGPT teslim biçimi
+## 12. ChatGPT teslim biçimi
 
 Kullanıcıya şunları bildir:
 
