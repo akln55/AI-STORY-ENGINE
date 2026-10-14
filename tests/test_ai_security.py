@@ -56,7 +56,7 @@ def test_ai_adapter_interface_exposes_only_generation_boundary():
     }
     assert public == {"generate", "generate_text"}
     assert AIAdapter.generate.__doc__
-    assert "raw text" in AIAdapter.generate_text.__doc__
+    assert "raw model text" in AIAdapter.generate_text.__doc__
 
 
 def test_context_contains_ai_security_rules_and_not_tool_capabilities():
