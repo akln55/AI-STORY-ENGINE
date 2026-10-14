@@ -39,6 +39,7 @@ from engine.demo import build_demo_state
 from engine.scenario.configuration import ScenarioConfiguration
 from engine.scenario.loader import ScenarioPack
 from engine.scenario.manager import ScenarioManager
+from engine.scenario.source_workspace import SourceBatch, SourceWorkspaceManager
 from engine.persistence.saves import load_session, save_session
 
 
@@ -50,6 +51,7 @@ class AppController:
     scenario_config: ScenarioConfiguration | None = None
     local_runtime: NativeLlamaServer | None = None
     _dirty: bool = False
+    _source_workspaces: SourceWorkspaceManager | None = None
 
     @classmethod
     def demo(cls, adapter=None) -> "AppController":
@@ -74,6 +76,96 @@ class AppController:
         manager = ScenarioManager()
         pack = manager.install(archive, replace=replace)
         return pack
+
+    def source_workspace_manager(self) -> SourceWorkspaceManager:
+        """Return the persistent workspace manager used by the scenario studio."""
+        if self._source_workspaces is None:
+            self._source_workspaces = SourceWorkspaceManager()
+        return self._source_workspaces
+
+    def list_source_workspaces(self):
+        return self.source_workspace_manager().list_workspaces()
+
+    def create_source_workspace(self, name: str, description: str = "") -> str:
+        return self.source_workspace_manager().create(name, description)
+
+    def add_source_to_workspace(self, workspace_id: str, path: str | Path, *, chapter_hint: int | None = None):
+        return self.source_workspace_manager().add_source(workspace_id, path, chapter_hint=chapter_hint)
+
+    def reorder_workspace_source(self, workspace_id: str, source_id: str, delta: int):
+        return self.source_workspace_manager().reorder_source(workspace_id, source_id, delta)
+
+    def remove_workspace_source(self, workspace_id: str, source_id: str) -> bool:
+        return self.source_workspace_manager().remove_source(workspace_id, source_id)
+
+    def process_source_queue(self, workspace_id: str, *, progress_callback=None, max_batches: int | None = None) -> int:
+        """Extract and checkpoint source batches through the currently selected AI adapter.
+
+        Extraction results remain intermediate candidates. This method never mutates
+        the installed scenario registry, active GameState, or gameplay save slots.
+        """
+        manager = self.source_workspace_manager()
+        adapter = getattr(self.session, "adapter", None)
+        if adapter is None or not callable(getattr(adapter, "generate", None)):
+            raise RuntimeError("Etkin bir AI modeli yok. Önce AI ayarlarından model veya API sağlayıcısı bağla.")
+
+        known = []
+        registry = getattr(self.session, "scenario_registry", None)
+        if registry is not None:
+            for category in registry.categories():
+                for record in registry.all(category):
+                    known.append({"category": record.category, "id": record.id,
+                                  "name": str(record.data.get("name") or record.id)})
+        for saved in manager.read_batch_results(workspace_id):
+            extraction = saved.get("extraction", {})
+            for entity in extraction.get("entities", []):
+                if isinstance(entity, dict):
+                    known.append({
+                        "category": entity.get("category"),
+                        "id": entity.get("canonical_id") or entity.get("id_candidate"),
+                        "name": entity.get("name"),
+                    })
+        # Stable dedup keeps the prompt index bounded and ordered.
+        seen = set()
+        known_index = []
+        for entity in known:
+            key = (entity.get("category"), entity.get("id"), entity.get("name"))
+            if key in seen or not all(isinstance(value, str) and value for value in key):
+                continue
+            seen.add(key)
+            known_index.append(entity)
+
+        completed = 0
+        while max_batches is None or completed < max_batches:
+            batch = manager.next_batch(workspace_id)
+            if batch is None:
+                break
+            try:
+                prompt = manager.build_extraction_prompt(batch, existing_entities=known_index)
+                response = adapter.generate(prompt)
+                narrative = response if isinstance(response, str) else getattr(response, "narrative", None)
+                if not isinstance(narrative, str) or not narrative.strip():
+                    raise ValueError("model returned no extraction JSON")
+                extraction = manager.parse_extraction_response(narrative)
+                manager.complete_batch(batch, extraction)
+                for entity in extraction.get("entities", []):
+                    known_index.append({
+                        "category": entity["category"],
+                        "id": entity.get("canonical_id") or entity["id_candidate"],
+                        "name": entity["name"],
+                    })
+                completed += 1
+                if progress_callback is not None:
+                    progress_callback(batch, None)
+            except Exception as exc:
+                manager.fail_batch(batch, f"AI extraction failed ({type(exc).__name__}); check provider output and retry")
+                if progress_callback is not None:
+                    progress_callback(batch, type(exc).__name__)
+                raise RuntimeError(
+                    f"Kaynak işleme durdu: {batch.source_name}, parça {batch.chunk_index + 1}. "
+                    "Hata durumu kaydedildi; sağlayıcıyı kontrol edip devam edebilirsin."
+                ) from None
+        return completed
 
     @property
     def dirty(self) -> bool:
