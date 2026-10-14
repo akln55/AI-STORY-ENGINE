@@ -8,42 +8,38 @@
 
 > Bu belge, yapılacak işleri ve kabul kriterlerini tanımlar. Bu planın yazılması, kod değişikliklerinin veya APK build'inin otomatik olarak onaylandığı anlamına gelmez. Her uygulama aşaması başlamadan önce plan kullanıcıya sunulur ve onay alınır.
 
-## 1. Öncelik puanlama yöntemi
+## 1. Puanlama yöntemi
 
-Puan, **bu projede işi ne kadar erken yapmamız gerektiğini** 10 üzerinden gösterir; görevin ne kadar zor olduğunu göstermez. Puanlar canlı kullanım telemetrisi değil, şu anda doğrulanabilen hata etkisi, ürün hedefini engelleme derecesi, veri/doğruluk riski ve diğer işlerin bağımlılıkları üzerinden verilmiş mühendislik öncelikleridir. Herhangi bir puan test sonucu veya ölçülmüş kullanıcı sayısı gibi sunulmamalıdır.
+Puanlar bu projedeki mühendislik önceliğini gösterir; zorluk veya tamamlanma yüzdesi değildir. Her iş şu dört alt puanla (0–10) karşılaştırılır:
 
-- **P0 — Sürüm/temel kullanım engeli:** çözülmeden senaryo yükleme veya güvenilir oyun döngüsü kabul edilemez.
-- **P1 — Yüksek:** veri doğruluğu, kullanıcı akışı veya önemli kalite sorunu.
-- **P2 — Orta:** bakım kolaylığı, kullanılabilirlik ve güvence işleri.
-- **P3 — Sonraki iyileştirme:** daha kapsamlı test, performans veya kalite çalışmaları.
+- Kullanıcı etkisi: %35
+- Temel ürün hedefini engelleme: %25
+- Diğer işlerin bağımlılığı / teknik kaldıraç: %20
+- Veri bütünlüğü, güvenilirlik ve güvenlik riski: %20
 
-İş sırası öncelik puanına göre yapılır; aynı işi zorlaştıran bilinmeyen bir girdi varsa kod yazmak yerine önce girdi istenir.
+Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler kullanım telemetrisi değildir; kaynakta doğrulanmış bulgular ve kullanıcının bildirdiği/gösterdiği sorunlara dayanır. Görüntü veya etkileşim sorunlarında gerçek cihaz doğrulaması yoksa durum açık kalır. Bilinmeyen kök neden kesinmiş gibi raporlanmaz.
 
-## 2. Önceliklendirilmiş yapılacaklar listesi
+## 2. Güncellenmiş, öncelik sıralı ana görev listesi
 
-| Sıra | İş | Öncelik / 10 | Durum | Neden |
-|---:|---|---:|---|---|
-| 1 | Senaryo paketinin neden yüklenemediğini gerçek dosyayla teşhis et ve şemayı uzlaştır | **10.0** | Açık; arşiv gerekli | Kullanıcının ana hedefi olan kendi senaryo verisini uygulamaya yükleyip oynatmasını doğrudan engelliyor. |
-| 2 | ChatGPT tarafından üretilebilen, doğrulanabilir senaryo paketi standardı oluştur | **9.8** | Planlandı | Dosya yalnızca okunabilir bir hikâye değil; uygulamanın doğrulayabildiği makine-okunur data paketi olmalı. |
-| 3 | Oyun ekranında “Senaryolar” alanı ve senaryo yönetimi; kalıcı demo kısayolunu kaldır | **9.5** | Açık | Demo ana menüde/oyun listesinde kalıcı bir öğe gibi davranıyor; kullanıcı senaryo ve demoyu silmek/yönetmek istiyor. |
-| 4 | Reddedilen AI olay önerisinin kalıcı hafızaya gerçekmiş gibi yazılmasını engelle | **9.4** | Kod incelemesinde yeniden üretildi | `GameSession._ingest_memory_updates()` olay önerilerini normal reddedilmiş durum değişiklikleriyle aynı şekilde korumuyor. |
-| 5 | Yinelenen bellek kaydı güncellenince tüm ikincil arama indekslerini tutarlı güncelle | **9.2** | Kod incelemesinde yeniden üretildi | Yeni etiket/konum/varlık/olay verisi kayıtta bulunmasına rağmen indeksli arama 0 sonuç verebiliyor. |
-| 6 | Hugging Face indirmesinde uygulama kapanması sonrası devam ettirme akışını görünür ve güvenilir yap | **8.9** | Kısmi altyapı var; uçtan uca doğrulama gerekli | Backend `.part` dosyası ve HTTP Range ile devam ettirmeyi destekliyor; Android süreç/ekran yaşam döngüsü ve kullanıcıya devam ettirme deneyimi doğrulanmalı. |
-| 7 | Android sohbet giriş alanı, klavye, metin/imleç hizası ve gönder düğmesini gerçek cihazda düzelt | **8.7** | Açık | Kaynakta `PillInput` ve sohbet composer var; bu varlık görsel ve cihaz davranışının doğru olduğu anlamına gelmiyor. |
-| 8 | API ayarlarını sağlayıcıya göre sadeleştir; gereksiz alanları gizle, ikon/font ve ayar ekranını düzelt | **8.5** | Açık | Gemini gibi sağlayıcılarda gereksiz endpoint alanı hâlâ görsel olarak yer alabiliyor; gerçek ekran doğrulaması eksik. |
-| 9 | Tam sayı bekleyen efekt değerlerinde `bool` değerini reddet | **8.3** | Kod incelemesinde yeniden üretildi | JSON `true`, Python'da `int` alt sınıfı olduğundan kaynak değeri olarak kabul edilip HP'yi değiştirebildi. |
-| 10 | Uçtan uca senaryo testleri: import → başlat → AI context/retrieval → kayıt/yükleme | **8.3** | Planlandı | Tekil testler, ChatGPT üretimli gerçek paketle tüm ürün yolunu kanıtlamaz. |
-| 11 | `tools/run_tests.py` uyumluluğunu düzelt veya desteklenen kullanımını netleştir | **7.8** | Doğrulandı, yardımcı betik başarısız | Elle çalıştırıldığında 5 hata veriyor; güncel CI ise doğrudan pytest kullandığından yeşil kalabiliyor. |
-| 12 | Onaylanan kod değişiklikleri sonrasında güncel kaynak için APK üret, artifact'ı doğrula ve cihaz kabul testlerini yap | **8.6** | Sonraki kapı | Önceki başarılı APK, mevcut commit'i veya açık sorunların çözüldüğünü kanıtlamıyor. |
-| 13 | Kurulum/silme/indirme/geri alma ve uzun oturum senaryolarında regresyon ve güvenlik testlerini genişlet | **7.5** | Planlandı | Güçlü test altyapısının kullanıcı akışlarını kapsaması gerekiyor. |
+| Sıra | Görev paketi | Etki | Engel | Bağımlılık | Bütünlük riski | Puan / 10 | Durum |
+|---:|---|---:|---:|---:|---:|---:|---|
+| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | [ ] ZIP bekleniyor; kök neden bilinmiyor |
+| 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | [ ] Planlandı |
+| 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | [ ] Planlandı |
+| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | [ ] Planlandı |
+| 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | [ ] Planlandı |
+| 6 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | [ ] Planlandı |
+| 7 | Motor bütünlüğü düzeltmeleri: reddedilmiş event'ten sahte memory yazılmasını engelle; dedup sonrası indeksleri yenile; resource integer doğrulamasında bool reddet | 8.3 | 8.3 | 7.8 | 9.7 | **8.5** | [ ] Kod incelemesinde yeniden üretildi; düzeltilmedi |
+| 8 | Oyun/Senaryolar listesi ve demo yönetimi: demo sabitlenmesini kaldırma, silme onayı ve save koruması | 8.2 | 8.0 | 7.0 | 8.0 | **7.9** | [ ] Planlandı; güvenli silme varsayımı açıkça korunacak |
+| 9 | Sohbet yazma alanı: yuvarlak composer, metin/imleç/hint hizası, uzun metin, klavye ve gönderme kontrolü | 8.8 | 7.0 | 7.0 | 7.0 | **7.6** | [ ] Ekran görüntüsü var; cihazda doğrulanmadı |
+| 10 | AI/API ayarlarını sadeleştir: sağlayıcı seçimi + anahtar; OpenAI-compatible için gerekli gelişmiş alanları koşullu göster; API anahtarı girişi tasarımı | 7.8 | 7.0 | 7.5 | 7.7 | **7.5** | [ ] Mevcut UX kullanıcı beklentisini karşılamıyor |
+| 11 | Hugging Face indirmesinde partial dosyayı koruma ve uygulama yeniden açılınca devam etme akışını doğrula | 7.5 | 6.8 | 6.8 | 8.2 | **7.3** | [ ] Kısmi altyapı var; lifecycle testi eksik |
+| 12 | tools/run_tests.py davranışını düzelt veya desteklenen test komutunu açıkça belgele | 6.5 | 5.5 | 5.8 | 6.5 | **6.1** | [ ] 31 geçti, 5 test helper/fixture uyumsuzluğu nedeniyle başarısız |
+| 13 | Tam regresyon, CI, güncel APK build, artifact/provenance ve gerçek cihaz kabul kapısı | 9.0 | 8.0 | 9.5 | 9.2 | **8.9** | [ ] En sonda; eski APK yeni değişiklikleri kanıtlamaz |
 
-### Öncelik puanlarının kanıt sınırları
+Görev 13'ün puanı yüksek olsa da diğer işler tamamlanmadan APK üretmek doğru sıralama değildir. Puan önem/etkiyi, aşağıdaki kampanya akışı ise bağımlılıkları gösterir.
 
-- 4, 5 ve 9 numaralı bulgular incelenen kaynak üzerinde küçük doğrulamalarla yeniden üretildi.
-- 11 numaralı bulgu yardımcı betiğin mevcut test setiyle çalıştırılmasıyla gözlendi; CI'deki pytest çalışmasının başarısız olduğu anlamına gelmez.
-- 1 numaralı senaryo hatasının tam kök nedeni henüz **kesinleştirilmedi**. Hata metni kaydedilmiş durumda; gerçek başarısız `.zip` paketi henüz incelenmedi. Bu yüzden “loader kesin hatalı” veya “üretici kesin hatalı” denmeyecek.
-- 3, 7 ve 8 numaralı UI işleri, mevcut kaynak akışı ve kullanıcı raporlarına göre planlandı; gerçek cihazda render/etkileşim testi yapılmadan “düzeldi” kabul edilemez.
-- 6 numarada indirme kodu `.part` dosyasını koruyup uygun HTTP Range yanıtında devam edebiliyor. Sorun, bu özelliğin uygulama kapatıldığında/geri açıldığında kullanıcıya güvenilir biçimde sunulduğunun henüz uçtan uca kanıtlanmamasıdır. Aynı işi sıfırdan yazmak yerine önce mevcut kod doğrulanacak.
+Puan sınırları: Görev 1'de hata metni biliniyor ama gerçek ZIP sağlanmadığı için kök neden belli değil. Görev 7'de üç sorun kaynak incelemesinde yeniden üretildi, düzeltme yapılmadı. Görev 9–10 kullanıcı bildirimi ve ekran görüntüsüne dayanıyor; doğru render/etkileşim ancak Android cihazında test edilince onaylanabilir.
 
 ## 3. Senaryo sistemi — hedeflenen davranış ve teşhis planı
 
@@ -167,16 +163,69 @@ Kaynakta indirme işlemi zaten ayrı bir worker thread içinde çalışıyor; `.
 12. **Son rapor zorunludur:** Yapılan değişiklikler, dosyalar, commit SHA, test sonuçları, CI/build/run bağlantısı, artifact durumu, fiziksel cihaz testleri ve açık işler birbirinden ayrı belirtilmeli.
 13. **Onay kapsamına sadık kal:** Bir aşama onaylandıysa sadece o aşamayı yürüt; yeni risk veya yeni belirsizlik ortaya çıkarsa dur, bulguyu açıkla ve yeniden onay iste.
 
-## 9. Aşamalı uygulama planı
+## 9. Tek onayla yürütülecek uygulama kampanyası
 
-1. **Aşama A — Senaryo formatı ve gerçek arşiv:** Kullanıcı başarısız arşivi sağlar; kök neden raporu ve format değişikliği planı sunulur. Onay sonrası minimal düzeltme ve regresyon testleri.
-2. **Aşama B — Senaryolar ekranı/demo yaşam döngüsü:** Silme kapsamı ve aktif save davranışı kullanıcıyla netleştirilir; sonra UI/controller/ScenarioManager değişiklikleri yapılır.
-3. **Aşama C — Veri doğruluğu düzeltmeleri:** Event-memory, memory index ve bool tipi için ayrı regresyon testleri ve küçük düzeltmeler.
-4. **Aşama D — İndirme güvenilirliği:** Mevcut resumable download akışı test edilir; partial keşfi/devam ettirme UI'si ve yeniden açılış testleri eklenir. Foreground service ayrı karar olarak kalır.
-5. **Aşama E — UI düzeltmeleri:** Composer, sağlayıcı ayarları, ikonlar ve küçük ekran davranışı; kaynak kontrolleri ile cihaz testleri ayrı yürütülür.
-6. **Aşama F — Release doğrulaması:** Full testler ve readiness gates; güncel kaynak için APK, metadata/provenance, artifact ve fiziksel cihaz kabul testleri.
+Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası olarak, bağımlılık sırasıyla yürütülür. Bu, her şeyi tek dev commit'e koymak demek değildir: ilişkili değişiklikler küçük, atomik commit'ler ve doğrulama kapılarıyla yapılır. Onay verilen kapsam içinde her paket başında tekrar onay istenmez; yeni özellik, yıkıcı davranış veya plan dışı teknik karar gerekirse durulur ve yeniden onay alınır.
 
-Her aşama için uygulama başlamadan önce kapsam/kabul kriterleri kullanıcıya gösterilecek ve onay istenecek. Aşamalar bağımsız olarak onaylanabilir.
+### Paket 0 — Girdi ve mevcut durum doğrulaması (koda dokunmadan)
+
+1. Gerçek repo HEAD'ini, araçları, senaryo loader/registry/context akışını yeniden doğrula.
+2. Kullanıcının başarısız .rpgscenario.zip arşivini iste; arşivi değiştirmeden içeriğini incele.
+3. manifest.json, world.json, data/characters.json ve npc_kim_minjae.goals kaydını gerçek doğrulama kurallarıyla karşılaştır.
+4. Kanıtlı kök neden ve dosya bazlı planı çıkar. ZIP yoksa bu teşhis alt görevi açık kalır; üreticiyi veya loader'ı sebepsiz suçlama.
+
+### Paket 1 — Senaryo sözleşmesi ve uzun hikâye veri hattı
+
+1. Engine'in kabul ettiği JSON alan/türlerini tek ve sürümlenebilir sözleşmeye bağla; desteklenmeyen özellikleri varmış gibi belgeleme.
+2. Validator, çalışır örnek paket ve dosya/alan bazında anlaşılır hata raporu ekle.
+3. ChatGPT'nin doğrudan üretebileceği Senaryo Oluşturma Rehberi MD'sini hazırla. Kullanıcının MASTER SPEC belgesini kavramsal gereksinim olarak kullan; engine ile çelişen örnekleri körlemesine kopyalama.
+4. Kaynak chapter paketlerinde sıra, aralık, işlem durumu, checkpoint ve hata bilgisi sakla.
+5. Paketleri kararlı ID'lerle birleştir; mükerrer varlıkları eşleştir, çelişkileri raporla. Sonraki chapter eklenince eski kaynakları ve save dosyalarını ezme.
+6. Kanon kayıtları, gerçekleşmiş oyun durumu ve gelecekte gerçekleşebilecek olayları ayır.
+7. Orijinal kaynakları silme; ekstraksiyon ara sonuçlarını ve kaldığı yerden devam etmeyi test et.
+
+### Paket 2 — Oyun AI'sının çalışma sözleşmesi
+
+1. Ayrı Oyun AI Davranış Rehberi/prompt şablonunu oluştur.
+2. AI'nın anlatıcı ve NPC rolleri, bilgi sınırları, gizli/gelecek bilgi, olay/ilişki/konum güncelleme önerileri ve belirsizlik davranışını tanımla.
+3. Rehberi gerçekten desteklenen backend'lere giden prompt/context oluşturma yoluna bağla. Dosyanın repoda durmasını “AI öğrendi” diye sunma.
+4. Motorun son söz sahibi olmasını koru; AI doğrulamadan geçmeden GameState, canon veya save değiştiremesin.
+5. Bilgi sızıntısı, geçersiz efekt, karakter tekrarları ve alternatif zaman çizgisi için test ekle.
+
+### Paket 3 — Kullanıcı arayüzlerini tek geçişte düzenle
+
+1. Profesyonel Senaryo Oluştur ekranı: isim, açıklama, tür, başlangıç rolü ve gerekli dünya kişiselleştirme seçenekleri.
+2. Kaynak alanı: desteklenen chapter/dosya paketlerini yükleme; sıralama ve oklarla “önce bunu, sonra bunu” zinciri; sıralamayı değiştirme; kaldırma; işleniyor/tamamlandı/hata/tekrar dene durumları.
+3. Kaynakları sırayla işleme, her adımda checkpoint, yeniden açılınca devam etme ve sonradan yeni kaynak ekleme.
+4. Oyun/Senaryolar listesi ve demo: demo zorunlu/pinned olmasın; senaryo başlatma ve kaldırma tutarlı olsun. Save slotlarını varsayılan olarak otomatik silme; yıkıcı işlemde açık onay göster.
+5. Composer: yuvarlak yazı alanı, metin/imleç hizası, uzun metin ve Android klavye/küçük ekran davranışı.
+6. AI ayarları: basit görünümde sağlayıcı seçimi ve API anahtarı. Standart sağlayıcılarda gereksiz endpoint alanı gösterilmesin; özel OpenAI-compatible server için zorunlu alanlar koşullu/gelişmiş görünümde kalsın.
+7. API key alanını yuvarlak tasarıma uydur; anahtarı loglara veya status ekranlarına yazma.
+8. İkon/font sembollerini gerçek cihaz render'ında doğrula.
+
+### Paket 4 — Motor ve araç kalitesi
+
+1. Reddedilmiş event önerisine bağlı “gerçekleşti” memory claim'i kaydedilmesin.
+2. Dedup sonrası metadata değişince eski ikincil indeks girdileri kaldırılsın, yenileri eklensin.
+3. Resource alanlarında bool değeri integer olarak kabul edilmesin.
+4. Model indirme partial dosyası ve HTTP Range yolunu uygulama kapanması/yeniden açılmasıyla doğrula; gerekiyorsa görünür “devam et/tekrar dene” kontrolü ekle.
+5. tools/run_tests.py için fixture uyumluluğu sağla veya resmi komut ile yardımcı betik arasındaki farkı belgele.
+
+### Paket 5 — Tam doğrulama ve teslim
+
+1. Hedefli regresyonlar; ardından python -m pytest -q tests, compileall, Android readiness, mutation smoke ve senaryo validator'ını çalıştır.
+2. CI çalıştır; başarısız olursa ilk başarısız adımın logunu inceleyip kök nedeni düzelt.
+3. Güncel HEAD için Android APK build yap; artifact, SHA-256 ve provenance doğrula. Eski APK'yı yeni çözüm gibi sunma.
+4. Gerçek cihazda açılış, oyun, senaryo/kaynak içe aktarma, devam etme, composer, provider/API generation ve save/load testleri yap. Cihaz testi mümkün değilse o kriterleri açık bırak.
+5. Her tamamlanan alt işten sonra planı, handoff belgelerini ve checkbox durumlarını güncelle.
+
+### Geri alma / koruma
+
+- Küçük atomik commit'ler yap; büyük yeniden yazım yapma.
+- Import doğrulamasını hatayı susturmak için gevşetme.
+- Kullanıcı kaynaklarını, save dosyalarını, API anahtarlarını veya indirilen modelleri silme.
+- Şema değişirse sürüm/uyumluluk kuralı ve eski paket için test ekle.
+- Bir paketin kabul testleri başarısızsa bağımlı işlere tamamlandı işareti koyma.
 
 ## 10. İnceleme sırasında elde edilen doğrulama kaydı
 
@@ -200,3 +249,42 @@ Her aşama için uygulama başlamadan önce kapsam/kabul kriterleri kullanıcıy
 Önce Aşama A için hata veren senaryo `.zip`/`.rpgscenario.zip` dosyasını paylaş. Dosya gelince ilk iş, kod değiştirmeden paketi ve ilgili `characters.json`/`goals` verisini inceleyip kök neden raporu ve dosya bazlı düzeltme planı sunmak olacak. Bu rapor onaylanmadan senaryo loader'ı değiştirilmeyecek.
 
 İkinci gerekli karar, demo silme davranışıdır: demo paketini mi kaldırmalı, yalnızca listeden mi çıkarmalı, yoksa ilişkili save slotları da kullanıcı açıkça seçerse mi silinmeli? Güvenli varsayılan, save slotlarını kendiliğinden silmemektir.
+
+
+## 12. Yeni onay kapsamındaki ürün gereksinimleri
+
+### 12.1 Uzun chapter serileri ve kaynak sırası
+
+- 4.000 bölümlük bir eser tek dosya veya tek model bağlamına sığdırılacak varsayımıyla tasarlanmayacak.
+- Kaynaklar sırayla işlenecek; arayüzde oklar sıralamayı gösterecek ve kullanıcı sıralamayı değiştirebilecek.
+- Her kaynak tamamlandığında aynı dünyadaki varlıklar kararlı ID üzerinden birleştirilecek. Sonraki chapter paketi aynı karakteri yeniden yaratmayacak.
+- Orijinal kaynaklar, çıkarılmış data ve checkpoint'ler ayrı tutulacak; kaynaklar korunacak ve sonradan yeni chapter eklenebilecek.
+- Kaynak kanonu oyuncunun alternatif zaman çizgisiyle karıştırılmayacak. Gelecek olaylar koşullar sağlanmadan kesinleşmiş sonuç gibi uygulanmayacak.
+
+### 12.2 Senaryo Oluştur çalışma alanı
+
+- Yeni çalışma alanı mevcut paket içe aktarma desteğini kaybettirmeyecek.
+- Kullanıcı senaryo bilgilerini kişiselleştirebilecek; kaynaklarını ekleyip sıralayabilecek; işleme ilerlemesini ve hataları anlayabilecek.
+- Tasarım karanlık tema ve tutarlı yuvarlak kontroller kullanabilir. AI Dungeon etkileşim referansıdır, birebir kopya değildir.
+- Yalnızca gerçekten parser desteği bulunan dosya uzantıları sunulacak.
+
+### 12.3 İki ayrı AI kılavuzu
+
+- Senaryo Oluşturma Rehberi: ChatGPT'nin motorla uyumlu JSON ve .rpgscenario paketi üretmesi için.
+- Oyun AI Davranış Rehberi: uygulama içindeki modelin anlatım, NPC, bilgi görünürlüğü, olay tepkisi ve efekt önerilerini nasıl ele alacağı için.
+- Rehberin dosyada bulunması runtime'a otomatik yüklendiği anlamına gelmez. Prompt/context entegrasyonu ve bunun testleri gereklidir.
+
+### 12.4 Görev takip kuralı
+
+- Her planlanan görev kalıcı bir checkbox ile izlenecek.
+- Görev ancak kabul kriterleri ve gerekli test/kanıtlar geçince [x] yapılacak. Başlamadıysa veya kısmen yapıldıysa [ ] kalacak.
+- Tamamlanan iş varsayılan olarak silinmek yerine [x] ve kanıtla korunacak; geçmiş görünür kalacak.
+- Her görev sonrasında bu plan, ilgili teknik belgeler, AI_START_HERE.md, HANDOFF.md ve MEMORY.md güncellenecek. Eski işler yalnızca görünümü temizlemek için tamamlandı işaretlenmeyecek.
+
+## 13. Şu anki blokaj ve onay kapısı
+
+- Kullanıcının master specification belgesi mevcut; başarısız .rpgscenario.zip arşivi henüz bu konuşmada bulunmuyor. Ekran görüntüsü gerçek JSON içeriğinin yerine geçmez.
+- Bu plan güncellemesi yalnızca dokümantasyon işidir; henüz uygulama kodu, UI davranışı, validator veya APK değiştirilmedi.
+- Kampanya onaylanırsa ilk adım, gerçek arşivi kod değiştirmeden incelemektir. ZIP sağlanmadan import hatası düzeltilmiş sayılmayacak.
+- Demo silme için güvenli varsayılan: senaryo listesi/paketi ile save slotları ayrı tutulur; save slotları sessizce silinmez.
+- Plan dışı yıkıcı migration, Android foreground service veya yeni dosya parser'ı gerekirse durup yeniden onay alınır.
