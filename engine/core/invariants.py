@@ -286,7 +286,7 @@ def _check_events(state: GameState) -> None:
 
 def _check_quests(state: GameState) -> None:
     quest_statuses = {"available", "active", "completed", "failed", "abandoned"}
-    objective_types = {"collect", "reach", "defeat", "talk"}
+    objective_types = {"collect", "reach", "defeat", "talk", "interact"}
     for quest_id, quest in state.world.quests.items():
         if quest.id != quest_id:
             raise InvariantError(f"quest dict key '{quest_id}' != quest.id '{quest.id}'")
@@ -339,3 +339,10 @@ def _check_quests(state: GameState) -> None:
             if objective.type == "talk" and not state.world.party_exists(objective.target_id):
                 raise InvariantError(
                     f"quest '{quest_id}' objective '{objective.id}' references unknown party '{objective.target_id}'")
+            if objective.type == "interact" and not (
+                objective.target_id in state.world.items
+                or objective.target_id in state.world.npcs
+                or objective.target_id in state.world.locations
+            ):
+                raise InvariantError(
+                    f"quest '{quest_id}' objective '{objective.id}' references unknown interactable entity '{objective.target_id}'")
