@@ -894,6 +894,23 @@ class SourceWorkspaceManager:
             raise ScenarioError(f"could not build a valid scenario archive: {type(exc).__name__}") from None
         return target
 
+    def _identity_decisions_path(self, workspace_id: str) -> Path:
+        return self._workspace_path(workspace_id) / "identity_decisions.json"
+
+    def _record_identity_decision(self, workspace_id: str, decision: Mapping[str, Any]) -> None:
+        path = self._identity_decisions_path(workspace_id)
+        if path.exists():
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise ScenarioError("identity decision history is invalid") from exc
+            if not isinstance(payload, list):
+                raise ScenarioError("identity decision history must be a list")
+        else:
+            payload = []
+        payload.append(dict(decision) | {"recorded_at": _now()})
+        _atomic_json(path, payload)
+
     def resolve_candidate_identity(
         self,
         workspace_id: str,
