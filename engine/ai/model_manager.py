@@ -414,28 +414,52 @@ def _download_fingerprint(spec: ModelSpec) -> dict[str, object]:
     }
 
 
-def _write_partial_metadata(path: Path, fingerprint: dict[str, object]) -> None:
+def _read_partial_metadata(path: Path) -> dict[str, object] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("format_version") != 1:
+        return None
+    fingerprint = payload.get("fingerprint")
+    if not isinstance(fingerprint, dict):
+        return None
+    return payload
+
+
+def _write_partial_metadata(
+    path: Path,
+    fingerprint: dict[str, object],
+    *,
+    etag: str | None = None,
+    last_modified: str | None = None,
+    effective_url: str | None = None,
+) -> None:
+    payload: dict[str, object] = {
+        "format_version": 1,
+        "fingerprint": fingerprint,
+    }
+    if etag:
+        payload["etag"] = etag
+    if last_modified:
+        payload["last_modified"] = last_modified
+    if effective_url:
+        payload["effective_url"] = effective_url
     temp = path.with_name(path.name + f".{uuid4().hex}.tmp")
     try:
         with temp.open("w", encoding="utf-8", newline="\n") as handle:
-            json.dump({"format_version": 1, "fingerprint": fingerprint}, handle, ensure_ascii=False, sort_keys=True)
+            json.dump(payload, handle, ensure_ascii=False, sort_keys=True)
             handle.write("\n")
             handle.flush()
+            os.fsync(handle.fileno())
         temp.replace(path)
     finally:
         temp.unlink(missing_ok=True)
 
 
 def _partial_metadata_matches(path: Path, fingerprint: dict[str, object]) -> bool:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return False
-    return (
-        isinstance(payload, dict)
-        and payload.get("format_version") == 1
-        and payload.get("fingerprint") == fingerprint
-    )
+    payload = _read_partial_metadata(path)
+    return bool(payload and payload.get("fingerprint") == fingerprint)
 
 
 def download_huggingface_model(
@@ -457,24 +481,32 @@ def download_huggingface_model(
     part = destination.with_name(destination.name + ".part")
     sidecar = _part_metadata_path(part)
     fingerprint = _download_fingerprint(spec)
+    partial_metadata = _read_partial_metadata(sidecar)
     if part.exists():
         # A partial without matching repository/file/revision/integrity metadata is
-        # not safe to append to. This also safely resets partials from pre-metadata builds.
-        if not _partial_metadata_matches(sidecar, fingerprint):
+        # not safe to append to. This also resets partials from pre-metadata builds.
+        if not partial_metadata or partial_metadata.get("fingerprint") != fingerprint:
             part.unlink(missing_ok=True)
             sidecar.unlink(missing_ok=True)
+            partial_metadata = None
     else:
         sidecar.unlink(missing_ok=True)
+        partial_metadata = None
     offset = part.stat().st_size if part.exists() else 0
     if offset > max_bytes or (spec.expected_size_bytes is not None and offset > spec.expected_size_bytes):
         part.unlink(missing_ok=True)
         sidecar.unlink(missing_ok=True)
+        partial_metadata = None
         offset = 0
-    _write_partial_metadata(sidecar, fingerprint)
 
     headers = {"User-Agent": "RPG-Engine/1.1", "Accept": "application/octet-stream"}
     if offset:
         headers["Range"] = f"bytes={offset}-"
+        saved_etag = partial_metadata.get("etag") if partial_metadata else None
+        saved_modified = partial_metadata.get("last_modified") if partial_metadata else None
+        validator = saved_etag if isinstance(saved_etag, str) and saved_etag and not saved_etag.startswith("W/") else saved_modified
+        if isinstance(validator, str) and validator:
+            headers["If-Range"] = validator
     request = urllib.request.Request(spec.resolved_url, headers=headers, method="GET")
     try:
         response = _open_url(request, timeout=60, opener=opener)
@@ -483,12 +515,48 @@ def download_huggingface_model(
 
     with response as stream:
         status = getattr(stream, "status", None) or getattr(stream, "code", None)
-        content_range = stream.headers.get("Content-Range", "") if hasattr(stream, "headers") else ""
+        response_headers = getattr(stream, "headers", {})
+        content_range = response_headers.get("Content-Range", "")
+        response_etag = response_headers.get("ETag")
+        response_modified = response_headers.get("Last-Modified")
         resumed = bool(offset and status == 206 and content_range.startswith(f"bytes {offset}-"))
+        if offset and resumed:
+            saved_etag = partial_metadata.get("etag") if partial_metadata else None
+            saved_modified = partial_metadata.get("last_modified") if partial_metadata else None
+            has_saved_validator = (
+                isinstance(saved_etag, str) and bool(saved_etag) and not saved_etag.startswith("W/")
+            ) or (isinstance(saved_modified, str) and bool(saved_modified))
+            if not has_saved_validator:
+                part.unlink(missing_ok=True)
+                sidecar.unlink(missing_ok=True)
+                raise ModelIntegrityError(
+                    "cannot safely resume this partial because the server provided no stable validator; "
+                    "partial data was discarded, retry the download"
+                )
+            if isinstance(saved_etag, str) and saved_etag and response_etag and response_etag != saved_etag:
+                part.unlink(missing_ok=True)
+                sidecar.unlink(missing_ok=True)
+                raise ModelIntegrityError(
+                    "remote model changed since the partial download; partial data was discarded, retry"
+                )
         if offset and not resumed:
-            # The server ignored Range (or returned an incompatible response); restart safely.
+            # HTTP 200 means the server ignored If-Range / Range. Restart safely
+            # using the response body as the beginning of the new representation.
             offset = 0
-        content_length = stream.headers.get("Content-Length") if hasattr(stream, "headers") else None
+        effective_url = None
+        geturl = getattr(stream, "geturl", None)
+        if callable(geturl):
+            try:
+                effective_url = str(geturl())
+            except Exception:
+                effective_url = None
+        _write_partial_metadata(
+            sidecar, fingerprint,
+            etag=response_etag or (partial_metadata.get("etag") if resumed and partial_metadata else None),
+            last_modified=response_modified or (partial_metadata.get("last_modified") if resumed and partial_metadata else None),
+            effective_url=effective_url,
+        )
+        content_length = response_headers.get("Content-Length")
         remaining = int(content_length) if content_length and content_length.isdigit() else None
         total = spec.expected_size_bytes
         if resumed:
