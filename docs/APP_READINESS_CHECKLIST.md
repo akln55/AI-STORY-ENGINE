@@ -54,3 +54,20 @@ This dated note supersedes stale build-run references above without deleting the
 - [ ] Physical-device launch, gameplay, save/load and local GGUF inference remain unverified.
 
 Detailed plan: docs/DEVELOPMENT_PLAN.md. This commit updates documentation only; no code fix or APK build was performed.
+
+
+## 2026-10-14 — Revised campaign acceptance backlog (not yet implemented)
+
+- [ ] Inspect the actual failed scenario archive and confirm root cause; archive not yet supplied.
+- [ ] Create a schema-aligned ChatGPT scenario pack guide and validation examples.
+- [ ] Add incremental ordered chapter/source processing, checkpoints, stable-ID merging, source retention and support for later chapter packages.
+- [ ] Create and runtime-wire the in-game AI behaviour prompt/guide.
+- [ ] Implement the professional Scenario Builder screen with personalization, ordered source queue, arrows, progress, errors and resume.
+- [ ] Simplify provider/API settings and round the API-key input while retaining required OpenAI-compatible configuration.
+- [ ] Fix chat composer, text/cursor/hint alignment, keyboard and small-screen behaviour on Android.
+- [ ] Finish scenario list/demo removal semantics without silently deleting saves.
+- [ ] Fix rejected-event memory, stale memory indexes, and bool-as-int resource validation; add regression tests.
+- [ ] Verify downloader resume after app/process closure and fix/document the test helper.
+- [ ] Run complete tests/CI, build and verify a fresh APK, and execute available device acceptance tests.
+
+Task statuses must stay unchecked until the listed acceptance criteria are actually evidenced. This section records planned work only; no implementation is claimed.
