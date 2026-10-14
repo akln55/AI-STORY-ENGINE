@@ -91,13 +91,6 @@ def assemble_context(
     # tiny provider budget, retain the core engine-authority/movement rules above and omit
     # expanded prose rather than failing after memory and scene history have been trimmed.
     contract_lines = [] if max_context_chars is not None and max_context_chars < 2500 else [
-        *contract_lines,
-    ]
-    core_lines = [
-        "CORE SYSTEM: You narrate a text RPG. You never decide game state;",
-        "you may only PROPOSE state changes, which the engine validates.",
-        "RPG RULES: movement follows location exits; combat uses fixed damage;",
-        "items belong to locations or owners. Dead NPCs cannot act.",
         "GAMEPLAY BEHAVIOUR CONTRACT:",
         "- Treat the current GameState as authoritative; do not narrate a change as completed unless the engine accepts its proposed effect.",
         "- Never teleport the player, NPCs, or items. Respect exits, current locations, time, access conditions, and the available inventory.",
@@ -107,6 +100,13 @@ def assemble_context(
         "- If a requested action is impossible or its requirements are unmet, explain the obstacle and offer a plausible next action; do not silently grant success.",
         "- Keep narration consistent with recent turns and persistent memory. If facts conflict, prefer authoritative runtime state for current facts and mark uncertain lore as uncertain.",
         "- Propose only supported structured effects. Never claim an item, relationship, quest, location, injury, or event changed until the engine accepts it.",
+    ]
+    core_lines = [
+        "CORE SYSTEM: You narrate a text RPG. You never decide game state;",
+        "you may only PROPOSE state changes, which the engine validates.",
+        "RPG RULES: movement follows location exits; combat uses fixed damage;",
+        "items belong to locations or owners. Dead NPCs cannot act.",
+        *contract_lines,
         "",
         rules_text(),
         "",
