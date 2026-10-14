@@ -97,3 +97,26 @@ Use docs/DEVELOPMENT_PLAN.md for priorities and acceptance criteria. First prior
 Before changing code or product behavior: plan the scope, unknowns, acceptance criteria and tests; obtain user approval. Ask for the real scenario archive instead of guessing at its schema. After every implementation, run applicable tests and update the handoff docs with evidence.
 
 Current HEAD 59e30799162f94fa59201f75b0b9972577718032: pytest 549 passed; compileall/readiness passed; mutation smoke 3/3; demo-bootstrap valid. tools/run_tests.py had 31 passed / 5 failed (pytest/monkeypatch helper incompatibility). CI run 38517225272 succeeded. The last successful APK is for an older commit; no APK/device test was done for this HEAD. The commit that adds this plan is documentation-only.
+
+
+## Revised master implementation campaign — 2026-10-14 (awaiting user approval)
+
+The user has added these product requirements to the existing blocker list:
+
+- A source-based scenario workspace with scenario personalization, ordered chapter/source uploads, visible arrows for processing order, progress/status/errors, restart/resume, and the ability to add later chapter packs without losing earlier data.
+- Long works (potentially thousands of chapters) must be processed incrementally, with stable entity IDs, duplicate reconciliation, source preservation, and a clear separation between canonical source facts and player-altered runtime state.
+- A ChatGPT-facing scenario creation MD that matches the engine's actual import schema, plus a separate in-game AI behaviour guide that is actually injected into the runtime prompt/context path.
+- A professional rounded chat composer with correct input/cursor/keyboard layout; simplified provider-aware API settings; a rounded API key input.
+- Every planned task must have a persistent checkbox. Mark [x] only after acceptance criteria and evidence pass; default to retaining completed tasks as checked rather than deleting task history. Update docs after each completed task.
+
+**Canonical updated plan:** [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md). It replaces the former priority list and defines weighted priority scoring, dependencies, one approved implementation campaign, acceptance tests and release gates.
+
+### Highest priorities
+
+1. Inspect the actual failed .rpgscenario.zip and identify the import root cause (9.9/10); the original archive is still missing, so this is blocked and the root cause remains unknown.
+2. Engine-compatible scenario schema, validator/example pack, and ChatGPT scenario creation guide (9.9/10).
+3. Incremental chapter/source pipeline, stable-ID merge and safe later updates (9.5/10).
+4. Runtime AI behaviour guide connected to prompt/context builder (9.3/10).
+5. End-to-end scenario import/play/retrieval/save-load tests (9.2/10).
+
+No application code, UI behaviour, validator, or APK has been changed in the plan revision. Do not mark implementation tasks complete. The plan documentation is updated; the implementation campaign is waiting for explicit user approval. After approval, ask for the actual failed scenario ZIP before closing the import-diagnosis task. Preserve saves by default; never silently delete campaign saves while removing a scenario.
