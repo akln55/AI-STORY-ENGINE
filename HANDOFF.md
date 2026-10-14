@@ -71,3 +71,20 @@ Source tests -> native cross-build -> APK build -> static APK/provenance verific
 ## CI discipline
 
 Do not treat pending/cancelled runs as evidence. On failure, inspect the first failed job/step/log and fix that root cause before changing architecture. Group related changes to avoid unnecessary concurrent workflow churn.
+
+## Open blockers reported by the user — 2026-10-14
+
+These remain unresolved until a later commit and verification demonstrate otherwise:
+
+- Chat message bubble overflow is improved, but the **text-entry/composer areas are still broken**. Inspect Kivy sizing, canvas drawing, hint/text/cursor alignment, keyboard resize/scroll behavior, and send button placement.
+- **API settings ask for unnecessary information.** Implement a minimal provider-aware form: only show relevant fields; Gemini must not require a custom endpoint; custom OpenAI-compatible providers need endpoint/model/key. Keep connection/model-list probing distinct from actual generation.
+- **Settings and UI symbols remain visibly broken/inconsistent.** The user reports no meaningful settings improvement. Verify actual layout and icon/font availability; do not claim visual polish based on source inspection alone.
+- **Scenario import fails** with `Import başarısız: scenario data characters.json:npc_kim_minjae.goals entries must be objects`. Inspect the exact imported scenario archive and its `characters.json`; reconcile the data producer and loader schema, preserve NPC goal information, and add regression tests. Do not weaken validation to hide the error.
+
+### Last Android build (baseline only)
+
+[Run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595) succeeded on `ad611254d90578e375b53f7445d1e7f1d4d243ae`; it uploaded `rpg-engine-v1.1.4-android-debug` (artifact ID `11845055403`, SHA-256 digest `513c11b5287e35a1122ee583ce62ad584afd5e661222c5f5653c70cae5e2657e`). **This APK does not include fixes for the blockers listed above**, because those fixes have not yet been implemented. No physical-device acceptance test is established by this run.
+
+### Next handoff acceptance gate
+
+Implement the blockers in source, add scenario/UI regression tests, run full pytest + compileall + Android readiness + mutation smoke, push the verified changes, then trigger and verify a fresh Android build and artifact. Inspect the first failing CI step/log if anything fails. Report actual results only; keep device verification separate.
