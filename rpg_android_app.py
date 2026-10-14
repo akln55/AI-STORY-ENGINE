@@ -786,6 +786,14 @@ class SourceWorkspaceScreen(BaseScreen):
         candidate_button.bind(on_release=lambda *_: self._show_candidates())
         root.add_widget(candidate_button)
 
+        self._export_running = False
+        self.export_button = AccentButton(
+            text="İncelenmiş veriden senaryo ZIP'i oluştur",
+            size_hint_y=None, height=dp(42), font_size=sp(11),
+        )
+        self.export_button.bind(on_release=lambda *_: self._create_export_dialog())
+        root.add_widget(self.export_button)
+
         self.list_box = BoxLayout(orientation="vertical", spacing=dp(8), size_hint_y=None)
         self.list_box.bind(minimum_height=self.list_box.setter("height"))
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
@@ -828,8 +836,9 @@ class SourceWorkspaceScreen(BaseScreen):
         self._refreshing_picker = False
 
         self.list_box.clear_widgets()
-        self.add_source_button.disabled = self.active_workspace_id is None or self._queue_running
-        self.process_button.disabled = self.active_workspace_id is None or self._queue_running
+        self.add_source_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
+        self.process_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
+        self.export_button.disabled = self.active_workspace_id is None or self._queue_running or self._export_running
         if self.active_workspace_id is None:
             self.status_label.text = "Henüz çalışma alanı yok. + Yeni ile başla."
             empty = RoundedPanel(
@@ -1022,6 +1031,101 @@ class SourceWorkspaceScreen(BaseScreen):
             Clock.schedule_once(finish, 0)
 
         Thread(target=worker, daemon=True).start()
+
+    def _create_export_dialog(self):
+        if self.active_workspace_id is None or self._queue_running or self._export_running:
+            self.status_label.text = "Önce bir çalışma alanı seç ve işleme tamamlanmasını bekle."
+            return
+        manager = self.app_ref.controller.source_workspace_manager()
+        try:
+            index = manager.candidate_index(self.active_workspace_id)
+        except Exception as exc:
+            self.status_label.text = f"Adaylar okunamadı: {type(exc).__name__}"
+            return
+        locations = [entity for entity in index["entities"] if entity.get("category") == "locations"]
+        if not locations:
+            self.status_label.text = "Henüz mekân adayı yok. Kaynakları işle ve en az bir mekân çıkar."
+            return
+
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(8))
+        title = PillInput(hint_text="Senaryo adı", text="Yeni Senaryo", multiline=False)
+        scenario_id = PillInput(hint_text="Sabit senaryo ID'si", text="new-scenario", multiline=False)
+        player = PillInput(hint_text="Oyuncu karakterinin adı", text="Oyuncu", multiline=False)
+        start_options = {
+            f"{entity['name']} · {entity['id_candidate']}": entity["id_candidate"]
+            for entity in locations
+        }
+        start_picker = Spinner(
+            text=next(iter(start_options)), values=tuple(start_options),
+            background_normal="", background_color=SURFACE_2, color=TEXT, font_size=sp(11),
+        )
+        box.add_widget(_field_group("Senaryo adı", title))
+        box.add_widget(_field_group("Senaryo ID", scenario_id))
+        box.add_widget(_field_group("Oyuncu adı", player))
+        box.add_widget(_field_group("Başlangıç mekânı", start_picker))
+        box.add_widget(_aligned_label(
+            text="Yalnızca açıkça desteklenen, izin verilen alanlar kanonik JSON'a aktarılır. "
+                 "Çelişkili veya belirsiz iddialar inceleme dosyasında kalır.",
+            color=MUTED, font_size=sp(10), valign="top", size_hint_y=None, height=dp(42),
+        ))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(
+            title="Senaryo paketini oluştur", content=box,
+            size_hint=(0.94, None), height=dp(420), background_color=SURFACE,
+        )
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+
+        def start_export(*_):
+            chosen_location = start_options.get(start_picker.text)
+            if not chosen_location:
+                self.status_label.text = "Başlangıç mekânı seç."
+                return
+            if not title.text.strip() or not scenario_id.text.strip() or not player.text.strip():
+                self.status_label.text = "Senaryo adı, ID ve oyuncu adı zorunlu."
+                return
+            workspace_id = self.active_workspace_id
+            output = manager.root / workspace_id / "exports" / (scenario_id.text.strip() + ".rpgscenario.zip")
+            scenario_title = title.text.strip()
+            scenario_key = scenario_id.text.strip()
+            player_name = player.text.strip()
+            self._export_running = True
+            self.refresh()
+            self.status_label.text = "Kanonik kayıtlar hazırlanıyor, paket doğrulanıp yazılıyor…"
+            popup.dismiss()
+
+            def worker():
+                try:
+                    exported = manager.export_scenario_archive(
+                        workspace_id, output,
+                        scenario_id=scenario_key,
+                        scenario_name=scenario_title,
+                        player_name=player_name,
+                        start_location_id=chosen_location,
+                    )
+                    message = f"Senaryo paketi oluşturuldu: {exported}"
+                    path_value = str(exported)
+                    succeeded = True
+                except Exception as exc:
+                    message = f"Paket oluşturulamadı: {exc}"
+                    path_value = ""
+                    succeeded = False
+
+                def finish(*_a):
+                    self._export_running = False
+                    self.refresh()
+                    self.status_label.text = message
+                    if succeeded:
+                        if not self.app_ref.save_generated_scenario_archive(path_value):
+                            self.app_ref.notify(message)
+                    else:
+                        self.app_ref.notify(message)
+                Clock.schedule_once(finish, 0)
+
+            Thread(target=worker, daemon=True).start()
+
+        actions.add_widget(AccentButton(text="ZIP oluştur", on_release=start_export))
+        box.add_widget(actions)
+        popup.open()
 
     def _show_candidates(self):
         if self.active_workspace_id is None:
@@ -2102,6 +2206,37 @@ class RPGEngineApp(App):
     def open_scenarios(self): self.go("scenarios")
     def open_source_workspace(self): self.go("source_workspace")
     def open_ai(self): self.go("ai")
+    def save_generated_scenario_archive(self, path):
+        try:
+            from rpg_android_file_picker import save_scenario_document
+        except ImportError:
+            return False
+        self._saf_scenario_export_in_progress = True
+        try:
+            launched = save_scenario_document(
+                path, Path(path).name,
+                on_saved=lambda uri: Clock.schedule_once(
+                    lambda *_: self._finish_scenario_export(uri, None), 0
+                ),
+                on_error=lambda error: Clock.schedule_once(
+                    lambda *_: self._finish_scenario_export(None, error), 0
+                ),
+            )
+        except Exception as exc:
+            self._saf_scenario_export_in_progress = False
+            self.notify(f"ZIP kaydedilemedi: {type(exc).__name__}")
+            return True
+        if not launched:
+            self._saf_scenario_export_in_progress = False
+        return launched
+
+    def _finish_scenario_export(self, uri, error):
+        self._saf_scenario_export_in_progress = False
+        if error:
+            self.notify(f"ZIP dışa aktarılamadı ({error}). Atölyedeki paket korunuyor.")
+        elif uri:
+            self.notify("Senaryo ZIP'i seçtiğin konuma kaydedildi.")
+
 
     def open_current_campaign_or_scenarios(self):
         if getattr(self.controller, "scenario_pack", None) is None:
@@ -2303,37 +2438,6 @@ class RPGEngineApp(App):
         except Exception as exc:
             self.notify(f"Kaynak eklenemedi: {type(exc).__name__}")
         self.source_workspace.refresh()
-
-    def confirm_remove_scenario(self, item):
-        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
-        box.add_widget(_aligned_label(
-            text=(
-                f"'{item.name}' kurulu senaryo paketini kaldırmak istiyor musun? "
-                "Oyun kayıtları silinmez; ancak bu senaryoyu tekrar açmak için yeniden içe aktarman gerekir."
-            ),
-            color=TEXT, font_size=sp(12), valign="top",
-        ))
-        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        popup = Popup(title="Senaryoyu kaldır", content=box, size_hint=(0.92, None), height=dp(245), background_color=SURFACE)
-        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
-        def remove(*_):
-            try:
-                self.controller.remove_installed_scenario(item.scenario_id)
-                self.recent_scenarios = [
-                    recent for recent in self.recent_scenarios
-                    if recent.get("scenario_id") != item.scenario_id
-                ]
-                if self._recent_store is not None:
-                    self._recent_store.put("recent", items=self.recent_scenarios)
-                self.notify(f"'{item.name}' kaldırıldı. Oyun kayıtları korundu.")
-            except Exception as exc:
-                self.notify(f"Senaryo kaldırılamadı: {exc}")
-            popup.dismiss()
-            self.scenarios.refresh()
-            self.games.refresh()
-        actions.add_widget(AccentButton(text="Kaldır", on_release=remove))
-        box.add_widget(actions)
-        popup.open()
 
     def confirm_remove_scenario(self, item):
         box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
