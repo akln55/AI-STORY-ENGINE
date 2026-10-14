@@ -2335,6 +2335,42 @@ class RPGEngineApp(App):
         box.add_widget(actions)
         popup.open()
 
+    def confirm_remove_scenario(self, item):
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
+        box.add_widget(_aligned_label(
+            text=(
+                f"'{item.name}' kurulu senaryo paketini kaldırmak istiyor musun? "
+                "Oyun kayıtları silinmez; ancak bu senaryoyu tekrar açmak için yeniden içe aktarman gerekir."
+            ),
+            color=TEXT, font_size=sp(12), valign="top",
+        ))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(
+            title="Senaryoyu kaldır", content=box, size_hint=(0.92, None),
+            height=dp(245), background_color=SURFACE,
+        )
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+
+        def remove(*_):
+            try:
+                self.controller.remove_installed_scenario(item.scenario_id)
+                self.recent_scenarios = [
+                    recent for recent in self.recent_scenarios
+                    if recent.get("scenario_id") != item.scenario_id
+                ]
+                if self._recent_store is not None:
+                    self._recent_store.put("recent", items=self.recent_scenarios)
+                self.notify(f"'{item.name}' kaldırıldı. Oyun kayıtları korundu.")
+            except Exception as exc:
+                self.notify(f"Senaryo kaldırılamadı: {exc}")
+            popup.dismiss()
+            self.scenarios.refresh()
+            self.games.refresh()
+
+        actions.add_widget(AccentButton(text="Kaldır", on_release=remove))
+        box.add_widget(actions)
+        popup.open()
+
     def open_scenario(self, scenario_id):
         try:
             pack = self.controller.load_installed_scenario(scenario_id)
