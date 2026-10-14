@@ -117,3 +117,13 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Modified scenario validation diagnostics, gameplay composer, provider settings, rejected-event memory gating, memory secondary indexes, and resource integer validation. Regression tests were added but latest CI is pending.
 - A corrected archive is available locally; it passed manual structure checks only, not the official engine validator or Android import.
 - Keep all relevant tasks unchecked until tests pass and update these documents after each completed task.
+
+
+## 2026-10-14 — Explicit interaction objectives and scenario knowledge graph
+
+- Inspected the uploaded `Return_Survival_Kirilma_Noktasi.rpgscenario.zip`; the visible error comes from `quest_confirm_date.obj_check_phone` using `type: interact` for `item_phone`. The prior engine objective enum did not include `interact`.
+- Added a deterministic explicit-interaction rule and quest progress signal so narration alone cannot complete an interact objective. Added English/Turkish parser coverage and a quest regression test.
+- Added `ScenarioKnowledgeGraph` on top of canonical scenario registry records; supported nodes include all scenario categories, while edges are created only from explicit structured references and IDs. Retrieval now resolves names/aliases and can include chapter-/viewer-filtered neighboring records in the bounded AI context.
+- Updated scenario creation and in-game behaviour guides to tell ChatGPT to preserve IDs, use aliases and explicit references, respect `interact` objective semantics, and avoid presenting guessed links as canon.
+- A fresh tests/CI result is still required. A prior workflow run failed 552 tests passed / 2 failed; changes for both known failures and graph tests were committed afterward, but the latest run has not yet been verified. Do not mark these tasks complete yet.
+- The graph reads structured JSON facts; it does not automatically extract every entity from free chapter prose. Resumable source ingestion, provenance and stable-ID reconciliation remain next-stage requirements.
