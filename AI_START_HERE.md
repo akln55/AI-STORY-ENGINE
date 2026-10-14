@@ -191,3 +191,31 @@ The full development campaign is approved and implementation has started. Curren
 - Code changes also cover actionable scenario-goal errors, a multiline rounded composer, simpler provider settings, rejected-event memory protection, secondary memory index refresh, and strict boolean rejection for integer resource values.
 - Regression tests were added for the changed behaviours. The latest CI run is pending, so keep all implementation task checkboxes unchecked until tests pass.
 - Continue with the approved campaign; preserve scenario sources and saves. Do not claim the corrected archive is engine-validated until the official validator and app import flow pass.
+
+
+## 11. Current handoff — scenario reader and import work (2026-10-14)
+
+The campaign is approved and in progress. Prefer the latest commit/workflow evidence over older status notes above.
+
+### Screenshot error: `type: interact`
+
+The uploaded archive's quest `quest_confirm_date` contains objective `obj_check_phone` with `type: interact` and `target_id: item_phone`. The existing engine enum previously accepted only `collect`, `reach`, `defeat`, and `talk`. The new code adds explicit interaction/inspection on accessible items, NPCs and the current location, and passes the resulting target ID to deterministic quest evaluation. AI narration alone must not grant progress.
+
+### Scenario knowledge graph
+
+- `engine/scenario/knowledge_graph.py` builds a deterministic graph over the canonical records already declared in scenario JSON.
+- Nodes contain category, stable ID, name, aliases and summary; edges are built from explicit record IDs/reference fields rather than name-only guesses.
+- `ScenarioRetriever.resolve_entities()` resolves IDs/names/aliases. `related_records()` returns linked records only after chapter/viewer filters are applied.
+- The AI context includes a bounded number of linked records for better continuity.
+- This is **not yet** automatic entity extraction from arbitrary chapter prose. The long-series source queue must still perform candidate extraction, source provenance, duplicate/stable-ID reconciliation, validation, checkpoint/resume, and source preservation.
+
+### Test status
+
+Workflow `38621523674` had 552 passed / 2 failures: a stale UI-height test assertion and a small context-budget regression. Follow-up commits updated the test to assert dynamic sizing and omitted the expanded behaviour prose when an explicit context budget is under 2500 chars. A knowledge-graph test file and interaction tests were added afterward. **Check a fresh Actions run before claiming a green build.**
+
+### Acceptance still open
+
+- Run full pytest, compileall, Android readiness contract, and mutation smoke on current HEAD.
+- Run `python tools/validate_scenario.py <corrected-archive>` using the real project runtime; do not substitute manual JSON checks.
+- Confirm APK scenario import and play the objective on Android.
+- Build a fresh APK only after source gates pass; device UI/inference remains a separate gate.
