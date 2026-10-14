@@ -707,6 +707,312 @@ class ScenariosScreen(BaseScreen):
             self.list_box.add_widget(card)
 
 
+class SourceWorkspaceScreen(BaseScreen):
+    """Persistent source queue and extraction-candidate viewer for scenario creation."""
+
+    def __init__(self, app, **kwargs):
+        super().__init__(app, name="source_workspace", **kwargs)
+        root = BoxLayout(
+            orientation="vertical", padding=[dp(16), dp(12), dp(16), dp(10)],
+            spacing=dp(8),
+        )
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(46), spacing=dp(8))
+        back = GhostButton(text="‹ Geri", size_hint_x=None, width=dp(72), font_size=sp(12))
+        back.bind(on_release=lambda *_: self.app_ref.open_scenarios())
+        header.add_widget(back)
+        header.add_widget(_aligned_label(text="Senaryo Atölyesi", color=TEXT, font_size=sp(22), bold=True))
+        root.add_widget(header)
+        root.add_widget(_aligned_label(
+            text="Kaynakları sırala, bölümler halinde işle ve ilerlemeyi kalıcı olarak sakla.",
+            color=MUTED, font_size=sp(11), valign="top", size_hint_y=None, height=dp(34),
+        ))
+
+        workspace_row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(44))
+        self.workspace_picker = Spinner(
+            text="Çalışma alanı seç", values=(), size_hint_x=1,
+            background_normal="", background_color=SURFACE_2,
+            color=TEXT, font_size=sp(12),
+        )
+        self.workspace_picker.bind(text=self._select_workspace)
+        workspace_row.add_widget(self.workspace_picker)
+        create = AccentButton(text="+ Yeni", size_hint_x=None, width=dp(82), font_size=sp(12))
+        create.bind(on_release=lambda *_: self._create_workspace_dialog())
+        workspace_row.add_widget(create)
+        root.add_widget(workspace_row)
+
+        self.status_label = _aligned_label(
+            text="Önce bir çalışma alanı oluştur.", color=MUTED, font_size=sp(11),
+            valign="top", size_hint_y=None, height=dp(42),
+        )
+        root.add_widget(self.status_label)
+
+        actions = BoxLayout(orientation="horizontal", spacing=dp(6), size_hint_y=None, height=dp(44))
+        self.add_source_button = SoftButton(text="Kaynak ekle", font_size=sp(11))
+        self.add_source_button.bind(on_release=lambda *_: self._choose_source())
+        actions.add_widget(self.add_source_button)
+        self.process_button = AccentButton(text="İşlemeyi başlat / devam et", font_size=sp(10))
+        self.process_button.bind(on_release=lambda *_: self._process_queue())
+        actions.add_widget(self.process_button)
+        root.add_widget(actions)
+
+        candidate_button = GhostButton(text="Çıkarılan adayları incele", size_hint_y=None, height=dp(34), font_size=sp(11))
+        candidate_button.bind(on_release=lambda *_: self._show_candidates())
+        root.add_widget(candidate_button)
+
+        self.list_box = BoxLayout(orientation="vertical", spacing=dp(8), size_hint_y=None)
+        self.list_box.bind(minimum_height=self.list_box.setter("height"))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        scroll.add_widget(self.list_box)
+        root.add_widget(scroll)
+        self.add_widget(root)
+
+        self.active_workspace_id = None
+        self._workspace_labels = {}
+        self._refreshing_picker = False
+        self._queue_running = False
+        self._saf_workspace_id = None
+
+    def show(self):
+        super().show()
+        self.refresh()
+
+    def refresh(self):
+        try:
+            workspaces = self.app_ref.controller.list_source_workspaces()
+        except Exception as exc:
+            self.status_label.text = f"Çalışma alanları okunamadı ({type(exc).__name__})."
+            return
+        old_id = self.active_workspace_id
+        self._workspace_labels = {
+            f"{item['name']} · {item['source_count']} kaynak": item["workspace_id"]
+            for item in workspaces
+        }
+        self._refreshing_picker = True
+        self.workspace_picker.values = tuple(self._workspace_labels)
+        if old_id and old_id in {item["workspace_id"] for item in workspaces}:
+            self.active_workspace_id = old_id
+            self.workspace_picker.text = next(label for label, wid in self._workspace_labels.items() if wid == old_id)
+        elif workspaces:
+            self.active_workspace_id = workspaces[0]["workspace_id"]
+            self.workspace_picker.text = next(label for label, wid in self._workspace_labels.items() if wid == self.active_workspace_id)
+        else:
+            self.active_workspace_id = None
+            self.workspace_picker.text = "Çalışma alanı seç"
+        self._refreshing_picker = False
+
+        self.list_box.clear_widgets()
+        self.add_source_button.disabled = self.active_workspace_id is None or self._queue_running
+        self.process_button.disabled = self.active_workspace_id is None or self._queue_running
+        if self.active_workspace_id is None:
+            self.status_label.text = "Henüz çalışma alanı yok. + Yeni ile başla."
+            empty = RoundedPanel(
+                orientation="vertical", padding=dp(14), size_hint_y=None,
+                height=dp(96), fill=SURFACE, radius=dp(16),
+            )
+            empty.add_widget(_aligned_label(
+                text="Kaynak dosyaların ayrı ve değişmeden saklanır. İlk sürüm .txt ve .md kabul eder.",
+                color=MUTED, font_size=sp(12), valign="top",
+            ))
+            self.list_box.add_widget(empty)
+            return
+
+        try:
+            meta = self.app_ref.controller.source_workspace_manager().get_workspace(self.active_workspace_id)
+            statuses = self.app_ref.controller.source_workspace_manager().status(self.active_workspace_id)
+        except Exception as exc:
+            self.status_label.text = f"Durum okunamadı ({type(exc).__name__})."
+            return
+        total_done = sum(item.chunks_completed for item in statuses)
+        total_chunks = sum(item.chunks_total for item in statuses)
+        failed = sum(item.status == "failed" for item in statuses)
+        self.status_label.text = (
+            f"{meta['name']} · {len(statuses)} kaynak · {total_done}/{total_chunks} parça tamamlandı"
+            + (f" · {failed} hata/yeniden deneme" if failed else "")
+        )
+        if not statuses:
+            self.list_box.add_widget(_aligned_label(
+                text="Henüz kaynak eklenmedi.", color=MUTED, font_size=sp(12),
+                size_hint_y=None, height=dp(44),
+            ))
+            return
+        for status in statuses:
+            card = RoundedPanel(
+                orientation="horizontal", padding=dp(9), spacing=dp(7),
+                size_hint_y=None, height=dp(88), fill=SURFACE, radius=dp(16),
+            )
+            info = BoxLayout(orientation="vertical", spacing=dp(4))
+            info.add_widget(_aligned_label(
+                text=f"{status.sequence}. {status.name}", color=TEXT, font_size=sp(12), bold=True,
+                size_hint_y=None, height=dp(25),
+            ))
+            progress = f"{status.chunks_completed}/{status.chunks_total} parça" if status.chunks_total else "henüz işlenmedi"
+            state_text = {
+                "pending": "Bekliyor", "processing": "İşleniyor", "completed": "Tamamlandı",
+                "failed": "Hata · tekrar denenebilir",
+            }.get(status.status, status.status)
+            if status.last_error:
+                state_text += f" · {status.last_error[:70]}"
+            info.add_widget(_aligned_label(
+                text=f"{state_text} · {progress}", color=DANGER if status.status == "failed" else MUTED,
+                font_size=sp(9), valign="top",
+            ))
+            card.add_widget(info)
+            left = GhostButton(text="↑", size_hint_x=None, width=dp(32), font_size=sp(13))
+            left.disabled = self._queue_running or status.sequence == 1
+            left.bind(on_release=lambda *_a, sid=status.source_id: self._reorder_source(sid, -1))
+            card.add_widget(left)
+            right = GhostButton(text="↓", size_hint_x=None, width=dp(32), font_size=sp(13))
+            right.disabled = self._queue_running or status.sequence == len(statuses)
+            right.bind(on_release=lambda *_a, sid=status.source_id: self._reorder_source(sid, 1))
+            card.add_widget(right)
+            remove = GhostButton(text="×", size_hint_x=None, width=dp(32), font_size=sp(14))
+            remove.disabled = self._queue_running
+            remove.bind(on_release=lambda *_a, sid=status.source_id, name=status.name: self._confirm_remove_source(sid, name))
+            card.add_widget(remove)
+            self.list_box.add_widget(card)
+
+    def _select_workspace(self, _spinner, label):
+        if self._refreshing_picker:
+            return
+        self.active_workspace_id = self._workspace_labels.get(label)
+        self.refresh()
+
+    def _create_workspace_dialog(self):
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(9))
+        name = PillInput(hint_text="Senaryo adı", multiline=False)
+        description = PillInput(hint_text="Açıklama (isteğe bağlı)", multiline=False)
+        box.add_widget(_field_group("Senaryo", name))
+        box.add_widget(_field_group("Açıklama", description))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(title="Yeni senaryo çalışma alanı", content=box, size_hint=(0.92, None), height=dp(260), background_color=SURFACE)
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+        def create_workspace(*_):
+            try:
+                workspace_id = self.app_ref.controller.create_source_workspace(name.text, description.text)
+            except Exception as exc:
+                self.status_label.text = f"Çalışma alanı oluşturulamadı: {exc}"
+                return
+            self.active_workspace_id = workspace_id
+            popup.dismiss()
+            self.refresh()
+        actions.add_widget(AccentButton(text="Oluştur", on_release=create_workspace))
+        box.add_widget(actions)
+        popup.open()
+
+    def _choose_source(self):
+        if self.active_workspace_id is None:
+            self.status_label.text = "Önce çalışma alanı oluştur."
+            return
+        if self.app_ref._saf_source_import(self.active_workspace_id):
+            return
+        chooser = FileChooserListView(filters=["*.txt", "*.md"], path=str(Path.home()))
+        box = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(10))
+        box.add_widget(chooser)
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(title="Kaynak metni seç (.txt / .md)", content=box, size_hint=(0.96, 0.88), background_color=SURFACE)
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+        def add_selected(*_):
+            if not chooser.selection:
+                return
+            selected = chooser.selection[0]
+            popup.dismiss()
+            self._attach_source(self.active_workspace_id, selected, cleanup_temp=False)
+        actions.add_widget(AccentButton(text="Kaynağı ekle", on_release=add_selected))
+        box.add_widget(actions)
+        popup.open()
+
+    def _attach_source(self, workspace_id, path, *, cleanup_temp):
+        try:
+            added = self.app_ref.controller.add_source_to_workspace(workspace_id, path)
+            if cleanup_temp:
+                Path(path).unlink(missing_ok=True)
+            self.active_workspace_id = workspace_id
+            self.status_label.text = f"Kaynak eklendi: {added.name}"
+        except Exception as exc:
+            self.status_label.text = f"Kaynak eklenemedi: {exc}"
+        self.refresh()
+
+    def _reorder_source(self, source_id, delta):
+        try:
+            self.app_ref.controller.reorder_workspace_source(self.active_workspace_id, source_id, delta)
+        except Exception as exc:
+            self.status_label.text = f"Sıralama değiştirilemedi: {exc}"
+        self.refresh()
+
+    def _confirm_remove_source(self, source_id, name):
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
+        box.add_widget(_aligned_label(
+            text=f"{name} kaynak listesinden çıkarılsın mı? Tamamlanmış çıkarım kayıtları denetim için korunur.",
+            color=TEXT, font_size=sp(12), valign="top",
+        ))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(title="Kaynağı listeden çıkar", content=box, size_hint=(0.92, None), height=dp(220), background_color=SURFACE)
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+        def remove(*_):
+            try:
+                self.app_ref.controller.remove_workspace_source(self.active_workspace_id, source_id)
+                self.status_label.text = "Kaynak listeden çıkarıldı; önceki çıkarım partileri korundu."
+            except Exception as exc:
+                self.status_label.text = f"Kaynak çıkarılamadı: {exc}"
+            popup.dismiss()
+            self.refresh()
+        actions.add_widget(AccentButton(text="Çıkar", on_release=remove))
+        box.add_widget(actions)
+        popup.open()
+
+    def _process_queue(self):
+        if self.active_workspace_id is None or self._queue_running:
+            return
+        workspace_id = self.active_workspace_id
+        self._queue_running = True
+        self.process_button.disabled = True
+        self.add_source_button.disabled = True
+        self.status_label.text = "Kaynak parçaları AI ile işleniyor. Her tamamlanan parça ayrı kaydedilir…"
+
+        def progress(batch, error):
+            def update(*_):
+                if error:
+                    self.status_label.text = (
+                        f"{batch.source_name} · parça {batch.chunk_index + 1}: hata ({error}); "
+                        "checkpoint korunuyor, devam ederek tekrar deneyebilirsin."
+                    )
+                else:
+                    self.status_label.text = (
+                        f"{batch.source_name} · parça {batch.chunk_index + 1}/{batch.chunk_count} kaydedildi."
+                    )
+            Clock.schedule_once(update, 0)
+
+        def worker():
+            try:
+                count = self.app_ref.controller.process_source_queue(workspace_id, progress_callback=progress)
+                message = f"İşlem tamamlandı. {count} yeni parça kaydedildi."
+            except Exception as exc:
+                message = str(exc)
+            def finish(*_):
+                self._queue_running = False
+                self.status_label.text = message
+                self.refresh()
+            Clock.schedule_once(finish, 0)
+
+        Thread(target=worker, daemon=True).start()
+
+    def _show_candidates(self):
+        if self.active_workspace_id is None:
+            self.status_label.text = "Önce bir çalışma alanı seç."
+            return
+        try:
+            records = self.app_ref.controller.source_workspace_manager().read_batch_results(self.active_workspace_id)
+            text = __import__("json").dumps(records, ensure_ascii=False, indent=2) if records else "Henüz işlenmiş parça yok."
+        except Exception as exc:
+            text = f"Adaylar okunamadı: {type(exc).__name__}"
+        viewer = TextInput(
+            text=text, readonly=True, multiline=True, font_size=sp(11),
+            background_color=SURFACE, foreground_color=TEXT,
+        )
+        popup = Popup(title="Çıkarılan adaylar (ara veri)", content=viewer, size_hint=(0.96, 0.88), background_color=SURFACE)
+        popup.open()
+
+
 class AIScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="ai", **kwargs)
