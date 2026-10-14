@@ -223,7 +223,9 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     assert 'self.api_model.text = selected' in ai
     assert 'self.api_model_filter = PillInput(' in ai
     assert 'def _filter_api_models(self):' in ai
-    assert 'self.api_panel.height = dp(612)' in ai
+    assert "fixed = dp(416)" in ai
+    assert "self.api_panel.height = (" in ai
+    assert "self._update_api_panel_height()" in ai
 
 
 def test_selecting_discovered_api_model_updates_live_adapter():
