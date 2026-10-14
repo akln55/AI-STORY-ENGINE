@@ -29,6 +29,7 @@ from engine.ai.model_manager import (
     download_huggingface_model,
     install_imported_model,
     list_installed_models,
+    list_partial_model_downloads,
     list_huggingface_gguf_files,
     search_huggingface_models,
     validate_model_file,
@@ -225,6 +226,10 @@ class AppController:
     def set_gemini(self, api_key: str, model: str = "") -> None:
         self._stop_local_runtime()
         self.session.adapter = GeminiAdapter(api_key, model=model or "gemini-3.6-flash")
+
+    def partial_local_model_downloads(self):
+        """Return only validated partial GGUF downloads that can be resumed safely."""
+        return list_partial_model_downloads(default_model_storage_dir())
 
     def installed_local_models(self, *, verify_integrity: bool = False):
         # UI listings use cheap GGUF header/size checks. Full SHA-256 is
