@@ -179,6 +179,21 @@ class ModelSpec:
 
 
 @dataclass(frozen=True)
+class PartialModelDownload:
+    path: Path
+    spec: ModelSpec
+    downloaded_bytes: int
+    etag: str | None = None
+    last_modified: str | None = None
+
+    @property
+    def remaining_bytes(self) -> int | None:
+        if self.spec.expected_size_bytes is None:
+            return None
+        return max(0, self.spec.expected_size_bytes - self.downloaded_bytes)
+
+
+@dataclass(frozen=True)
 class InstalledModel:
     path: Path
     size_bytes: int
@@ -617,6 +632,69 @@ def download_huggingface_model(
         part.unlink(missing_ok=True)
         sidecar.unlink(missing_ok=True)
         raise
+
+def list_partial_model_downloads(models_dir: Path | str) -> list[PartialModelDownload]:
+    """List metadata-matched partial downloads stored inside the model directory."""
+    directory = Path(models_dir).expanduser().resolve()
+    if not directory.is_dir():
+        return []
+    result: list[PartialModelDownload] = []
+    for sidecar in sorted(directory.glob("*.gguf.part.json"), key=lambda path: path.name.lower()):
+        payload = _read_partial_metadata(sidecar)
+        if payload is None:
+            continue
+        fingerprint = payload.get("fingerprint")
+        if not isinstance(fingerprint, dict):
+            continue
+        repo_id = fingerprint.get("repo_id")
+        filename = fingerprint.get("filename")
+        revision = fingerprint.get("revision", "main")
+        expected_size = fingerprint.get("expected_size_bytes")
+        expected_sha = fingerprint.get("expected_sha256")
+        if not isinstance(repo_id, str) or not isinstance(filename, str) or not isinstance(revision, str):
+            continue
+        if expected_size is not None and (
+            not isinstance(expected_size, int) or isinstance(expected_size, bool)
+        ):
+            continue
+        if expected_sha is not None and not isinstance(expected_sha, str):
+            continue
+        try:
+            spec = ModelSpec(
+                repo_id=repo_id,
+                filename=filename,
+                revision=revision,
+                expected_size_bytes=expected_size,
+                expected_sha256=expected_sha,
+            )
+            spec.validate()
+            if _download_fingerprint(spec) != fingerprint:
+                continue
+        except ModelManagerError:
+            continue
+
+        # Strip only the trailing ".json": sidecar name is "<destination>.part.json".
+        part = sidecar.with_name(sidecar.name[:-len(".json")])
+        if part.parent.resolve() != directory or not part.is_file():
+            continue
+        if part.name != spec.destination_name + ".part":
+            continue
+        size = part.stat().st_size
+        if size <= 0 or size > HARD_MAX_MODEL_BYTES:
+            continue
+        if expected_size is not None and size > expected_size:
+            continue
+        etag = payload.get("etag")
+        modified = payload.get("last_modified")
+        result.append(PartialModelDownload(
+            path=part,
+            spec=spec,
+            downloaded_bytes=size,
+            etag=etag if isinstance(etag, str) else None,
+            last_modified=modified if isinstance(modified, str) else None,
+        ))
+    return result
+
 
 def list_installed_models(
     models_dir: Path | str, *, verify_integrity: bool = True
