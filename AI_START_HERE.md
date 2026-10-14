@@ -117,3 +117,25 @@ Only call the app Android-verified after the relevant device gates pass.
 4. `docs/CONSTITUTION.md` — binding rules.
 5. `docs/TESTING.md` and `docs/ANDROID_BUILD.md` — verification/release gates.
 6. The relevant subsystem specification before changing that subsystem.
+
+## 9. Handoff update — 2026-10-14 (current user-reported blockers)
+
+The following issues are **open** and must not be described as fixed merely because older source checks or an APK build passed:
+
+1. **Chat composer / text-entry UI:** user reports the message bubbles no longer overflow as often, but text-entry areas remain visually/layout broken. Fix input sizing, rounded shape, text/hint/cursor alignment, keyboard interaction, and send control placement on the actual Kivy screen.
+2. **API settings UX:** the user explicitly requested that the app not ask for unnecessary information. Current provider form still needs a provider-specific minimal-fields pass; hide irrelevant fields (for example, a Gemini endpoint field) instead of merely disabling them. Keep model-list connectivity separate from real generation testing.
+3. **Settings and icons:** user reports no meaningful settings-screen improvement and malformed/inconsistent UI symbols. Audit the actual screen, typography/icon support, control alignment, and small-screen behavior; do not claim visual success without rendered evidence.
+4. **Scenario import blocker:** the user's imported scenario fails with: `Import başarısız: scenario data characters.json:npc_kim_minjae.goals entries must be objects`. Inspect the actual imported archive and its `characters.json`, then reconcile the producer's schema with `engine/scenario/loader.py` validation. Preserve valid NPC goals; do not remove validation simply to silence the error. Add a fixture and regression tests.
+5. **Acceptance is implementation + verification:** fix code, add tests, run the full test and readiness gates, commit/push changes, then dispatch the Android build workflow and inspect its result/artifact. A successful older build is not proof these open issues are fixed.
+
+### Last verified build evidence (not the fixes above)
+
+- Android build workflow run [38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595) completed successfully on commit `ad611254d90578e375b53f7445d1e7f1d4d243ae`.
+- APK and provenance artifact: `rpg-engine-v1.1.4-android-debug`; artifact ID `11845055403`; size 58,551,775 bytes; archive digest `sha256:513c11b5287e35a1122ee583ce62ad584afd5e661222c5f5653c70cae5e2657e`; expires 2027-01-11.
+- This artifact predates the outstanding UI/settings/scenario-import fixes and must not be represented as containing them.
+- No physical-device visual/launch/gameplay test is evidenced by this build. Keep device verification explicitly open.
+- Current source head at the time of this handoff: `ad611254d90578e375b53f7445d1e7f1d4d243ae`.
+
+### Next AI: required working method
+
+Read this file, `HANDOFF.md`, `MEMORY.md`, and the relevant UI/scenario code before editing. Treat the user's screenshot and exact import error as reproducible acceptance targets. Inspect current code rather than relying on older summaries. Make the smallest coherent implementation, test it, and update these status docs after observing real results. Do not start with a generic redesign plan or stop after producing recommendations.
