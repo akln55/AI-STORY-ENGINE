@@ -14,6 +14,7 @@ from engine.ai.model_manager import (
     download_huggingface_model,
     install_imported_model,
     list_installed_models,
+    list_partial_model_downloads,
     list_huggingface_gguf_files,
     search_huggingface_models,
     model_storage_dir,
@@ -785,3 +786,54 @@ def test_download_sends_if_range_for_saved_etag(tmp_path):
 
     installed = download_huggingface_model(spec, models_dir, opener=opener)
     assert installed.path.read_bytes() == payload
+
+def test_partial_download_listing_uses_saved_metadata_and_reports_progress(tmp_path):
+    import engine.ai.model_manager as module
+
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    spec = ModelSpec(
+        "Qwen/Qwen3-1.7B-GGUF", "model.Q4_K_M.gguf",
+        revision="abc123", expected_size_bytes=1000, expected_sha256="a" * 64,
+    )
+    part = models_dir / (spec.destination_name + ".part")
+    part.write_bytes(b"x" * 400)
+    module._write_partial_metadata(
+        module._part_metadata_path(part), module._download_fingerprint(spec),
+        etag='"stable-etag"',
+    )
+
+    partials = list_partial_model_downloads(models_dir)
+
+    assert len(partials) == 1
+    assert partials[0].spec.repo_id == "Qwen/Qwen3-1.7B-GGUF"
+    assert partials[0].spec.revision == "abc123"
+    assert partials[0].downloaded_bytes == 400
+    assert partials[0].remaining_bytes == 600
+    assert partials[0].etag == '"stable-etag"'
+
+
+def test_partial_download_listing_ignores_orphaned_or_mismatched_files(tmp_path):
+    import engine.ai.model_manager as module
+
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    orphan = models_dir / "orphan.gguf.part"
+    orphan.write_bytes(b"partial")
+    sidecar_only = models_dir / "no-data.gguf.part.json"
+    sidecar_only.write_text("{}", encoding="utf-8")
+
+    spec = ModelSpec("org/model", "different.gguf", revision="main")
+    mismatched = models_dir / (spec.destination_name + ".part")
+    mismatched.write_bytes(b"x" * 16)
+    module._write_partial_metadata(
+        module._part_metadata_path(mismatched), module._download_fingerprint(spec)
+    )
+    # Invalid file is not listed if its saved spec/fingerprint has an inconsistent filename.
+    wrong_meta = module._read_partial_metadata(module._part_metadata_path(mismatched))
+    wrong_meta["fingerprint"]["filename"] = "other.gguf"
+    module._write_partial_metadata(
+        module._part_metadata_path(mismatched), wrong_meta["fingerprint"]
+    )
+
+    assert list_partial_model_downloads(models_dir) == []
