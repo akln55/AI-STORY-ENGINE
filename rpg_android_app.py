@@ -1360,8 +1360,9 @@ class AIScreen(BaseScreen):
             orientation="vertical", padding=dp(14), spacing=dp(8),
             size_hint_y=None, height=dp(264), fill=SURFACE, radius=dp(22),
         )
+        self.local_panel = local
         local.add_widget(_aligned_label(
-            text="◇  Yerel modeller · Local GGUF", color=TEXT, font_size=sp(17), bold=True,
+            text="Yerel modeller · Local GGUF", color=TEXT, font_size=sp(17), bold=True,
             size_hint_y=None, height=dp(26),
         ))
         local.add_widget(_aligned_label(
@@ -1379,8 +1380,9 @@ class AIScreen(BaseScreen):
         local_actions.add_widget(advanced)
         local.add_widget(local_actions)
         self.local_models = BoxLayout(
-            orientation="vertical", spacing=dp(5), size_hint_y=None, height=dp(94),
+            orientation="vertical", spacing=dp(5), size_hint_y=None, height=dp(0),
         )
+        self.local_models.bind(minimum_height=self.local_models.setter("height"))
         local.add_widget(self.local_models)
         content.add_widget(local)
 
@@ -1733,6 +1735,11 @@ class AIScreen(BaseScreen):
                     ))
                     row.add_widget(button)
                     self.local_models.add_widget(row)
+
+                Clock.schedule_once(
+                    lambda *_a: setattr(self.local_panel, "height", dp(170) + self.local_models.height),
+                    0,
+                )
 
             Clock.schedule_once(finish, 0)
 
