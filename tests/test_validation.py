@@ -162,3 +162,12 @@ def test_invariant_detects_inventory_desync(demo_state):
     except InvariantError:
         raised = True
     assert raised
+
+
+def test_resource_integer_rejects_boolean_value(demo_state):
+    ok, _, reason = validate_effect(
+        Effect("resource", "player.hp", "add", True), demo_state
+    )
+    assert not ok
+    assert "boolean" in reason
+    assert demo_state.character.hp == 100
