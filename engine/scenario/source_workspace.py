@@ -902,7 +902,13 @@ class SourceWorkspaceManager:
         for entity in existing_entities:
             category, record_id, name = entity.get("category"), entity.get("id"), entity.get("name")
             if isinstance(category, str) and isinstance(record_id, str) and isinstance(name, str):
-                known.append({"category": category, "id": record_id, "name": name})
+                aliases = entity.get("aliases", [])
+                if not isinstance(aliases, (list, tuple)):
+                    aliases = []
+                known.append({
+                    "category": category, "id": record_id, "name": name,
+                    "aliases": [alias for alias in aliases if isinstance(alias, str) and alias.strip()],
+                })
         known_text = json.dumps(known[:250], ensure_ascii=False, separators=(",", ":"))
         metadata = {
             "batch_id": batch.batch_id, "source_name": batch.source_name,
