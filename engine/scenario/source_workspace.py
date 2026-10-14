@@ -458,15 +458,22 @@ class SourceWorkspaceManager:
             for raw_relation in extraction.get("relations", []):
                 relation = dict(raw_relation)
                 relation["source_provenance"] = provenance
-                identity = json.dumps({
+                identity_fields = {
                     "source_id": relation.get("source_id"),
+                    "source_category": relation.get("source_category"),
                     "relation": relation.get("relation"),
                     "target_id": relation.get("target_id"),
+                    "target_category": relation.get("target_category"),
                     "support": relation.get("support"),
-                }, ensure_ascii=False, sort_keys=True)
-                existing = relations.setdefault(identity, {
-                    key: relation[key] for key in ("source_id", "relation", "target_id", "support")
-                } | {"evidence_records": []})
+                }
+                identity = json.dumps(identity_fields, ensure_ascii=False, sort_keys=True)
+                normalized_relation = {
+                    key: relation[key] for key in (
+                        "source_id", "relation", "target_id", "support",
+                        "source_category", "target_category",
+                    ) if key in relation
+                }
+                existing = relations.setdefault(identity, normalized_relation | {"evidence_records": []})
                 claim = {"evidence": relation.get("evidence", {}), "source_provenance": provenance}
                 if claim not in existing["evidence_records"]:
                     existing["evidence_records"].append(claim)
@@ -828,11 +835,17 @@ class SourceWorkspaceManager:
             f"- Candidate entities: {len(candidates['entities'])}",
             f"- Candidate relations: {len(candidates['relations'])}",
             f"- Unresolved items: {len(candidates['unresolved'])}",
+            f"- Possible duplicate groups: {len(candidates.get('possible_duplicates', []))}",
             f"- Claims not automatically promoted: {len(review_claims)}",
             "",
         ]
         for index, issue in enumerate(candidates["unresolved"], start=1):
             review_lines.append(f"{index}. Unresolved: {issue.get('description', 'Unspecified candidate')}")
+        for index, issue in enumerate(candidates.get("possible_duplicates", []), start=1):
+            review_lines.append(
+                f"Possible duplicate {index}: {issue.get('matching_name_or_alias', 'unknown')} "
+                f"across IDs {', '.join(issue.get('candidate_ids', []))}; review before merging."
+            )
         for index, issue in enumerate(review_claims, start=1):
             review_lines.append(f"{index}. Review required: {issue.get('reason', 'Claim not promoted')}")
         review_lines.extend([
@@ -910,7 +923,7 @@ class SourceWorkspaceManager:
             f"Batch metadata: {json.dumps(metadata, ensure_ascii=False)}\n"
             f"Existing canonical entity index: {known_text}\n"
             "Required extraction JSON schema (illustrative): "
-            '{"entities":[{"category":"items","id_candidate":"item_example","canonical_id":null,"name":"Example","aliases":[],"facts":[{"field":"summary","value":"...","support":"explicit","evidence":{"location_hint":"..."}}]}],"relations":[{"source_id":"item_example","relation":"located_at","target_id":"loc_example","support":"explicit","evidence":{"location_hint":"..."}}],"unresolved":[]}\n'
+            '{"entities":[{"category":"items","id_candidate":"item_example","canonical_id":null,"name":"Example","aliases":[],"facts":[{"field":"summary","value":"...","support":"explicit","evidence":{"location_hint":"..."}}]}],"relations":[{"source_id":"item_example","source_category":"items","relation":"located_at","target_id":"loc_example","target_category":"locations","support":"explicit","evidence":{"location_hint":"..."}}],"unresolved":[]}\n'
             "SOURCE TEXT START\n"
             + batch.content
             + "\nSOURCE TEXT END"
@@ -988,18 +1001,26 @@ class SourceWorkspaceManager:
             for field in ("source_id", "relation", "target_id"):
                 if not isinstance(relation.get(field), str) or not relation[field].strip():
                     raise ScenarioError(f"extraction relations[{index}] requires {field}")
+            for category_field in ("source_category", "target_category"):
+                category = relation.get(category_field)
+                if category is not None and category not in ENTITY_CATEGORIES:
+                    raise ScenarioError(f"extraction relations[{index}].{category_field} has unsupported category {category!r}")
             support = relation.get("support", "explicit")
             if support not in EVIDENCE_TYPES:
                 raise ScenarioError(f"unsupported relation support {support!r}")
             evidence = relation.get("evidence", {})
             if not isinstance(evidence, Mapping):
                 raise ScenarioError("relation evidence must be an object")
-            normalized_relations.append({
+            normalized = {
                 "source_id": relation["source_id"].strip(),
                 "relation": relation["relation"].strip(),
                 "target_id": relation["target_id"].strip(),
                 "support": support, "evidence": dict(evidence),
-            })
+            }
+            for category_field in ("source_category", "target_category"):
+                if relation.get(category_field) is not None:
+                    normalized[category_field] = relation[category_field]
+            normalized_relations.append(normalized)
         normalized_unresolved = []
         for item in unresolved:
             if isinstance(item, str):
