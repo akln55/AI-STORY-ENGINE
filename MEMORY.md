@@ -98,3 +98,13 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Original failed scenario .rpgscenario.zip is still needed. The screenshot identifies the validation message but not the exact malformed source data. Never claim root cause without the archive.
 - The existing Master Specification should be reconciled against actual loader/registry models; do not copy schema examples blindly. Runtime instructions must be programmatically included in prompts, not merely stored as an unused Markdown file.
 - This was a documentation-only planning update. No application code, UI, validator or APK changes have been made; the implementation campaign awaits explicit user approval.
+
+
+## 2026-10-14 — Actual scenario archive diagnosis
+
+- Uploaded archive: `Return_Survival_Kirilma_Noktasi.rpgscenario.zip`.
+- Confirmed first blocker: `data/characters.json:npc_kim_minjae.goals[0]` is a plain string, while `engine/scenario/registry.py` requires goal objects containing `id`, `description`, and `priority`.
+- Confirmed second blocker after the goal is corrected: the two `world.json.relationships` keys use human-readable IDs rather than runtime canonical keys (`sorted party IDs joined by "|"`).
+- Manifest chapter count, chapter pack IDs, embedded canonical IDs, and explicit `references` targets passed manual structural checks.
+- Improved the goal validation error, added a regression test, and created `docs/SCENARIO_CREATION_GUIDE.md`. Corrected local ZIP has only passed manual structural checks, not actual engine validation.
+- Keep the import task unchecked until the real validator and app import path pass.
