@@ -181,3 +181,13 @@ The user supplied `Return_Survival_Kirilma_Noktasi.rpgscenario.zip`. Confirmed:
 The chapter metadata and explicit canonical references passed manual structural checks. A corrected local archive passed manual structural checks, not yet the real engine validator. Keep the main task unchecked until `tools/validate_scenario.py` and real import tests pass.
 
 See `docs/SCENARIO_CREATION_GUIDE.md` for the newly added generator guide. It is aligned to current loader/registry rules and must be updated together with schema changes.
+
+## Active execution status — 2026-10-14
+
+The full development campaign is approved and implementation has started. Current state is in progress, not complete.
+
+- The actual uploaded scenario archive revealed two mismatches: string-valued canonical NPC goal and non-canonical runtime relationship keys. A corrected local archive has passed only manual structural checks.
+- Read `docs/SCENARIO_CREATION_GUIDE.md` and `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md`; the latter's core contract has also been injected into `engine/ai/context.py`.
+- Code changes also cover actionable scenario-goal errors, a multiline rounded composer, simpler provider settings, rejected-event memory protection, secondary memory index refresh, and strict boolean rejection for integer resource values.
+- Regression tests were added for the changed behaviours. The latest CI run is pending, so keep all implementation task checkboxes unchecked until tests pass.
+- Continue with the approved campaign; preserve scenario sources and saves. Do not claim the corrected archive is engine-validated until the official validator and app import flow pass.
