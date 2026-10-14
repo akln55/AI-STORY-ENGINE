@@ -287,6 +287,11 @@ class SourceWorkspaceManager:
                 entry["updated_at"] = _now()
                 self._save_metadata(workspace_id, meta)
                 raise ScenarioError(entry["last_error"]) from exc
+            # Once the first checkpoint exists, chunk boundaries are immutable.
+            # Otherwise a later app version/default could skip or repeat text after resume.
+            if int(entry.get("chunks_total", 0)) > 0:
+                chunk_chars = int(entry.get("chunk_chars", chunk_chars))
+                overlap = int(entry.get("chunk_overlap", overlap))
             chunks = self._chunks(text, chunk_chars, overlap)
             entry["chunks_total"] = len(chunks)
             completed = {int(i) for i in entry.get("chunks_completed", [])}
