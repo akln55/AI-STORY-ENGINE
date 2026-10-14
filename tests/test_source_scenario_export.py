@@ -279,3 +279,38 @@ def test_user_confirmed_canonical_name_choice_resolves_same_id_conflict(tmp_path
     assert survivor["name"] == "Kim"
     assert "Min-jae" in survivor["aliases"]
     assert len(survivor["facts"]) == 2
+
+def test_exporter_does_not_promote_wrong_types_for_relationship_parties(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source = tmp_path / "bad-party-type.md"
+    source.write_text("A relationship record contains a malformed party value.", encoding="utf-8")
+    wid = manager.create("Bad relationship field")
+    manager.add_source(wid, source)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [
+            {"category": "characters", "id_candidate": "char_a", "name": "A", "aliases": [], "facts": []},
+            {"category": "characters", "id_candidate": "char_b", "name": "B", "aliases": [], "facts": []},
+        ],
+        "relations": [],
+        "unresolved": [],
+    })
+    # Add a direct structured fact with an invalid type; it remains a candidate for review.
+    output_path = manager._workspace_path(wid) / "batches" / batch.source_id / "000000.json"
+    output = json.loads(output_path.read_text(encoding="utf-8"))
+    output["extraction"]["entities"].append({
+        "category": "relationships", "id_candidate": "rel_a_b", "name": "Relationship A-B",
+        "aliases": [], "facts": [
+            {"field": "party_a", "value": 123, "support": "explicit", "evidence": {"location_hint": "bad record"}},
+            {"field": "party_b", "value": "char_b", "support": "explicit", "evidence": {"location_hint": "bad record"}},
+            {"field": "affinity", "value": 10, "support": "explicit", "evidence": {"location_hint": "bad record"}},
+        ],
+    })
+    output_path.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
+
+    archive = manager.export_scenario_archive(
+        wid, tmp_path / "relationship-types.rpgscenario.zip",
+        scenario_id="relationship-types", scenario_name="Relationship Types",
+        player_name="Player", start_location_id="loc_unused",
+    )
