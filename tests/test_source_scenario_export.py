@@ -141,3 +141,35 @@ def test_candidate_index_flags_shared_names_without_automatic_merge(tmp_path):
         for item in index["possible_duplicates"]
     )
     assert {entity["id_candidate"] for entity in index["entities"]} == {"char_lee_1", "char_lee_2"}
+
+def test_typed_relation_endpoints_resolve_duplicate_ids_across_categories(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source = tmp_path / "typed-relations.md"
+    source.write_text("The item is inside the place.", encoding="utf-8")
+    wid = manager.create("Typed relation")
+    manager.add_source(wid, source)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [
+            {"category": "locations", "id_candidate": "shared_id", "name": "Apartment", "aliases": [], "facts": []},
+            {"category": "items", "id_candidate": "shared_id", "name": "Token", "aliases": [], "facts": []},
+            {"category": "items", "id_candidate": "item_phone", "name": "Phone", "aliases": [], "facts": []},
+        ],
+        "relations": [{
+            "source_id": "item_phone", "source_category": "items",
+            "relation": "located_at", "target_id": "shared_id", "target_category": "locations",
+            "support": "explicit", "evidence": {"location_hint": "scene"},
+        }],
+        "unresolved": [],
+    })
+    candidates = manager.candidate_index(wid)
+    assert candidates["relations"][0]["target_category"] == "locations"
+    archive = manager.export_scenario_archive(
+        wid, tmp_path / "typed-relations.rpgscenario.zip",
+        scenario_id="typed-relations", scenario_name="Typed Relations",
+        player_name="Player", start_location_id="shared_id",
+    )
+    from engine.scenario.loader import load_scenario
+    pack = load_scenario(archive)
+    assert pack.build_state().world.items["item_phone"].location_id == "shared_id"
