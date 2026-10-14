@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 import json
+from uuid import uuid4
 import re
 import ssl
 import urllib.parse
@@ -397,6 +398,46 @@ def list_huggingface_gguf_files(
     ))
 
 
+def _part_metadata_path(part: Path) -> Path:
+    return part.with_name(part.name + ".json")
+
+
+def _download_fingerprint(spec: ModelSpec) -> dict[str, object]:
+    """Identity for safe resume; never contains credentials or arbitrary request headers."""
+    return {
+        "repo_id": spec.repo_id,
+        "filename": spec.filename,
+        "revision": spec.revision,
+        "resolved_url": spec.resolved_url,
+        "expected_size_bytes": spec.expected_size_bytes,
+        "expected_sha256": spec.expected_sha256.lower() if spec.expected_sha256 else None,
+    }
+
+
+def _write_partial_metadata(path: Path, fingerprint: dict[str, object]) -> None:
+    temp = path.with_name(path.name + f".{uuid4().hex}.tmp")
+    try:
+        with temp.open("w", encoding="utf-8", newline="\n") as handle:
+            json.dump({"format_version": 1, "fingerprint": fingerprint}, handle, ensure_ascii=False, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def _partial_metadata_matches(path: Path, fingerprint: dict[str, object]) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(payload, dict)
+        and payload.get("format_version") == 1
+        and payload.get("fingerprint") == fingerprint
+    )
+
+
 def download_huggingface_model(
     spec: ModelSpec,
     models_dir: Path | str,
@@ -414,10 +455,22 @@ def download_huggingface_model(
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / spec.destination_name
     part = destination.with_name(destination.name + ".part")
+    sidecar = _part_metadata_path(part)
+    fingerprint = _download_fingerprint(spec)
+    if part.exists():
+        # A partial without matching repository/file/revision/integrity metadata is
+        # not safe to append to. This also safely resets partials from pre-metadata builds.
+        if not _partial_metadata_matches(sidecar, fingerprint):
+            part.unlink(missing_ok=True)
+            sidecar.unlink(missing_ok=True)
+    else:
+        sidecar.unlink(missing_ok=True)
     offset = part.stat().st_size if part.exists() else 0
     if offset > max_bytes or (spec.expected_size_bytes is not None and offset > spec.expected_size_bytes):
         part.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
         offset = 0
+    _write_partial_metadata(sidecar, fingerprint)
 
     headers = {"User-Agent": "RPG-Engine/1.1", "Accept": "application/octet-stream"}
     if offset:
@@ -486,10 +539,12 @@ def download_huggingface_model(
         if spec.expected_sha256 and digest.lower() != spec.expected_sha256.lower():
             raise ModelIntegrityError("downloaded model SHA-256 does not match the expected digest")
         part.replace(destination)
+        sidecar.unlink(missing_ok=True)
         return InstalledModel(destination, written, digest)
     except Exception:
         # A completed but invalid artifact must not be resumed as though it were valid.
         part.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
         raise
 
 def list_installed_models(
