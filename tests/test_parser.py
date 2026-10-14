@@ -29,3 +29,10 @@ def test_unknown_is_free_text():
 
 def test_empty_input():
     assert parse_input("").action == "free"
+
+def test_interaction_aliases_and_natural_phrasing():
+    assert parse_input("inspect phone").action == "interact"
+    assert parse_input("interact with item_phone").target == "item_phone"
+    assert parse_input("look at the phone").target == "phone"
+    assert parse_input("telefonu incele").target == "telefonu"
+    assert parse_input("telefonu kontrol et").target == "telefonu"
