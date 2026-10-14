@@ -127,3 +127,11 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Updated scenario creation and in-game behaviour guides to tell ChatGPT to preserve IDs, use aliases and explicit references, respect `interact` objective semantics, and avoid presenting guessed links as canon.
 - Fresh CI run [38624639579](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38624639579) passed 560 tests, compileall, Android readiness, and mutation smoke 3/3. Earlier failures (stale panel assertion, context budget, and inspection commands intercepting the AI memory path) were resolved. Scenario validator/import and Android device acceptance remain unverified.
 - The graph reads structured JSON facts; it does not automatically extract every entity from free chapter prose. Resumable source ingestion, provenance and stable-ID reconciliation remain next-stage requirements.
+
+## 2026-10-14 — User requested one implementation batch before final validation
+
+- User clarified that the scenario archive's official validation/import/APK/device tests are the last tasks, after remaining development changes are completed.
+- Source of truth: `docs/DEVELOPMENT_PLAN.md` §14 covers the source/intermediate schema with provenance and stable IDs, resumable chapter processing, ordered source queue and status UI, safe scenario/demo management, composer/provider UX, model-download resume, and test runner.
+- Existing graph/interaction/runtime-context and engine-correctness changes had a green baseline in Actions run 38625436847 (560 passed, compileall, Android readiness, mutation smoke 3/3). Extend/test these rather than recreating them.
+- Targeted tests can run during implementation; comprehensive full CI, official validator, real import/play, APK build/provenance and device acceptance are deferred until the end as requested.
+- The plan-writing task changes documentation only; source code has not been modified by this request.

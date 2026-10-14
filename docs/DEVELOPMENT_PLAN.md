@@ -287,7 +287,8 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 - [x] Görevler ağırlıklı puanlama yöntemiyle yeniden sıralandı; uygulama sırası ve puan sırası ayrı gösterildi.
 - [x] Tek onayla ilerleyecek kampanya, bağımlılıkları ve kabul kapıları yazıldı.
 - [x] AI_START_HERE.md, HANDOFF.md, MEMORY.md ve APP_READINESS_CHECKLIST.md plana göre güncellendi.
-- [ ] Uygulama işleri: kullanıcı kampanya onayı ve ilgili gerçek girdiler gelmeden başlamaz.
+- [x] Kullanıcı kampanya onayı verdi; gerçek senaryo arşivi incelendi ve kod geliştirmesi başladı.
+- [x] Kullanıcının son talebi doğrultusunda açık geliştirmeler tek bir bütünleşik uygulama paketi olarak sıralandı; resmî senaryo doğrulama, gerçek import, son tam regresyon, APK ve cihaz kabulü en son aşamaya bırakıldı.
 
 ## 12.6. İlk senaryo arşivi incelemesi — 2026-10-14
 
@@ -333,3 +334,68 @@ Earlier verification had regressions, all then identified from logs. Fresh CI ru
 - Updated `docs/SCENARIO_CREATION_GUIDE.md` with `interact` semantics and structured entity links; updated `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md` with graph and source-grounding limits.
 - Added deterministic knowledge-graph tests and fixed the stale panel assertion, small-context budgeting, and ordinary `inspect` commands being intercepted from the AI memory path. Fresh CI run `38624639579` passed 560 tests, `compileall`, Android readiness and mutation smoke 3/3.
 - Keep implementation tasks unchecked until a fresh CI result, actual official archive validation, and the relevant app/device acceptance gate are recorded.
+
+## 14. Tek seferde uygulanacak geliştirme paketi — doğrulama en son
+
+**Kullanıcının güncel talimatı:** Açık kalan ürün/kod değişikliklerini tek bir bütünleşik kampanya halinde tamamla; düzeltilmiş senaryonun resmî doğrulaması, gerçek uygulama import'u, son tam doğrulama, APK ve cihaz kabulünü geliştirmelerin en son kapısına bırak. Bu, ara adımlarda tekrar tekrar onay beklemek veya bütün değişiklikleri tek dev commit'e sıkıştırmak anlamına gelmez. İlişkili işler mantıksal gruplara ayrılarak bir kampanyada yürütülür; yeni ve kapsam dışı yıkıcı karar gerekmedikçe mevcut onay geçerlidir.
+
+### A. Başlangıç referansı ve korunacak mevcut işler
+
+- [x] İlk bilgi grafiği, açık ID/alias çözümü, ilişkili kayıt retrieval'ı, `interact` quest sinyali ve oyun AI davranış sözleşmesi repoda bulunuyor.
+- [x] Reddedilmiş event ile memory arasındaki bağ, dedup sonrası ikincil indeksler ve bool-resource doğrulaması için değişiklikler/regresyonlar eklendi.
+- [x] Başlangıç CI kanıtı: [run 38625436847](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38625436847), 560 test geçti; compileall, Android readiness ve mutation smoke 3/3 başarılı.
+- [ ] Uygulamaya geçmeden önce güncel `main` HEAD, son diff ve mevcut ekran/manager/model-indirme akışları yeniden okunacak. Önceden uygulanmış özellikler yeniden yazılmayacak; eksikleri tamamlanacak.
+
+### B. Senaryo verisi ve kaynak işleme hattı
+
+1. Engine'in gerçek kanonik JSON şemasını tek sözleşmede topla: kayıt kategorileri, zorunlu alanlar, ID biçimi, `references`, NPC goals, ilişkiler ve görev hedefleri. `interact` dahil desteklenen türler loader, registry, runtime invariant ve Markdown rehberinde aynı anlama gelmeli.
+2. Kaynak işleme için kanonik `data/*.json` ile karıştırılmayan bir ara veri modeli tanımla. Her kaynak batch'i sıra, dosya adı, içerik hash'i, bölüm aralığı, işlem durumu, checkpoint ve hata/yeniden deneme bilgisiyle saklanmalı.
+3. İlk sürüm yalnızca gerçek parser yolu bulunan `.txt`, `.md` ve bunları içeren açıkça tanımlanmış arşiv/ara-format girdilerini sunmalı. Desteklenmeyen dosya türü sessizce kabul edilmemeli; PDF/OCR gibi yeni parser kapsam dışında kalmalı.
+4. Metni tek büyük isteme sığdırmaya çalışma. Kaynakları bölüm/alt parça halinde sırayla işle; her sonuç için aday karakter, mekân, nesne, grup, olay, ilişki, bilgi/sır ve zaman çizelgesi kayıtları üret.
+5. Her bilgiyle kaynak dosyası/bölümüne dayanan provenance sakla. `explicit`, `inference`, `rumor`, `disputed` gibi kanıt durumları ayrılmalı; söylenti veya karakter inancı evrenin kesin gerçeğine çevrilmemeli.
+6. Yeni aday kayıtları mevcut bilgi grafiğiyle ID, isim ve alias üzerinden eşleştir. Doğrulanmış aynı varlık mevcut ID'yi kullanmalı; belirsiz eşleşme birleştirilmemeli ve `unresolved` olarak işaretlenmeli.
+7. İlişkileri yalnızca açık referanslarla veya kaynakta dayanak gösterilen, doğrulamadan geçmiş çıkarımlarla kur. AI çıktısı doğrudan GameState'i, mevcut kurulu senaryoyu ya da save dosyalarını değiştirememeli.
+8. Her bölüm/batch sonrasında onaylı checkpoint ve ara çıktı yaz; uygulama kapanıp açıldığında biten parçalar tekrarlanmadan devam edebilmeli. Orijinal kaynaklar salt okunur korunmalı ve sonradan yeni bölüm paketleri eklenebilmeli.
+9. ChatGPT'ye verilecek `SCENARIO_CREATION_GUIDE.md` dosyasını bu ara format, kategori/ilişki sözleşmesi, devam etme ve hatalı/eksik bilgi davranışına göre güncelle. Ara format ile doğrudan import edilebilen `.rpgscenario` formatı açıkça ayrılmalı.
+
+### C. Senaryo oluşturma ve senaryo kütüphanesi arayüzü
+
+1. Mevcut `ScenariosScreen` yalnızca içe aktarma ve başlatma sunuyor. Senaryo çalışma alanı ekle: ad/açıklama ve başlangıç ayarları, kaynak dosyalarını ekleme/kaldırma, sıra oklarıyla yukarı/aşağı taşıma ve kaynak zincirini görünür kılma.
+2. Kaynak başına `Bekliyor / İşleniyor / Tamamlandı / Hata / Devam ettir` durumları, genel ilerleme, hata açıklaması ve güvenli tekrar deneme sağla. Durum/checkpoint uygulama yeniden açılınca korunmalı.
+3. Daha sonra eklenen bölüm paketleri önceki kanonik kayıtları ve kaynakları kaybetmeden aynı senaryoya eklenmeli; paket kimliği ve sıra/bölüm aralığı çatışmaları kullanıcıya açıkça bildirilmeli.
+4. Demo dünyasını ana/aktif oyun alanında zorunlu sabit kart olmaktan çıkarıp normal senaryo kütüphanesi davranışına taşı. Kurulu senaryolar ile son oynanan kayıtları birbirine karıştırma.
+5. Senaryo kaldırma için senaryo adının yer aldığı açık onay kullan. Senaryo paketini kaldırmak save slotlarını sessizce silmemeli; aktif oyun/kayıt ilişkileri korunmalı ve dosya temizliği başarısız olursa indeks tutarlı kalmalı.
+
+### D. Oyun ekranı ve AI/API ayarları
+
+1. Mevcut yuvarlak/multiline composer değişikliklerini tamamla: metin, hint, imleç ve panel hizası; dört satıra kadar büyüme; çok uzun metin; Android klavyesi açıldığında input/gönder düğmesinin görünür kalması ve kaydırma davranışı.
+2. API ayarlarını sağlayıcıya göre sade tut. Normal sağlayıcılarda yalnızca gereken alanlar; OpenAI-compatible için endpoint/model alanlarını koşullu göster. API anahtarı girişini tasarıma uydur, sırları log/status metinlerine yazma.
+3. Bağlantı testi ile gerçek generation testini ayır; model listesi almak başarılı diye sohbet üretimi doğrulanmış sayılmamalı.
+4. Demo/senaryo ekranları, ayarlar ve ikon/font glyph'leri için ekran kaynak kodu testlerini genişlet; cihazda görsel başarı ancak final cihaz kabulinde bildirilebilir.
+
+### E. Model indirme ve geliştirici araçları
+
+1. Mevcut `engine/ai/model_manager.py` içindeki partial dosya ve Range davranışını yeniden yazmadan önce incele. Repository/file/revision ve doğrulanan boyut/hash bilgileri kalıcı metadata'da tutulmalı.
+2. Bağlantı kesilmesi veya uygulama kapanması `.part` dosyasını korumalı; yeniden açılınca doğru dosya sürümü için devam etmeyi/yeniden başlatmayı seçmeli. HTTP 206 devamı, HTTP 200 baştan indirme fallback'i, yanlış boyut/hash, çift indirme ve bozuk GGUF test edilmeli.
+3. Son `.gguf` ismi yalnızca tamamlanmış dosya doğrulamadan geçince kullanılmalı; kısmi dosya kurulu model listesinde geçerli model gibi görünmemeli. Android OS sonlandırmasına karşı garanti verilmeyen durumda devam etme davranışını doğru adlandır; foreground service ayrıca izin/onay gerektirir.
+4. `tools/run_tests.py` için pytest fixture/monkeypatch uyumsuzluğunu çöz veya tek desteklenen test komutuna açık, fail-fast yönlendirme yap. Başarısız testleri atlamak veya assertion kaldırmak çözüm sayılmaz.
+
+### F. Geliştirme sırasındaki kontrol disiplini
+
+- Her alt alanda hedefli testler ve küçük statik kontroller çalıştır; bunlar final kabul kapısının yerine geçmez.
+- Kategoriler/ID/ilişki sözleşmesi, kaynak kuyruğu, UI, indirme ve test runner işi bitmeden final kabul kapısına geçme.
+- İşlerin tamamlandığına ilişkin belgeleri ve checklist'i güncelle, ancak final validator/import/cihaz kriterlerini henüz `[x]` yapma.
+- Mevcut güvenlik, save/source koruması ve engine-authoritative durum yönetimini koru; yeni büyük bağımlılık, veri kaybı riski veya yıkıcı migration gerekirse dur ve yeniden onay al.
+
+### G. En son yapılacak kabul ve teslim kapısı
+
+Bu kapı, B–F kapsamındaki kod ve dokümantasyon değişiklikleri tamamlandıktan sonra çalıştırılacak:
+
+1. Tam `python -m pytest -q tests`, `python -m compileall -q .`, Android readiness, mutation smoke ve tüm GitHub Actions job'ları.
+2. Düzeltilmiş `Return_Survival_Kirilma_Noktasi.rpgscenario.zip` üzerinde gerçek `python tools/validate_scenario.py` ve `load_scenario()` doğrulaması; manuel JSON kontrolü yerine geçmez.
+3. Güncel uygulama import yolundan (Android SAF gerçek yolunu da kapsayacak biçimde) senaryoyu içe aktar, başlat, `quest_confirm_date` görevini etkinleştir, `item_phone` hedefini açıkça incele, görev ilerlemesini ve save/load turunu doğrula.
+4. Son kod HEAD'i için Android APK oluştur; workflow, commit SHA, artifact adı/ID ve SHA-256/provenance kaydını doğrula. Eski APK'yı yeni kodun kanıtı olarak kullanma.
+5. Gerçek cihazda açılış, senaryo kütüphanesi/oluşturma kuyruğu, yeniden açılıp devam etme, composer/klavye, sağlayıcı üzerinden generation, model indirme devamı ve save/load denemelerini yap. Fiziksel cihaz testi yapılamazsa ilgili kriterleri açık bırak; tahminle tamamlandı deme.
+6. Kabul sonucu ve açık kalanlar `docs/DEVELOPMENT_PLAN.md`, `HANDOFF.md`, `MEMORY.md` ve `AI_START_HERE.md` içine commit SHA ve run/artifact bağlantılarıyla kaydedilsin.
+
+**Kapsam dışında:** Bu plan sırasında kaynak metnin üzerinde otomatik yıkıcı değişiklik, save slotlarını otomatik silme, OCR/PDF desteği ya da Android foreground service eklenmeyecek. Bunlar gerekirse ayrı tasarlanıp onaylanmalı.

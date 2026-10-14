@@ -219,3 +219,11 @@ The first follow-up run found a self-referential `contract_lines` bug; the next 
 - Still run `python tools/validate_scenario.py <corrected-archive>` using the real project runtime; do not substitute manual JSON checks.
 - Confirm APK scenario import and play the objective on Android.
 - Build a fresh APK only after source gates pass; device UI/inference remains a separate gate.
+
+## 12. Current sequencing instruction — one implementation batch, final gate last
+
+The user requested that all still-open development changes be planned as one integrated campaign and that the official scenario ZIP validator, actual application import/play test, final full regression, fresh Android APK and physical-device acceptance be postponed until the end.
+
+Source of truth: `docs/DEVELOPMENT_PLAN.md` §14. The plan covers source/intermediate schema with provenance and stable IDs, resumable chapter processing, ordered source queue and status UI, safe scenario/demo management, composer/provider UX, model-download resume, and the test helper. It explicitly preserves original source files and save slots. Existing graph, interaction objective, runtime AI context and engine-correctness work should be extended, not rewritten.
+
+The last verified source gate before this plan was written: [run 38625436847](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38625436847) — 560 tests passed, compileall passed, Android readiness passed, mutation smoke 3/3. These checks predate future implementation changes and are only a baseline. During implementation, use targeted tests; perform the full final gate only after the integrated changes settle. The plan-writing request did not change application code.

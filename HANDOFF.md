@@ -171,3 +171,13 @@ The user approved the full campaign. Work has started; the main task checkboxes 
 - [Scenario knowledge graph](https://github.com/akln55/AI-STORY-ENGINE/blob/main/engine/scenario/knowledge_graph.py)
 - [Scenario creation guide](https://github.com/akln55/AI-STORY-ENGINE/blob/main/docs/SCENARIO_CREATION_GUIDE.md)
 - [In-game AI behaviour guide](https://github.com/akln55/AI-STORY-ENGINE/blob/main/docs/IN_GAME_AI_BEHAVIOR_GUIDE.md)
+
+## Single-batch implementation plan — 2026-10-14
+
+The user clarified the sequence: complete the remaining implementation changes together as one campaign first; leave official scenario validation, the real app import/play test, the final full regression gate, fresh APK, artifact provenance and device acceptance until the end. This is a sequencing instruction, not permission to skip targeted regression tests during development.
+
+The current code baseline is green: [CI run 38625436847](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38625436847) reports 560 passed, compileall passed, Android readiness passed, mutation smoke 3/3. `engine/scenario/knowledge_graph.py`, graph-backed retrieval, explicit `interact` objective handling, runtime AI rules and known engine-correctness fixes already exist; continue them rather than recreating them.
+
+The integrated batch is documented in `docs/DEVELOPMENT_PLAN.md` §14: (1) source/intermediate schema and provenance/stable IDs, checkpoint/resume and safe chapter append; (2) ordered source queue and scenario workspace UI; (3) normal scenario/demo library management with save-safe removal confirmation; (4) finish composer and provider-specific API UX; (5) durable Hugging Face partial-download resume and test-runner behavior. Run targeted tests as each area changes. Only after those changes settle, run the full suite plus official archive validator/import/gameplay/save-load, build the current APK, check provenance, and perform device acceptance.
+
+No product/code changes were made as part of the plan-writing request. Recheck current `main` HEAD before implementation begins. Do not check final acceptance boxes before evidence exists.
