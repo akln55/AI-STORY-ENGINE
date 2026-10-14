@@ -949,8 +949,11 @@ class AIScreen(BaseScreen):
         elif provider == "OpenAI" and previous_provider == "OpenAI-compatible":
             self.api_endpoint.text = "https://api.openai.com/v1"
             self.api_endpoint.hint_text = "https://api.openai.com/v1"
+            self.api_model.text = "gpt-4.1-mini"
+            self.api_model.hint_text = "Örn. gpt-4.1-mini"
             self.api_advanced_open = False
         elif gemini and previous_provider == "OpenAI-compatible":
+            self.api_model.text = "gemini-2.5-flash"
             self.api_advanced_open = False
         self._last_api_provider = provider
         self.api_endpoint.disabled = gemini
