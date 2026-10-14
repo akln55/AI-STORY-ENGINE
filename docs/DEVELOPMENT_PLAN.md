@@ -23,7 +23,7 @@ Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler
 
 | Öncelik | Görev paketi | Etki | Engel | Bağımlılık | Bütünlük riski | Puan / 10 | Uygulama paketi | Durum |
 |---:|---|---:|---:|---:|---:|---:|---|---|
-| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] ZIP bekleniyor; kök neden bilinmiyor |
+| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] Teşhis tamamlandı; kalıcı düzeltme ve motor doğrulaması bekliyor |
 | 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | 1 | [ ] Planlandı |
 | 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | 1 | [ ] Planlandı |
 | 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [ ] Planlandı |
@@ -288,6 +288,16 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 - [x] Tek onayla ilerleyecek kampanya, bağımlılıkları ve kabul kapıları yazıldı.
 - [x] AI_START_HERE.md, HANDOFF.md, MEMORY.md ve APP_READINESS_CHECKLIST.md plana göre güncellendi.
 - [ ] Uygulama işleri: kullanıcı kampanya onayı ve ilgili gerçek girdiler gelmeden başlamaz.
+
+## 12.6. İlk senaryo arşivi incelemesi — 2026-10-14
+
+- [x] Kullanıcının `Return_Survival_Kirilma_Noktasi.rpgscenario.zip` arşivi açılmadan değiştirilmeden incelendi; içindeki 17 dosya ve 14 JSON dosyası listelendi.
+- [x] JSON dosyaları parse edildi; kanonik kayıt ID'leri, `references` hedefleri ve chapter manifest sayıları temel kontrollerden geçirildi.
+- [x] Birinci hata doğrulandı: `data/characters.json:npc_kim_minjae.goals[0]` düz metin; registry her hedefin `id`, `description`, `priority` alanlı bir nesne olmasını bekliyor.
+- [x] İkinci uyumsuzluk doğrulandı: `world.json.relationships` anahtarları açıklayıcı ID olarak verilmiş; runtime invariant `party_a`/ `party_b` değerlerinin sıralanıp `|` ile birleştirildiği canonical key'i bekliyor.
+- [x] Rehbere goal nesnesi ve runtime relationship key kuralları eklendi. Registry'nin goal hata mesajı dosya, kayıt, indeks ve beklenen alanları gösterecek şekilde iyileştirildi; regresyon testi eklendi.
+- [ ] Düzeltilmiş arşiv gerçek `tools/validate_scenario.py` ile çalıştırılmalı ve uygulamanın gerçek import yolunda test edilmeli. Yerel manuel kontroller tek başına engine doğrulaması sayılmaz.
+- [ ] İlk görev ancak bu doğrulamalar geçince tamamlanacak.
 
 ## 13. Şu anki blokaj ve onay kapısı
 
