@@ -15,8 +15,10 @@ import re
 import unicodedata
 from typing import Any, Iterable, Mapping
 from uuid import uuid4
+import zipfile
 
 from engine.scenario.errors import ScenarioError
+from engine.scenario.registry import CATEGORY_FILES
 
 SUPPORTED_SOURCE_SUFFIXES = frozenset({".txt", ".md"})
 DEFAULT_CHUNK_CHARS = 6000
@@ -466,6 +468,357 @@ class SourceWorkspaceManager:
             "source_batch_count": len(self.read_batch_results(workspace_id)),
             "canonical_pack_modified": False,
         }
+
+    def export_scenario_archive(
+        self,
+        workspace_id: str,
+        destination: Path | str,
+        *,
+        scenario_id: str,
+        scenario_name: str,
+        player_name: str,
+        start_location_id: str,
+    ) -> Path:
+        """Build a playable ZIP from reviewed explicit candidates and ordered source chapters.
+
+        Only explicit, allow-listed claims are promoted into canonical records. Other
+        claims remain in lore/extraction-review.md and the workspace candidate index.
+        The installed scenario registry and current game state are never modified.
+        """
+        from engine.scenario.loader import load_scenario
+
+        meta = self.get_workspace(workspace_id)
+        sources = sorted(meta["sources"], key=lambda item: int(item["sequence"]))
+        if not sources:
+            raise ScenarioError("add at least one source chapter before exporting a scenario")
+        incomplete = [
+            str(item["original_name"]) for item in sources
+            if item.get("status") != "completed"
+            or int(item.get("chunks_total", 0)) <= 0
+            or len(set(int(index) for index in item.get("chunks_completed", []))) < int(item.get("chunks_total", 0))
+        ]
+        if incomplete:
+            raise ScenarioError("finish every source before exporting: " + ", ".join(incomplete[:5]))
+        scenario_id = scenario_id.strip()
+        scenario_name = scenario_name.strip()
+        player_name = player_name.strip()
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{1,95}", scenario_id):
+            raise ScenarioError("scenario ID must use 2–96 letters, digits, underscores, or hyphens")
+        if not scenario_name:
+            raise ScenarioError("scenario name is required")
+        if not player_name:
+            raise ScenarioError("player character name is required")
+        if not str(destination).lower().endswith(".rpgscenario.zip"):
+            raise ScenarioError("export destination must end in .rpgscenario.zip")
+
+        candidates = self.candidate_index(workspace_id)
+        if candidates["conflicts"]:
+            raise ScenarioError(
+                "resolve candidate ID/name conflicts before export; inspect the candidate index"
+            )
+        location_candidates = {
+            str(entity["id_candidate"]): entity
+            for entity in candidates["entities"] if entity["category"] == "locations"
+        }
+        if start_location_id not in location_candidates:
+            raise ScenarioError("choose an extracted location as the starting location")
+
+        # Do not automatically promote inferred/rumored/disputed claims or unrecognized
+        # fields into authoritative data. Keep the skipped claims visible for review.
+        common_fields = {
+            "description", "summary", "first_appearance", "first_chapter",
+            "last_appearance", "last_chapter", "available_from_chapter",
+            "known_from_chapter", "visibility", "known_by",
+        }
+        category_fields = {
+            "characters": {"location_id", "hp", "max_hp", "attack_power", "defense", "alive", "disposition", "traits", "personality", "fears", "preferences", "faction_id"},
+            "locations": {"type", "tags", "connected_locations", "safe", "access"},
+            "factions": {"leader_id", "member_ids", "ideology"},
+            "items": {"location_id", "owner", "type", "tags", "weight", "value", "rarity", "usable"},
+            "techniques": {"power", "stamina_cost"},
+            "realms": {"stage", "level"},
+            "creatures": {"location_id", "hp", "max_hp", "attack_power", "defense", "alive", "traits", "personality", "fears", "preferences"},
+            "events": {"type", "status", "location_id", "participants", "metadata", "start_turn"},
+            "relationships": {"party_a", "party_b", "affinity", "trust", "flags"},
+            "timeline": {"chapter", "sequence", "event_id", "date"},
+            "knowledge": {"entity_id", "location_id", "event_id", "content", "fact"},
+        }
+        list_fields = {"aliases", "known_by", "traits", "fears", "preferences", "tags", "member_ids", "participants", "flags", "connected_locations"}
+        integer_fields = {"hp", "max_hp", "attack_power", "defense", "disposition", "weight", "value", "power", "stamina_cost", "stage", "level", "affinity", "trust", "chapter", "sequence", "start_turn", "first_chapter", "last_chapter", "available_from_chapter", "known_from_chapter"}
+        boolean_fields = {"alive", "safe", "usable"}
+        object_fields = {"personality", "metadata", "access"}
+        data_documents: dict[str, dict[str, Any]] = {filename: {} for filename in CATEGORY_FILES.values()}
+        candidate_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        review_claims: list[dict[str, Any]] = []
+
+        for entity in candidates["entities"]:
+            category = str(entity["category"])
+            record_id = str(entity["id_candidate"])
+            if category not in CATEGORY_FILES:
+                continue
+            record: dict[str, Any] = {
+                "id": record_id,
+                "name": str(entity["name"]),
+            }
+            if entity.get("aliases"):
+                record["aliases"] = list(entity["aliases"])
+            for fact in entity.get("facts", []):
+                field = str(fact.get("field", "")).strip()
+                value = fact.get("value")
+                support = fact.get("support", "explicit")
+                allowed = field in common_fields or field in category_fields.get(category, set())
+                valid_type = True
+                if field in list_fields:
+                    valid_type = isinstance(value, list) and all(isinstance(item, str) and item.strip() for item in value)
+                elif field in integer_fields:
+                    valid_type = isinstance(value, int) and not isinstance(value, bool)
+                elif field in boolean_fields:
+                    valid_type = isinstance(value, bool)
+                elif field in object_fields:
+                    valid_type = isinstance(value, Mapping)
+                elif field in {"description", "summary", "first_appearance", "last_appearance", "date", "type", "status", "location_id", "owner", "faction_id", "leader_id", "ideology", "event_id", "entity_id", "content", "fact", "visibility", "target_id", "target_location"}:
+                    valid_type = isinstance(value, str)
+                if support != "explicit" or not allowed or not valid_type:
+                    review_claims.append({
+                        "category": category, "id": record_id, "name": entity["name"],
+                        "field": field, "support": support,
+                        "reason": "not promoted automatically; requires review",
+                        "source": fact.get("source_provenance", {}),
+                    })
+                    continue
+                if field in {"id", "name", "references", "goals", "schedule", "target_id", "target_location"}:
+                    review_claims.append({
+                        "category": category, "id": record_id, "name": entity["name"],
+                        "field": field, "support": support,
+                        "reason": "field requires dedicated schema review and was not promoted",
+                        "source": fact.get("source_provenance", {}),
+                    })
+                    continue
+                # First explicit scalar is deterministic. Conflicting fact values stay
+                # in candidate_index.json and are not silently overwritten.
+                if field not in record:
+                    record[field] = value
+                elif record[field] != value:
+                    review_claims.append({
+                        "category": category, "id": record_id, "name": entity["name"],
+                        "field": field, "support": support,
+                        "reason": "conflicting explicit values; first value kept and conflict preserved for review",
+                        "existing_value": record[field], "candidate_value": value,
+                        "source": fact.get("source_provenance", {}),
+                    })
+            data_documents[CATEGORY_FILES[category]][record_id] = record
+            candidate_by_key[(category, record_id)] = record
+
+        # Promote only explicitly supported relations whose endpoints resolve uniquely.
+        by_id: dict[str, list[tuple[str, str]]] = {}
+        for category, record_id in candidate_by_key:
+            by_id.setdefault(record_id, []).append((category, record_id))
+        exits: dict[str, list[str]] = {record_id: [] for record_id in location_candidates}
+
+        def resolve_endpoint(record_id: str, category: str | None):
+            if category:
+                key = (category, record_id)
+                return key if key in candidate_by_key else None
+            matches = by_id.get(record_id, [])
+            return matches[0] if len(matches) == 1 else None
+
+        for relation in candidates["relations"]:
+            if relation.get("support") != "explicit":
+                review_claims.append({
+                    "field": "relation", "support": relation.get("support"),
+                    "reason": "non-explicit relation kept out of canonical references",
+                    "candidate": relation,
+                })
+                continue
+            source_key = resolve_endpoint(str(relation["source_id"]), relation.get("source_category"))
+            target_key = resolve_endpoint(str(relation["target_id"]), relation.get("target_category"))
+            if source_key is None or target_key is None:
+                review_claims.append({
+                    "field": "relation", "support": "explicit",
+                    "reason": "relation endpoint is missing or ambiguous; not promoted",
+                    "candidate": relation,
+                })
+                continue
+            source_category, source_id = source_key
+            target_category, target_id = target_key
+            source_record = candidate_by_key[source_key]
+            references = source_record.setdefault("references", {})
+            target_ids = references.setdefault(target_category, [])
+            if target_id not in target_ids:
+                target_ids.append(target_id)
+            relation_name = str(relation.get("relation", ""))
+            if source_category == "locations" and target_category == "locations" and relation_name == "connected_to":
+                exits.setdefault(source_id, [])
+                if target_id not in exits[source_id]:
+                    exits[source_id].append(target_id)
+            if source_category in {"items", "characters", "creatures"} and target_category == "locations" and relation_name == "located_at":
+                source_record.setdefault("location_id", target_id)
+
+        locations = {
+            record_id: str(record.get("name") or record_id)
+            for record_id, record in data_documents["locations.json"].items()
+        }
+        if start_location_id not in locations:
+            raise ScenarioError("starting location record could not be built")
+        # Build only runtime entities whose explicit placement and minimum fields are
+        # sufficient; unattached candidates remain in canonical data for later editing.
+        for record_id, record in data_documents["locations.json"].items():
+            connected = record.get("connected_locations", [])
+            if isinstance(connected, list):
+                for target in connected:
+                    if isinstance(target, str) and target in locations and target not in exits.setdefault(record_id, []):
+                        exits[record_id].append(target)
+        exits = {key: sorted(set(value)) for key, value in exits.items()}
+
+        runtime_items = {}
+        for record_id, record in data_documents["items.json"].items():
+            location_id = record.get("location_id")
+            owner = record.get("owner")
+            if (isinstance(location_id, str) and location_id in locations) or owner == "player":
+                runtime_items[record_id] = {
+                    "id": record_id, "name": str(record.get("name") or record_id),
+                    "location_id": location_id if isinstance(location_id, str) and location_id in locations else None,
+                    "owner": owner if isinstance(owner, str) else None,
+                }
+
+        runtime_npcs = {}
+        for category in ("characters.json", "creatures.json"):
+            for record_id, record in data_documents[category].items():
+                location_id = record.get("location_id")
+                if not isinstance(location_id, str) or location_id not in locations:
+                    continue
+                runtime_npcs[record_id] = {
+                    "id": record_id,
+                    "name": str(record.get("name") or record_id),
+                    "location_id": location_id,
+                    "hp": record.get("hp", 50),
+                    "max_hp": record.get("max_hp", record.get("hp", 50)),
+                    "attack_power": record.get("attack_power", 5),
+                    "defense": record.get("defense", 0),
+                    "alive": record.get("alive", True),
+                    "disposition": record.get("disposition", 0),
+                    "traits": record.get("traits", []),
+                    "personality": record.get("personality", {}),
+                    "fears": record.get("fears", []),
+                    "preferences": record.get("preferences", []),
+                }
+
+        runtime_techniques = {}
+        for record_id, record in data_documents["techniques.json"].items():
+            runtime_techniques[record_id] = {
+                "id": record_id, "name": str(record.get("name") or record_id),
+                "power": record.get("power", 0),
+                "stamina_cost": record.get("stamina_cost", 10),
+                "description": str(record.get("description") or ""),
+            }
+
+        runtime_relationships = {}
+        available_parties = {"player", *runtime_npcs.keys()}
+        for record_id, record in data_documents["relationships.json"].items():
+            party_a, party_b = record.get("party_a"), record.get("party_b")
+            if not isinstance(party_a, str) or not isinstance(party_b, str):
+                continue
+            if party_a not in available_parties or party_b not in available_parties or party_a == party_b:
+                review_claims.append({
+                    "category": "relationships", "id": record_id,
+                    "reason": "relationship parties are not both present in the initial runtime world",
+                })
+                continue
+            key = "|".join(sorted((party_a, party_b)))
+            runtime_relationships[key] = {
+                "party_a": party_a, "party_b": party_b,
+                "affinity": record.get("affinity", 0), "trust": record.get("trust", 0),
+                "flags": record.get("flags", []),
+            }
+
+        runtime_events = {}
+        for record_id, record in data_documents["events.json"].items():
+            event_type = record.get("type")
+            if isinstance(event_type, str) and event_type.strip():
+                runtime_events[record_id] = {
+                    "id": record_id, "type": event_type, "status": record.get("status", "inactive"),
+                    "location_id": record.get("location_id") if record.get("location_id") in locations else None,
+                    "participants": record.get("participants", []),
+                    "metadata": record.get("metadata", {}),
+                }
+
+        world = {
+            "character": {
+                "name": player_name, "location_id": start_location_id,
+                "hp": 100, "max_hp": 100, "stamina": 100, "max_stamina": 100,
+            },
+            "locations": locations, "exits": exits, "items": runtime_items,
+            "npcs": runtime_npcs, "relationships": runtime_relationships,
+            "events": runtime_events, "techniques": runtime_techniques, "quests": {},
+        }
+
+        pack_ids = []
+        for sequence, source in enumerate(sources, start=1):
+            pack_ids.append(f"chapter_{sequence:04d}_{sequence:04d}")
+        manifest = {
+            "pack_format": 2, "scenario_id": scenario_id, "name": scenario_name,
+            "version": "1.0.0", "engine_min_version": "1.1.4",
+            "description": str(meta.get("description") or ""),
+            "schema": "rpg-engine-scenario-v1", "chapter_pack_size": 1,
+            "chapter_count": len(sources), "chapter_packs": pack_ids,
+        }
+        review_lines = [
+            "# Extraction review notes",
+            "",
+            "This file was generated from source batches. It preserves uncertainty and does not replace the original source chapters.",
+            "",
+            f"- Source chapters: {len(sources)}",
+            f"- Candidate entities: {len(candidates['entities'])}",
+            f"- Candidate relations: {len(candidates['relations'])}",
+            f"- Unresolved items: {len(candidates['unresolved'])}",
+            f"- Claims not automatically promoted: {len(review_claims)}",
+            "",
+        ]
+        for index, issue in enumerate(candidates["unresolved"], start=1):
+            review_lines.append(f"{index}. Unresolved: {issue.get('description', 'Unspecified candidate')}")
+        for index, issue in enumerate(review_claims, start=1):
+            review_lines.append(f"{index}. Review required: {issue.get('reason', 'Claim not promoted')}")
+        review_lines.extend([
+            "",
+            "Only explicit, allow-listed claims were promoted into canonical JSON automatically. Review candidate_index.json in the source workspace for detailed source provenance, aliases, claim evidence, and conflicts.",
+        ])
+
+        target = Path(destination).expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp = target.with_name(target.name + f".{uuid4().hex}.tmp")
+        try:
+            with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+                archive.writestr("world.json", json.dumps(world, ensure_ascii=False, indent=2) + "\n")
+                for filename, records in data_documents.items():
+                    archive.writestr(f"data/{filename}", json.dumps(records, ensure_ascii=False, indent=2) + "\n")
+                archive.writestr("lore/extraction-review.md", "\n".join(review_lines) + "\n")
+                for sequence, (source, pack_id) in enumerate(zip(sources, pack_ids), start=1):
+                    pack_dir = f"chapters/{pack_id}"
+                    previous_pack = pack_ids[sequence - 2] if sequence > 1 else None
+                    next_pack = pack_ids[sequence] if sequence < len(pack_ids) else None
+                    chapter_manifest = {
+                        "pack_id": pack_id, "chapter_start": sequence, "chapter_end": sequence,
+                        "sequence": sequence, "previous_pack": previous_pack, "next_pack": next_pack,
+                        "source_name": source["original_name"],
+                    }
+                    archive.writestr(
+                        f"{pack_dir}/chapter_manifest.json",
+                        json.dumps(chapter_manifest, ensure_ascii=False, indent=2) + "\n",
+                    )
+                    raw = (self._workspace_path(workspace_id) / "sources" / str(source["stored_name"])).read_bytes()
+                    body = raw.decode("utf-8-sig")
+                    title = Path(str(source["original_name"])).stem
+                    archive.writestr(f"{pack_dir}/chapter.md", f"# {title}\n\n{body}\n")
+            # Validate the generated package with the real loader before exposing it.
+            load_scenario(temp)
+            temp.replace(target)
+        except Exception as exc:
+            temp.unlink(missing_ok=True)
+            if isinstance(exc, ScenarioError):
+                raise
+            raise ScenarioError(f"could not build a valid scenario archive: {type(exc).__name__}") from None
+        return target
 
     def export_candidate_index(self, workspace_id: str) -> Path:
         """Write a portable review artifact; it is not an importable scenario pack."""
