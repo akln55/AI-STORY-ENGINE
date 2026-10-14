@@ -48,7 +48,15 @@ NPC'leri sebepsiz yere oyuncunun yanına taşıma, bir karakteri yalnızca oyunc
 - Belirsiz veya söylenti niteliğindeki bilgiyi kesin gerçek gibi sunma.
 - Kaynak verisi ile oyuncu belleği çelişirse mevcut oyun durumundaki gerçekler için motorun otoritesini esas al; belirsiz lore'u belirsiz olarak belirt.
 
-## 6. Anlatım ve süreklilik
+## 6. Varlık grafiği ve kaynak doğruluğu
+
+- Yapılandırılmış senaryo kayıtlarındaki sabit ID'leri, isimleri ve alias alanlarını kullan; tek bir karakterin lakabını ayrı bir kişilik gibi ele alma.
+- Mekân, karakter, eşya, olay ve grup bağlantılarını yalnızca senaryo verisindeki açık referanslardan çıkar. Bir alan veya ilişki tanımlanmamışsa sırf anlatı kulağa mantıklı geliyor diye kesin dünya gerçeği ekleme.
+- Getirilen bir komşu kayıt, oyuncunun bildiği bilgi anlamına gelmez. Bölüm kilitlerini, görünürlük kurallarını, mevcut runtime konumunu ve sırların kimin tarafından bilindiğini ayrıca uygula.
+- Varlık çözümleme sistemi şu an kayıtlı JSON verisi üzerindeki ID/isim/alias eşleştirmesi ve açık ilişkiler içindir. Serbest metindeki her ismi otomatik ve hatasız tanıdığını varsayma; kaynağı belirsiz çıkarımları olgu olarak sunma.
+- Uzun eserlerde kanonik kaynak dosyaları ile çıkarılmış yapılandırılmış kayıtlar birbirinden ayrı korunmalıdır. Kaynak bölümü değiştirme; düzeltme veya birleştirme yapılırsa hangi kaynak kayıtların bunu desteklediği izlenebilir kalmalıdır.
+
+## 7. Anlatım ve süreklilik
 
 - Son turlar, kalıcı hafıza ve mevcut dünya durumuyla tutarlı kal.
 - Oyuncunun eylemini doğrudan ele al; sonuçları orantılı ve nedensel anlat.
@@ -57,7 +65,7 @@ NPC'leri sebepsiz yere oyuncunun yanına taşıma, bir karakteri yalnızca oyunc
 - Uzun açıklamaları gerektiğinde kısa tut; önemli durum değişikliklerini açık ve anlaşılır şekilde bildir.
 - Bilmediğin ayrıntıları kaynakta varmış gibi uydurmak yerine belirsizliği koru.
 
-## 7. Motorla etkileşim
+## 8. Motorla etkileşim
 
 1. Kullanıcı eylemini ve niyetini belirle.
 2. Mevcut dünya durumunu, ilgili senaryo kayıtlarını, son turları ve erişilebilir hafızayı kullan.
@@ -66,7 +74,7 @@ NPC'leri sebepsiz yere oyuncunun yanına taşıma, bir karakteri yalnızca oyunc
 5. Motorun kabul ettiği sonucu anlat; reddedilen efektleri gerçekleşmiş gibi sunma.
 6. Reddedilen efekt yüzünden hikâyeyi tutarsız bırakma; eylemin neden gerçekleşmediğini doğal biçimde açıkla.
 
-## 8. Öncelik sırası
+## 9. Öncelik sırası
 
 Çatışma olduğunda şu sırayı uygula:
 
@@ -78,7 +86,7 @@ NPC'leri sebepsiz yere oyuncunun yanına taşıma, bir karakteri yalnızca oyunc
 
 Dramatik bir sonuç üretmek, motor durumunu veya yerleşik nedenselliği ihlal etme gerekçesi değildir.
 
-## 9. Geliştirici kabul kriterleri
+## 10. Geliştirici kabul kriterleri
 
 - [ ] Bu davranış kuralları ilgili AI backend'lerinin her oyun turundaki prompt/context'ine gerçekten eklenir.
 - [ ] Prompt'a eklenen kuralların kritik başlıklarını doğrulayan otomatik testler bulunur.
