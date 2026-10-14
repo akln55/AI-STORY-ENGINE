@@ -59,7 +59,14 @@ def parse_input(text: str) -> Intent:
     words = text.split()
     # Natural-language inspection forms use the same explicit interaction path.
     if len(words) >= 3 and words[:2] == ["look", "at"]:
-        return Intent("interact", _normalize_target(words[2:]), raw)
+        rest = words[2:]
+        if rest[:1] == ["the"]:
+            rest = rest[1:]
+        return Intent("interact", _normalize_target(rest), raw)
+    if len(words) >= 2 and words[-1] in {"incele", "incele!", "examine", "inspect"}:
+        return Intent("interact", _normalize_target(words[:-1]), raw)
+    if len(words) >= 3 and words[-2:] in (["kontrol", "et"], ["check", "out"]):
+        return Intent("interact", _normalize_target(words[:-2]), raw)
     verb = _VERBS.get(words[0])
     rest = words[1:]
 
