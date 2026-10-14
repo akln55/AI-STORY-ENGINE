@@ -225,3 +225,24 @@ def test_quest_completion_unlocks_followup_and_persists_round_trip():
         loaded = load_session("questchain", Path(td))
         assert loaded.state.world.quests["first"].completed_turn == 4
         assert loaded.state.world.quests["second"].status == "active"
+
+def test_interact_objective_completes_only_after_explicit_inspection():
+    s = build_session()
+    item = s.state.world.items["rope"]
+    item.owner = "player"
+    item.location_id = None
+    if "rope" not in s.state.character.inventory:
+        s.state.character.inventory.append("rope")
+    quest = QuestState(
+        id="inspect_rope", title="Inspect the rope", status="available",
+        objectives=[QuestObjective("inspect", "Inspect the rope", "interact", "rope")],
+    )
+    s.state.world.quests[quest.id] = quest
+    activate_quest(s.state, quest.id)
+    assert quest.status == "active"
+    assert quest.objectives[0].completed is False
+
+    s.handle_input("inspect rope")
+
+    assert quest.status == "completed"
+    assert quest.objectives[0].completed is True
