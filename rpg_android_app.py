@@ -965,6 +965,7 @@ class AIScreen(BaseScreen):
         elif not compatible:
             self.api_model.hint_text = "Örn. gpt-4.1-mini"
         if hasattr(self, "api_models_picker"):
+            self._api_all_model_ids = ()
             self.api_models_picker.values = ()
             self.api_models_picker.text = "Model listesi gelişmiş ayarlarda görünür"
             self.api_models_picker.height = 0
