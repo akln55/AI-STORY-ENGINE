@@ -73,6 +73,13 @@ def _slug(value: str) -> str:
     return _safe_component(value.casefold().replace(" ", "-"), fallback="workspace")
 
 
+def _normalize_entity_name(value: object) -> str:
+    text = unicodedata.normalize("NFKD", str(value or "").casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[_/\\-]+", " ", text)
+    return " ".join(re.findall(r"[\\w]+", text, flags=re.UNICODE))
+
+
 @dataclass(frozen=True)
 class SourceBatch:
     workspace_id: str
@@ -413,7 +420,7 @@ class SourceWorkspaceManager:
                 category = str(raw_entity["category"])
                 record_id = str(raw_entity.get("canonical_id") or raw_entity["id_candidate"])
                 name = str(raw_entity["name"]).strip()
-                normalized_name = _normalize(name)
+                normalized_name = _normalize_entity_name(name)
                 key = (category, record_id, normalized_name)
                 if key not in entities:
                     entities[key] = {
@@ -463,7 +470,7 @@ class SourceWorkspaceManager:
             category = str(entity["category"])
             entity_key = (category, str(entity["id_candidate"]))
             for alias in (entity["name"], *entity.get("aliases", [])):
-                normalized_alias = _normalize(alias)
+                normalized_alias = _normalize_entity_name(alias)
                 if normalized_alias:
                     alias_index.setdefault((category, normalized_alias), set()).add(entity_key)
         possible_duplicates = []
@@ -492,7 +499,7 @@ class SourceWorkspaceManager:
                     "reason": "same candidate ID was emitted with different names; review before canonical merge",
                     "sources_by_name": names,
                 })
-        merged_entities = sorted(entities.values(), key=lambda x: (x["category"], x["id_candidate"], _normalize(x["name"])))
+        merged_entities = sorted(entities.values(), key=lambda x: (x["category"], x["id_candidate"], _normalize_entity_name(x["name"])))
         for entity in merged_entities:
             entity["sources"].sort(key=lambda x: (int(x.get("sequence", 0)), str(x.get("source_path", "")), int(x.get("chunk_index", 0))))
             entity["facts"].sort(key=lambda x: (str(x.get("field", "")), str(x.get("support", "")), str(x.get("value", ""))))
