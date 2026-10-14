@@ -12,6 +12,7 @@ from typing import Iterable
 
 from engine.scenario.documents import ScenarioDocument
 from engine.scenario.registry import ScenarioRecord, ScenarioRegistry
+from engine.scenario.knowledge_graph import KnowledgeNode, ScenarioKnowledgeGraph
 
 DEFAULT_LIMIT = 10
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
@@ -38,6 +39,7 @@ class ScenarioRetriever:
         self.registry = registry
         self.documents = tuple(documents)
         self.scenario_pack = None
+        self.knowledge_graph = ScenarioKnowledgeGraph.from_registry(registry)
         self._record_term_index: dict[str, set[tuple[str, str]]] = {}
         self._document_term_index: dict[str, set[int]] = {}
         self._build_indexes()
@@ -101,6 +103,38 @@ class ScenarioRetriever:
                 candidates.append(ScenarioHit("record", cat, rec.id, None, score, matched))
         candidates.sort(key=lambda h: (-h.score, h.category or "", h.record_id or ""))
         return tuple(candidates[:limit])
+
+    def resolve_entities(
+        self,
+        query: str,
+        *,
+        categories: Iterable[str] | None = None,
+        limit: int = DEFAULT_LIMIT,
+    ) -> tuple[KnowledgeNode, ...]:
+        """Resolve a name or alias to canonical entity IDs."""
+        return self.knowledge_graph.resolve(query, categories=categories, limit=limit)
+
+    def related_records(
+        self,
+        category: str,
+        record_id: str,
+        *,
+        chapter: int | None = None,
+        viewer: str = "player",
+        limit: int = 5,
+    ) -> tuple[tuple[ScenarioHit, str], ...]:
+        """Return linked canon records, filtered by the same visibility/chapter rules."""
+        related: list[tuple[ScenarioHit, str]] = []
+        for node, relation in self.knowledge_graph.related(category, record_id, limit=limit * 2):
+            visible = self.record(
+                category=node.category, record_id=node.id, chapter=chapter,
+                viewer=viewer, limit=1,
+            )
+            if visible:
+                related.append((visible[0], relation))
+            if len(related) >= limit:
+                break
+        return tuple(related)
 
     def documents_for(
         self,
