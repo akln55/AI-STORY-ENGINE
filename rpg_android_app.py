@@ -2144,7 +2144,7 @@ class RPGEngineApp(App):
             # active world or injected into the user's recent-scenarios list.
             self.recent_scenarios = [
                 item for item in self.recent_scenarios
-                if item.get("scenario_id") != "demo-bootstrap"
+                if item.get("scenario_id") != "demo-bootstrap" or item.get("user_started", False)
             ]
             try:
                 if self._recent_store is not None:
@@ -2289,7 +2289,7 @@ class RPGEngineApp(App):
         return "Henüz dünya seçilmedi"
 
     def _record_recent_scenario(self, scenario_id, name):
-        item = {"scenario_id": str(scenario_id), "name": str(name)}
+        item = {"scenario_id": str(scenario_id), "name": str(name), "user_started": True}
         self.recent_scenarios = [old for old in self.recent_scenarios
                                  if old.get("scenario_id") != item["scenario_id"]]
         self.recent_scenarios.insert(0, item)
