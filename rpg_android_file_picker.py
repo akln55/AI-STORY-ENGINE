@@ -129,7 +129,7 @@ def open_source_document(on_path: Callable[[str], None]) -> bool:
     activity.bind(on_activity_result=on_result)
     intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
     intent.addCategory(Intent.CATEGORY_OPENABLE)
-    intent.setType("text/plain")
+    intent.setType("*/*")
     intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, False)
     PythonActivity.mActivity.startActivityForResult(intent, request_code)
     return True
