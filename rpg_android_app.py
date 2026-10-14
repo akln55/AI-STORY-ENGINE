@@ -1662,8 +1662,8 @@ class AIScreen(BaseScreen):
         self.provider.text = self.app_ref.controller.provider_name
         self.local_models.clear_widgets()
         self.local_models.add_widget(_aligned_label(
-            text="Modeller kontrol ediliyor…", color=MUTED, font_size=sp(11),
-            size_hint_y=None, height=dp(28),
+            text="Modeller ve yarım kalan indirmeler kontrol ediliyor…",
+            color=MUTED, font_size=sp(11), size_hint_y=None, height=dp(28),
         ))
         token = getattr(self, "_model_refresh_token", 0) + 1
         self._model_refresh_token = token
@@ -1671,9 +1671,10 @@ class AIScreen(BaseScreen):
         def worker():
             try:
                 models = self.app_ref.controller.installed_local_models(verify_integrity=False)
+                partials = self.app_ref.controller.partial_local_model_downloads()
                 error = None
             except Exception as exc:
-                models = []
+                models, partials = [], []
                 error = exc
 
             def finish(*_):
@@ -1686,12 +1687,11 @@ class AIScreen(BaseScreen):
                         size_hint_y=None, height=dp(28),
                     ))
                     return
-                if not models:
+                if not models and not partials:
                     self.local_models.add_widget(_aligned_label(
-                        text="Henüz yerel model yok.", color=MUTED, font_size=sp(11),
-                        size_hint_y=None, height=dp(28),
+                        text="Henüz yerel model veya devam edilebilir indirme yok.",
+                        color=MUTED, font_size=sp(11), size_hint_y=None, height=dp(36),
                     ))
-                    return
                 for model in models[:3]:
                     row = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(32))
                     label = _aligned_label(
@@ -1699,9 +1699,38 @@ class AIScreen(BaseScreen):
                         color=TEXT, font_size=sp(10), size_hint_y=None, height=dp(32),
                     )
                     row.add_widget(label)
-                    button = SoftButton(text="Etkinleştir", size_hint_x=None, width=dp(106),
-                                        size_hint_y=None, height=dp(32), font_size=sp(11))
+                    button = SoftButton(
+                        text="Etkinleştir", size_hint_x=None, width=dp(106),
+                        size_hint_y=None, height=dp(32), font_size=sp(11),
+                    )
                     button.bind(on_release=lambda *_a, path=str(model.path): self.activate_local_model(path))
+                    row.add_widget(button)
+                    self.local_models.add_widget(row)
+                if partials:
+                    self.local_models.add_widget(_aligned_label(
+                        text="Yarım kalan indirmeler", color=TEXT, font_size=sp(12), bold=True,
+                        size_hint_y=None, height=dp(28),
+                    ))
+                for partial in partials[:4]:
+                    expected = partial.spec.expected_size_bytes
+                    if expected:
+                        progress_text = f"{partial.downloaded_bytes / (1024 * 1024):.1f} / {expected / (1024 * 1024):.1f} MiB"
+                    else:
+                        progress_text = f"{partial.downloaded_bytes / (1024 * 1024):.1f} MiB indirildi"
+                    row = BoxLayout(orientation="horizontal", spacing=dp(7), size_hint_y=None, height=dp(48))
+                    label = _aligned_label(
+                        text=f"{partial.spec.filename} · {progress_text}",
+                        color=MUTED, font_size=sp(9), valign="middle",
+                    )
+                    row.add_widget(label)
+                    button = SoftButton(
+                        text="Devam et", size_hint_x=None, width=dp(84),
+                        size_hint_y=None, height=dp(34), font_size=sp(10),
+                    )
+                    button.bind(on_release=lambda *_a, item=partial: self.open_model_download_dialog(
+                        item.spec.repo_id, item.spec.filename, item.spec.expected_size_bytes,
+                        revision=item.spec.revision, expected_sha256=item.spec.expected_sha256 or "",
+                    ))
                     row.add_widget(button)
                     self.local_models.add_widget(row)
 
@@ -1919,7 +1948,7 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
-    def open_model_download_dialog(self, repo_id="", filename="", expected_size_bytes=None):
+    def open_model_download_dialog(self, repo_id="", filename="", expected_size_bytes=None, *, revision="main", expected_sha256=""):
         if getattr(self.app_ref, "_model_download_in_progress", False):
             self.app_ref.notify("Model indirme zaten devam ediyor.")
             return
@@ -1931,8 +1960,8 @@ class AIScreen(BaseScreen):
         ))
         repo = PillInput(text=repo_id, hint_text="Örn. organization/model")
         filename = PillInput(text=filename, hint_text="Örn. model.Q4_K_M.gguf")
-        revision = PillInput(text="main", hint_text="main veya commit etiketi")
-        sha = PillInput(hint_text="İsteğe bağlı SHA-256")
+        revision = PillInput(text=revision, hint_text="main veya commit etiketi")
+        sha = PillInput(text=expected_sha256, hint_text="İsteğe bağlı SHA-256")
         for caption, widget in (
             ("Hugging Face deposu", repo),
             ("GGUF dosya adı", filename),
