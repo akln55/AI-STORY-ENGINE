@@ -860,16 +860,24 @@ class AIScreen(BaseScreen):
             text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
         )
         self._last_api_provider = "OpenAI"
+        self.api_advanced_open = False
         self.api_model = PillInput(
             text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
         )
         self.api_key = PillInput(
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
+        self.api_key_field = _field_group("API anahtarı", self.api_key)
+        api.add_widget(self.api_key_field)
+        self.api_advanced_button = SoftButton(
+            text="Gelişmiş ayarlar", size_hint_y=None, height=dp(38), font_size=sp(12),
+        )
+        self.api_advanced_button.bind(on_release=lambda *_: self._toggle_api_advanced())
+        api.add_widget(self.api_advanced_button)
         self.api_endpoint_field = _field_group("API endpoint", self.api_endpoint)
+        self.api_model_field = _field_group("Model adı", self.api_model)
         api.add_widget(self.api_endpoint_field)
-        api.add_widget(_field_group("Model adı", self.api_model))
-        api.add_widget(_field_group("API anahtarı", self.api_key))
+        api.add_widget(self.api_model_field)
         self.api_status = _aligned_label(
             text="API bağlantısını test ederek modeli doğrula.", color=MUTED, font_size=sp(11),
             valign="top", size_hint_y=None, height=dp(32),
@@ -937,13 +945,16 @@ class AIScreen(BaseScreen):
         if compatible and previous_provider != "OpenAI-compatible":
             self.api_endpoint.text = ""
             self.api_endpoint.hint_text = "Örn. https://api.provider.com/v1"
+            self.api_advanced_open = True
         elif provider == "OpenAI" and previous_provider == "OpenAI-compatible":
             self.api_endpoint.text = "https://api.openai.com/v1"
             self.api_endpoint.hint_text = "https://api.openai.com/v1"
+            self.api_advanced_open = False
+        elif gemini and previous_provider == "OpenAI-compatible":
+            self.api_advanced_open = False
         self._last_api_provider = provider
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
-        self.api_endpoint_field.opacity = 0.55 if gemini else 1.0
         if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini", "gemini-3.6-flash"}:
             self.api_model.text = "gemini-2.5-flash"
         elif provider == "OpenAI" and self.api_model.text.strip() in {"", "gemini-3.6-flash", "gemini-2.5-flash"}:
@@ -955,15 +966,58 @@ class AIScreen(BaseScreen):
             self.api_model.hint_text = "Örn. gpt-4.1-mini"
         if hasattr(self, "api_models_picker"):
             self.api_models_picker.values = ()
-            self.api_models_picker.text = "Model listesi testten sonra görünür"
+            self.api_models_picker.text = "Model listesi gelişmiş ayarlarda görünür"
             self.api_models_picker.height = 0
-        if hasattr(self, "api_panel"):
-            self.api_panel.height = dp(520)
+        if hasattr(self, "api_model_filter"):
+            self.api_model_filter.height = 0
+        self._update_api_advanced_visibility()
         if hasattr(self, "api_status"):
             self.api_status.text = "Sağlayıcı değişti; model listesini görmek için bağlantıyı test et."
             self.api_status.color = MUTED
         if hasattr(self, "api_generation_test_button"):
             self.api_generation_test_button.disabled = True
+
+    def _toggle_api_advanced(self):
+        if self.api_provider.text == "OpenAI-compatible":
+            self.api_advanced_open = True
+        else:
+            self.api_advanced_open = not self.api_advanced_open
+        self._update_api_advanced_visibility()
+
+    def _update_api_advanced_visibility(self):
+        """Keep routine providers simple; reveal endpoint/model only when useful."""
+        provider = self.api_provider.text
+        compatible = provider == "OpenAI-compatible"
+        show_model = compatible or self.api_advanced_open
+        show_endpoint = compatible or (self.api_advanced_open and provider == "OpenAI")
+        self.api_endpoint_field.height = dp(70) if show_endpoint else 0
+        self.api_endpoint_field.opacity = 1 if show_endpoint else 0
+        self.api_endpoint_field.disabled = not show_endpoint or provider == "Gemini"
+        self.api_model_field.height = dp(70) if show_model else 0
+        self.api_model_field.opacity = 1 if show_model else 0
+        has_models = bool(getattr(self, "_api_all_model_ids", ()))
+        show_model_picker = show_model and has_models
+        self.api_model_filter.height = dp(42) if show_model_picker else 0
+        self.api_models_picker.height = dp(42) if show_model_picker else 0
+        if compatible:
+            self.api_advanced_button.text = "Özel sağlayıcı bağlantı alanları"
+            self.api_advanced_button.disabled = True
+        else:
+            self.api_advanced_button.text = (
+                "Gelişmiş ayarları gizle" if self.api_advanced_open else "Gelişmiş ayarlar"
+            )
+            self.api_advanced_button.disabled = False
+        if hasattr(self, "api_panel"):
+            self._update_api_panel_height()
+
+    def _update_api_panel_height(self):
+        if not hasattr(self, "api_panel"):
+            return
+        fixed = dp(416)
+        self.api_panel.height = (
+            fixed + self.api_endpoint_field.height + self.api_model_field.height
+            + self.api_model_filter.height + self.api_models_picker.height
+        )
 
     def _filter_api_models(self):
         all_models = getattr(self, "_api_all_model_ids", ())
@@ -1426,19 +1480,14 @@ class AIScreen(BaseScreen):
                 if apply_success and model_ids:
                     self._api_all_model_ids = tuple(model_ids)
                     self.api_model_filter.text = ""
-                    self.api_model_filter.height = dp(42)
                     self.api_models_picker.values = model_ids[:30]
                     self.api_models_picker.text = "Bulunan modelleri seç"
-                    self.api_models_picker.height = dp(42)
-                    self.api_panel.height = dp(612)
                 else:
                     self._api_all_model_ids = ()
                     self.api_model_filter.text = ""
-                    self.api_model_filter.height = 0
                     self.api_models_picker.values = ()
                     self.api_models_picker.text = "Model listesi bulunamadı"
-                    self.api_models_picker.height = 0
-                    self.api_panel.height = dp(520)
+                self._update_api_advanced_visibility()
                 if apply_success and model_ids:
                     self.api_status.text = final_message + " Model listesini filtreleyebilir veya adını elle yazabilirsin."
 
