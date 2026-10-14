@@ -231,6 +231,11 @@ class SourceWorkspaceManager:
         entry = next((x for x in meta["sources"] if x["source_id"] == source_id), None)
         if entry is None:
             return False
+        if entry.get("status") == "processing" or entry.get("chunks_completed"):
+            raise ScenarioError(
+                "cannot remove a source after extraction starts; add new sources at the end "
+                "or create a new workspace to preserve chapter provenance"
+            )
         # Keep completed extraction batches as an audit record.
         entry["removed_at"] = _now()
         meta["sources"] = [x for x in meta["sources"] if x["source_id"] != source_id]
@@ -245,6 +250,11 @@ class SourceWorkspaceManager:
             raise ScenarioError("source order delta must be -1 or 1")
         meta = self.get_workspace(workspace_id)
         sources = sorted(meta["sources"], key=lambda x: int(x["sequence"]))
+        if any(item.get("status") == "processing" or item.get("chunks_completed") for item in sources):
+            raise ScenarioError(
+                "source order is locked after extraction starts; add later chapters at the end "
+                "so saved provenance remains stable"
+            )
         index = next((i for i, x in enumerate(sources) if x["source_id"] == source_id), None)
         if index is None:
             raise ScenarioError(f"unknown source: {source_id}")
@@ -446,6 +456,33 @@ class SourceWorkspaceManager:
                 item["source_provenance"] = provenance
                 unresolved.append(item)
 
+        # Exact normalized names/aliases shared by different IDs are possible duplicate
+        # identities, not permission to merge. Surface them for human review.
+        alias_index: dict[tuple[str, str], set[tuple[str, str]]] = {}
+        for entity in entities.values():
+            category = str(entity["category"])
+            entity_key = (category, str(entity["id_candidate"]))
+            for alias in (entity["name"], *entity.get("aliases", [])):
+                normalized_alias = _normalize(alias)
+                if normalized_alias:
+                    alias_index.setdefault((category, normalized_alias), set()).add(entity_key)
+        possible_duplicates = []
+        seen_duplicate_sets = set()
+        for (category, alias), keys in sorted(alias_index.items()):
+            if len(keys) < 2:
+                continue
+            sorted_keys = tuple(sorted(keys))
+            marker = (category, sorted_keys)
+            if marker in seen_duplicate_sets:
+                continue
+            seen_duplicate_sets.add(marker)
+            possible_duplicates.append({
+                "category": category,
+                "matching_name_or_alias": alias,
+                "candidate_ids": [record_id for _, record_id in sorted_keys],
+                "reason": "possible duplicate entity; IDs were not merged automatically",
+            })
+
         conflicts = []
         for (category, record_id), names in sorted(names_by_id.items()):
             if len(names) > 1:
@@ -465,6 +502,7 @@ class SourceWorkspaceManager:
             "relations": [relations[key] for key in sorted(relations)],
             "unresolved": unresolved,
             "conflicts": conflicts,
+            "possible_duplicates": possible_duplicates,
             "source_batch_count": len(self.read_batch_results(workspace_id)),
             "canonical_pack_modified": False,
         }
