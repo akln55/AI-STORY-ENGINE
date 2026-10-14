@@ -79,3 +79,14 @@ Release gates remain separate:
 | `docs/AI_NETWORKING_STATUS.md` | AI connectivity implementation, evidence, and remaining device checks |
 
 Technical specifications remain separate from current-state summaries. When documents disagree with implementation, current code, tests, configuration, and observed CI evidence take precedence.
+
+## Current user-reported blockers (2026-10-14)
+
+The following are still open despite the earlier successful source checks and baseline APK build:
+
+- Chat text-entry/composer layout remains broken.
+- API settings still ask for unnecessary fields; make them provider-aware and minimal.
+- Settings UI and icons/symbols remain visibly inconsistent.
+- Scenario import fails with `characters.json:npc_kim_minjae.goals entries must be objects`; inspect the imported package and fix the producer/consumer schema with regression tests.
+
+The successful [Android build run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595) produced artifact `rpg-engine-v1.1.4-android-debug` from commit `ad611254d90578e375b53f7445d1e7f1d4d243ae`. It predates the fixes above and does not prove physical-device behavior.
