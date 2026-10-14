@@ -99,7 +99,7 @@ Before changing code or product behavior: plan the scope, unknowns, acceptance c
 Current HEAD 59e30799162f94fa59201f75b0b9972577718032: pytest 549 passed; compileall/readiness passed; mutation smoke 3/3; demo-bootstrap valid. tools/run_tests.py had 31 passed / 5 failed (pytest/monkeypatch helper incompatibility). CI run 38517225272 succeeded. The last successful APK is for an older commit; no APK/device test was done for this HEAD. The commit that adds this plan is documentation-only.
 
 
-## Revised master implementation campaign — 2026-10-14 (awaiting user approval)
+## Revised master implementation campaign — 2026-10-14 (approved; in progress)
 
 The user has added these product requirements to the existing blocker list:
 
@@ -119,7 +119,7 @@ The user has added these product requirements to the existing blocker list:
 4. Runtime AI behaviour guide connected to prompt/context builder (9.3/10).
 5. End-to-end scenario import/play/retrieval/save-load tests (9.2/10).
 
-No application code, UI behaviour, validator, or APK has been changed in the plan revision. Do not mark implementation tasks complete. The plan documentation is updated; the implementation campaign is waiting for explicit user approval. After approval, ask for the actual failed scenario ZIP before closing the import-diagnosis task. Preserve saves by default; never silently delete campaign saves while removing a scenario.
+The user approved the campaign. Source and documentation changes are underway. The original scenario archive was supplied and inspected; do not mark import fixed until official validator and app/device acceptance pass. Preserve saves by default; never silently delete campaign saves while removing a scenario.
 
 
 ## Scenario ZIP diagnosis — 2026-10-14
@@ -151,3 +151,22 @@ The user approved the full campaign. Work has started; the main task checkboxes 
 - Fixed known engine correctness cases in code: rejected event proposals now block associated memory updates; deduplicated memory updates refresh secondary indexes; boolean resource values are rejected as integers. Regression tests were added.
 - Latest relevant CI run: [38621453513](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38621453513) is pending at this checkpoint. Do not claim tests passed until the run finishes.
 - Remaining major work includes the actual scenario-builder/source queue and checkpointed chapter pipeline, scenario/demo deletion semantics, download resume lifecycle verification, full test/CI/APK gate, and real-device acceptance.
+
+
+## Current implementation checkpoint — 2026-10-14
+
+- The screenshot's follow-up blocker was identified in the supplied archive: quest `quest_confirm_date`, objective `obj_check_phone`, uses `type: interact` targeting `item_phone`; runtime objective validation previously accepted only `collect`, `reach`, `defeat`, and `talk`.
+- Implemented an explicit interaction rule for inspecting an accessible item, NPC, or current location. English and Turkish inspection command forms are routed to the deterministic rule; quest evaluation consumes the rule's explicit interaction signal, not AI prose.
+- Added regression coverage for interaction parsing and objective completion. CI has not yet been verified for the current head.
+- Added `engine/scenario/knowledge_graph.py` to construct a deterministic graph over existing canonical JSON records. It resolves stable IDs/names/aliases and follows explicitly declared reference fields. `ScenarioRetriever` surfaces linked records after rechecking viewer/chapter visibility, and the AI context expands a small bounded set of relevant hits with those links.
+- This graph phase is deliberately not described as a general prose-understanding model. Automatic extraction from chapter Markdown, provenance-rich candidate validation, stable-ID merge, restart/resume, and source preservation are still required for the full source-processing pipeline.
+- Updated the ChatGPT scenario guide with the supported `interact` objective and structured entity conventions; updated the in-game behaviour guide with graph retrieval and inference limits. Added `tests/test_scenario_knowledge_graph.py`.
+- Previous CI run `38621523674` failed with 552 passed / 2 failed (one stale API-panel height assertion and one small-context budget regression). Follow-up commits address both, but no pass is claimed until a fresh workflow result is inspected.
+- Corrected scenario ZIP has only passed manual structural checks so far. Official `tools/validate_scenario.py`, app import, fresh full CI, fresh Android build, and physical-device smoke remain unverified.
+
+### Current source links
+
+- [Current main commit list](https://github.com/akln55/AI-STORY-ENGINE/commits/main/)
+- [Scenario knowledge graph](https://github.com/akln55/AI-STORY-ENGINE/blob/main/engine/scenario/knowledge_graph.py)
+- [Scenario creation guide](https://github.com/akln55/AI-STORY-ENGINE/blob/main/docs/SCENARIO_CREATION_GUIDE.md)
+- [In-game AI behaviour guide](https://github.com/akln55/AI-STORY-ENGINE/blob/main/docs/IN_GAME_AI_BEHAVIOR_GUIDE.md)
