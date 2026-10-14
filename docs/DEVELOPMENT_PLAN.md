@@ -1,12 +1,12 @@
 # AI-STORY-ENGINE — Geliştirme Planı ve Çalışma Kuralları
 
-**Durum:** Plan hazır; uygulama değişiklikleri kullanıcı onayı bekliyor  
+**Durum:** Kullanıcı tarafından onaylanan uygulama kampanyası yürütülüyor; kabul testleri devam ediyor  
 **Plan tarihi:** 2026-10-14  
 **Repository:** `akln55/AI-STORY-ENGINE`  
 **Planın hazırlandığı kaynak commit:** `59e30799162f94fa59201f75b0b9972577718032`  
 **Ürün sürümü:** `v1.1.4`  
 
-> Bu belge, yapılacak işleri ve kabul kriterlerini tanımlar. Bu planın yazılması, kod değişikliklerinin veya APK build'inin otomatik olarak onaylandığı anlamına gelmez. Her uygulama aşaması başlamadan önce plan kullanıcıya sunulur ve onay alınır.
+> Bu belge, onaylanan kampanyanın kapsamını ve kabul kriterlerini tanımlar. Kampanya onaylandı; uygulama değişiklikleri kabul testleri, CI ve release kapılarına göre ilerletilir. Kapsam dışı yıkıcı migration veya yeni büyük bağımlılık gerekirse yeniden onay alınır.
 
 ## 1. Puanlama yöntemi
 
@@ -23,10 +23,10 @@ Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler
 
 | Öncelik | Görev paketi | Etki | Engel | Bağımlılık | Bütünlük riski | Puan / 10 | Uygulama paketi | Durum |
 |---:|---|---:|---:|---:|---:|---:|---|---|
-| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] Teşhis tamamlandı; kalıcı düzeltme ve motor doğrulaması bekliyor |
-| 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | 1 | [ ] Planlandı |
+| 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] Goal, ilişki anahtarı ve `interact` hedef türü uyuşmazlıkları bulundu; resmi doğrulama ve gerçek uygulama import'u bekliyor |
+| 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | 1 | [ ] Rehber `interact` hedefi ve açık kayıt bağlantılarıyla güncellendi; CI/validator kabulü bekliyor |
 | 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | 1 | [ ] Planlandı |
-| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [ ] Planlandı |
+| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [ ] Runtime davranış sözleşmesi ve bağlantılı kayıt retrieval'ı eklendi; regresyon/CI doğrulaması bekliyor |
 | 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | 1, 5 | [ ] Planlandı |
 | 6 | Tam regresyon, CI, güncel APK build, artifact/provenance ve gerçek cihaz kabul kapısı | 9.0 | 8.0 | 9.5 | 9.2 | **8.9** | 5 (son kapı) | [ ] Bağımlı işlerin ardından |
 | 7 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | 3 | [ ] Planlandı |
@@ -39,7 +39,7 @@ Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler
 
 Görev 13'ün puanı yüksek olsa da diğer işler tamamlanmadan APK üretmek doğru sıralama değildir. Puan önem/etkiyi, aşağıdaki kampanya akışı ise bağımlılıkları gösterir.
 
-Puan sınırları: Görev 1'de hata metni biliniyor ama gerçek ZIP sağlanmadığı için kök neden belli değil. Görev 7'de üç sorun kaynak incelemesinde yeniden üretildi, düzeltme yapılmadı. Görev 9–10 kullanıcı bildirimi ve ekran görüntüsüne dayanıyor; doğru render/etkileşim ancak Android cihazında test edilince onaylanabilir.
+Puan sınırları: Gerçek ZIP artık incelendi; üç ayrı şema/runtime uyuşmazlığı tespit edildi. Görev 1'in tamamlanması için resmi validator ve uygulama import'u hâlâ gerekiyor. Görev 7'deki durumlar için doğru render/etkileşim ancak Android cihazında test edilince onaylanabilir.
 
 ## 3. Senaryo sistemi — hedeflenen davranış ve teşhis planı
 
@@ -301,9 +301,9 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 
 ## 13. Şu anki blokaj ve onay kapısı
 
-- Kullanıcının master specification belgesi mevcut; başarısız .rpgscenario.zip arşivi henüz bu konuşmada bulunmuyor. Ekran görüntüsü gerçek JSON içeriğinin yerine geçmez.
-- Bu plan güncellemesi yalnızca dokümantasyon işidir; henüz uygulama kodu, UI davranışı, validator veya APK değiştirilmedi.
-- Kampanya onaylanırsa ilk adım, gerçek arşivi kod değiştirmeden incelemektir. ZIP sağlanmadan import hatası düzeltilmiş sayılmayacak.
+- Gerçek `.rpgscenario.zip` arşivi bulundu ve incelendi; `goals` girişi, runtime ilişki anahtarları ve `interact` görev hedefi şeması ayrı ayrı ele alınıyor.
+- Uygulama kodu ve dokümantasyon değişiklikleri başladı. CI ve kabul testleri geçmeden import görevi tamamlanmış sayılmayacak.
+- Düzeltilmiş arşivin yalnızca manuel yapısal kontrolü yapılmıştır; resmi validator ve Android import sonucu hâlâ bekleniyor.
 - Demo silme için güvenli varsayılan: senaryo listesi/paketi ile save slotları ayrı tutulur; save slotları sessizce silinmez.
 - Plan dışı yıkıcı migration, Android foreground service veya yeni dosya parser'ı gerekirse durup yeniden onay alınır.
 
@@ -321,4 +321,15 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 - [ ] Memory event-rejection, secondary-index, and boolean-resource fixes plus regression tests were committed; CI is pending.
 - [ ] Full scenario-builder/source-queue workflow, chapter processing checkpoints, save-safe scenario management, download lifecycle and release build remain unimplemented.
 
-The latest commit's GitHub Actions run is queued/pending; until it finishes, do not mark code/test tasks as complete.
+Earlier verification did not pass: the run for commit `b24dbc0800e70e180904d56563e24594b6a8f756` reported 552 passing tests and 2 failures (stale API-panel height assertion; reduced-context budget regression). Both were addressed in follow-up commits, but the newest commit's CI result must be checked before marking any test task complete.
+
+## 12.8 Knowledge graph and interaction objective checkpoint — 2026-10-14
+
+- The actual imported quest `quest_confirm_date` contains `obj_check_phone` with `type: interact` and `target_id: item_phone`. This is a schema/runtime mismatch, not malformed story prose: the engine previously allowed only `collect`, `reach`, `defeat`, and `talk`.
+- Added a deterministic engine-side `interact` command for explicitly inspecting an accessible item, NPC, or current location. The rule emits an explicit interaction signal; quest progression consumes that signal instead of trusting AI narration.
+- Added Turkish/English inspection command aliases, objective reference validation, and a regression test. This addresses code-level behavior only; CI and real archive import remain the acceptance gate.
+- Added `engine/scenario/knowledge_graph.py`: deterministic nodes for canonical records, name/alias resolution, and links created only from explicit structured IDs/references. `ScenarioRetriever` exposes entity resolution and visibility/chapter-filtered neighboring records; runtime context can include a small, bounded set of linked records.
+- This first graph phase does **not** claim automatic extraction of new entities/facts from free chapter prose. A later, resumable source-ingestion phase must extract candidate records with provenance, reconcile stable IDs, validate output, and preserve original source files.
+- Updated `docs/SCENARIO_CREATION_GUIDE.md` with `interact` semantics and structured entity links; updated `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md` with graph and source-grounding limits.
+- Added deterministic knowledge-graph tests and repaired the two known CI regressions in the test expectation and small-context behavior. The latest CI gate is still pending verification.
+- Keep implementation tasks unchecked until a fresh CI result, actual official archive validation, and the relevant app/device acceptance gate are recorded.
