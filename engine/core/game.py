@@ -437,7 +437,11 @@ class GameSession:
         - Successful (clean) effect batches allow memory_updates.
         - Each update still passes MemorySystem validation / dedup.
         """
-        proposed_effects = bool(response.state_changes) or bool(response.npc_changes)
+        proposed_effects = (
+            bool(response.state_changes)
+            or bool(response.npc_changes)
+            or bool(response.events_triggered)
+        )
         if proposed_effects and not report.clean:
             return
         turn = self.clock.turn
