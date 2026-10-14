@@ -279,7 +279,8 @@ def test_installed_scenario_removal_is_confirmed_and_demo_is_not_pinned():
     controller = (ROOT / "engine/app/controller.py").read_text()
     assert source.count("def confirm_remove_scenario(self, item):") == 1
     assert "remove_installed_scenario" in source
-    assert "if recent.get(\"scenario_id\") != \"demo-bootstrap\"" in source
+    assert '"demo-bootstrap"' in source and "recent_scenarios" in source
+    assert 'self.recent_scenarios = [' in source
     assert "Aktif kampanya senaryosu kaldırılamaz" in controller
     assert "Oyun kayıtları silinmez" in source
 
