@@ -51,6 +51,7 @@ def test_controller_processes_source_queue_and_only_saves_intermediate_candidate
     controller.add_source_to_workspace(workspace_id, source, chapter_hint=1)
     initial_turn = controller.turn
     initial_location = controller.session.state.character.location_id
+    initial_inventory = list(controller.session.state.character.inventory)
 
     processed = controller.process_source_queue(workspace_id)
 
@@ -62,7 +63,7 @@ def test_controller_processes_source_queue_and_only_saves_intermediate_candidate
     assert results[0]["extraction"]["entities"][0]["id_candidate"] == "item_phone"
     assert controller.turn == initial_turn
     assert controller.session.state.character.location_id == initial_location
-    assert controller.session.state.character.inventory == []
+    assert controller.session.state.character.inventory == initial_inventory
 
 
 def test_controller_failed_extraction_checkpoint_can_be_retried(tmp_path):
