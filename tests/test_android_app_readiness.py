@@ -246,3 +246,47 @@ def test_api_adapter_is_replaced_only_after_successful_connection_probe():
     success_guard = connect.rfind("if apply_success:", 0, configure)
     assert probe_result < success_guard < configure
     assert "preserves the" in connect and "current adapter" in connect
+
+def test_scenario_studio_exposes_ordered_source_queue_checkpoints_candidates_and_export():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    studio = source[source.index("class SourceWorkspaceScreen"):source.index("class AIScreen(BaseScreen):")]
+    manager = (ROOT / "engine/scenario/source_workspace.py").read_text()
+    assert 'text="Senaryo Atölyesi"' in studio
+    assert 'text="Kaynak ekle"' in studio
+    assert 'text="İşlemeyi başlat / devam et"' in studio
+    assert 'text="Çıkarılan adayları incele"' in studio
+    assert 'text="İncelenmiş veriden senaryo ZIP\'i oluştur"' in studio
+    assert 'text="↑"' in studio and 'text="↓"' in studio
+    assert "def next_batch(" in manager
+    assert "def complete_batch(" in manager
+    assert "chunks_completed" in manager
+    assert "source_sha256" in manager
+    assert "def export_scenario_archive(" in manager
+
+
+def test_scenario_export_uses_android_save_picker_and_preserves_cancellation_state():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    picker = (ROOT / "rpg_android_file_picker.py").read_text()
+    assert "save_scenario_document" in source
+    assert "ACTION_CREATE_DOCUMENT" in picker
+    assert "application/zip" in picker
+    assert "on_cancel" in picker
+    assert "def _finish_scenario_export(self, uri, error)" in source
+
+
+def test_installed_scenario_removal_is_confirmed_and_demo_is_not_pinned():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    controller = (ROOT / "engine/app/controller.py").read_text()
+    assert source.count("def confirm_remove_scenario(self, item):") == 1
+    assert "remove_installed_scenario" in source
+    assert "if recent.get(\"scenario_id\") != \"demo-bootstrap\"" in source
+    assert "Aktif kampanya senaryosu kaldırılamaz" in controller
+    assert "Oyun kayıtları silinmez" in source
+
+
+def test_test_runner_delegates_full_project_suite_and_never_claims_partial_passes():
+    source = (ROOT / "tools/run_tests.py").read_text()
+    assert "if tests_dir == DEFAULT_TESTS_DIR:" in source
+    assert '"-m", "pytest", "-q", str(tests_dir)' in source
+    assert "the full project suite requires pytest" in source
+    assert "isolated smoke directories only" in source
