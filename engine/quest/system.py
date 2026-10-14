@@ -15,7 +15,7 @@ from engine.core.validation import apply_effects
 from engine.rules.base import Effect
 
 QUEST_STATUSES = frozenset({"available", "active", "completed", "failed", "abandoned"})
-OBJECTIVE_TYPES = frozenset({"collect", "reach", "defeat", "talk"})
+OBJECTIVE_TYPES = frozenset({"collect", "reach", "defeat", "talk", "interact"})
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class QuestEvaluation:
     activated_quest_ids: tuple[str, ...] = ()
 
 
-def evaluate_objective(state: GameState, objective, *, talked_to: str | None = None) -> int | None:
+def evaluate_objective(state: GameState, objective, *, talked_to: str | None = None, interacted_with: str | None = None) -> int | None:
     """Return authoritative progress for an objective, or None if not automatic."""
     if objective.type == "collect":
         return sum(1 for item_id in state.character.inventory if item_id == objective.target_id)
@@ -37,6 +37,8 @@ def evaluate_objective(state: GameState, objective, *, talked_to: str | None = N
         return int(npc is not None and not npc.alive)
     if objective.type == "talk":
         return int(talked_to == objective.target_id)
+    if objective.type == "interact":
+        return int(interacted_with == objective.target_id)
     return None
 
 
@@ -44,6 +46,7 @@ def evaluate_quests(
     state: GameState,
     *,
     talked_to: str | None = None,
+    interacted_with: str | None = None,
     current_turn: int | None = None,
 ) -> QuestEvaluation:
     """Reconcile active quests and atomically apply lifecycle consequences."""
@@ -76,7 +79,7 @@ def evaluate_quests(
         for objective in quest.objectives:
             if objective.completed:
                 continue
-            progress = evaluate_objective(state, objective, talked_to=talked_to)
+            progress = evaluate_objective(state, objective, talked_to=talked_to, interacted_with=interacted_with)
             if progress is None:
                 all_complete = False
                 continue
