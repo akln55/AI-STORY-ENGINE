@@ -157,28 +157,31 @@ class GhostButton(SoftButton):
 
 
 class PillInput(TextInput):
-    background_color = ColorProperty(SURFACE_2)
+    # Draw the rounded surface ourselves; Kivy's built-in rectangular
+    # TextInput background must remain transparent or it covers the pill.
+    background_color = ColorProperty((0, 0, 0, 0))
+    fill_color = ColorProperty(SURFACE_2)
     foreground_color = ColorProperty(TEXT)
     hint_text_color = ColorProperty(MUTED)
     cursor_color = ColorProperty(ACCENT)
 
     def __init__(self, **kwargs):
-        # Inherited Kivy properties must be set on instances, not replaced by
-        # plain class attributes. Replacing font_size/multiline here breaks
-        # Kivy's Property metaclass during app startup on Android.
-        kwargs.setdefault("padding", [dp(15), dp(12)])
+        # Keep the native TextInput background transparent so its rectangular
+        # canvas does not paint over the rounded surface.
+        kwargs.setdefault("padding", [dp(15), dp(10)])
         kwargs.setdefault("font_size", sp(14))
         kwargs.setdefault("multiline", False)
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_active", "")
+        kwargs.setdefault("background_color", (0, 0, 0, 0))
         super().__init__(**kwargs)
         with self.canvas.before:
-            self._color = Color(rgba=self.background_color)
-            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(16)])
-        self.bind(pos=self._sync, size=self._sync, background_color=self._sync)
+            self._color = Color(rgba=self.fill_color)
+            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(18)])
+        self.bind(pos=self._sync, size=self._sync, fill_color=self._sync)
 
     def _sync(self, *_):
-        self._color.rgba = self.background_color
+        self._color.rgba = self.fill_color
         self._rect.pos = self.pos
         self._rect.size = self.size
 
@@ -372,12 +375,21 @@ class GameplayScreen(BaseScreen):
         self.scroll.add_widget(self.message_box)
         root.add_widget(self.scroll)
 
-        composer = RoundedPanel(orientation="horizontal", padding=[dp(6), dp(6)], spacing=dp(6), size_hint_y=None, height=dp(60), fill=(0.12, 0.12, 0.12, 1))
-        self.input = PillInput(hint_text="Ne yapmak istiyorsun?", size_hint_x=1)
-        self.input.bind(on_text_validate=lambda *_: self.submit())
+        composer = RoundedPanel(
+            orientation="horizontal", padding=[dp(6), dp(6)], spacing=dp(6),
+            size_hint_y=None, height=dp(60), fill=(0.12, 0.12, 0.12, 1),
+            radius=dp(28),
+        )
+        self.composer = composer
+        self.input = PillInput(
+            hint_text="Ne yapmak istiyorsun?", size_hint_x=1, size_hint_y=1,
+            multiline=True, padding=[dp(14), dp(8)], font_size=sp(15),
+            fill_color=(0.12, 0.12, 0.12, 1),
+        )
+        self.input.bind(text=self._resize_composer, width=self._resize_composer)
         composer.add_widget(self.input)
         self.send_button = AccentButton(
-            text="Gönder", size_hint_x=None, width=dp(92), font_size=sp(11)
+            text="Gönder", size_hint_x=None, width=dp(76), font_size=sp(11)
         )
         self.send_button.bind(on_release=lambda *_: self.submit())
         composer.add_widget(self.send_button)
@@ -392,6 +404,17 @@ class GameplayScreen(BaseScreen):
         # Keep the Android keyboard closed on entry. The player taps the composer
         # when ready; forcing focus during a screen transition can cause unstable
         # soft-keyboard behavior on some Android builds.
+
+    def _resize_composer(self, *_):
+        """Grow the rounded composer for multi-line input without filling the screen."""
+        text = self.input.text or ""
+        width = max(dp(120), self.input.width)
+        chars_per_line = max(18, int(width / max(1, sp(15) * 0.52)))
+        visual_lines = 0
+        for line in text.split("\n"):
+            visual_lines += max(1, (len(line) + chars_per_line - 1) // chars_per_line)
+        visual_lines = min(4, max(1, visual_lines))
+        self.composer.height = dp(60) + dp(18) * (visual_lines - 1)
 
     def refresh(self):
         self.turn.text = f"Tur {self.app_ref.controller.turn}"
