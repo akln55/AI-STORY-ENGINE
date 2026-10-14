@@ -569,16 +569,23 @@ class RecentGamesScreen(BaseScreen):
             text="AKTİF DÜNYA", color=ACCENT, font_size=sp(10), bold=True,
             size_hint_y=None, height=dp(20),
         ))
+        has_campaign = getattr(self.app_ref.controller, "scenario_pack", None) is not None
         active.add_widget(_aligned_label(
             text=self.app_ref.current_campaign_name(), color=TEXT, font_size=sp(19), bold=True,
             size_hint_y=None, height=dp(30),
         ))
         active.add_widget(_aligned_label(
-            text=f"Tur {self.app_ref.controller.turn}  ·  {self.app_ref.controller.provider_name}",
+            text=(
+                f"Tur {self.app_ref.controller.turn}  ·  {self.app_ref.controller.provider_name}"
+                if has_campaign else "Bir senaryo seç veya Senaryo Atölyesi'nde yeni bir dünya oluştur."
+            ),
             color=MUTED, font_size=sp(12), size_hint_y=None, height=dp(22),
         ))
-        resume = AccentButton(text="Dünyayı aç", size_hint_y=None, height=dp(44))
-        resume.bind(on_release=lambda *_: self.app_ref.open_gameplay())
+        resume = AccentButton(
+            text="Dünyayı aç" if has_campaign else "Senaryoları aç",
+            size_hint_y=None, height=dp(44),
+        )
+        resume.bind(on_release=lambda *_: self.app_ref.open_current_campaign_or_scenarios())
         active.add_widget(resume)
         self.list_box.add_widget(active)
 
@@ -586,7 +593,10 @@ class RecentGamesScreen(BaseScreen):
             text="SON OYNANANLAR", color=MUTED, font_size=sp(10), bold=True,
             size_hint_y=None, height=dp(24),
         ))
-        recent = list(self.app_ref.recent_scenarios)
+        recent = [
+            item for item in self.app_ref.recent_scenarios
+            if item.get("scenario_id") != "demo-bootstrap"
+        ]
         if not recent:
             empty = RoundedPanel(
                 orientation="vertical", padding=dp(16), spacing=dp(8),
@@ -2260,6 +2270,70 @@ class RPGEngineApp(App):
             self.notify(f"Senaryo yüklendi: {pack.name}"); self.open_scenarios()
         except Exception as exc:
             self.notify(f"Import başarısız: {exc}")
+
+    def _saf_source_import(self, workspace_id):
+        if getattr(self, "_saf_source_import_in_progress", False):
+            return True
+        try:
+            from rpg_android_file_picker import open_source_document
+        except ImportError:
+            return False
+        self._saf_source_import_in_progress = True
+        self._saf_source_workspace_id = workspace_id
+        try:
+            launched = open_source_document(self._on_saf_source_import)
+        except Exception as exc:
+            self._saf_source_import_in_progress = False
+            self.notify(f"Kaynak seçici açılamadı: {type(exc).__name__}")
+            return False
+        if not launched:
+            self._saf_source_import_in_progress = False
+        return launched
+
+    def _on_saf_source_import(self, path):
+        Clock.schedule_once(lambda *_: self._finish_saf_source_import(path), 0)
+
+    def _finish_saf_source_import(self, path):
+        self._saf_source_import_in_progress = False
+        workspace_id = getattr(self, "_saf_source_workspace_id", None)
+        try:
+            if workspace_id is None:
+                raise RuntimeError("Kaynak için çalışma alanı seçilmedi.")
+            self.source_workspace._attach_source(workspace_id, path, cleanup_temp=True)
+        except Exception as exc:
+            self.notify(f"Kaynak eklenemedi: {type(exc).__name__}")
+        self.source_workspace.refresh()
+
+    def confirm_remove_scenario(self, item):
+        box = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
+        box.add_widget(_aligned_label(
+            text=(
+                f"'{item.name}' kurulu senaryo paketini kaldırmak istiyor musun? "
+                "Oyun kayıtları silinmez; ancak bu senaryoyu tekrar açmak için yeniden içe aktarman gerekir."
+            ),
+            color=TEXT, font_size=sp(12), valign="top",
+        ))
+        actions = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        popup = Popup(title="Senaryoyu kaldır", content=box, size_hint=(0.92, None), height=dp(245), background_color=SURFACE)
+        actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+        def remove(*_):
+            try:
+                self.controller.remove_installed_scenario(item.scenario_id)
+                self.recent_scenarios = [
+                    recent for recent in self.recent_scenarios
+                    if recent.get("scenario_id") != item.scenario_id
+                ]
+                if self._recent_store is not None:
+                    self._recent_store.put("recent", items=self.recent_scenarios)
+                self.notify(f"'{item.name}' kaldırıldı. Oyun kayıtları korundu.")
+            except Exception as exc:
+                self.notify(f"Senaryo kaldırılamadı: {exc}")
+            popup.dismiss()
+            self.scenarios.refresh()
+            self.games.refresh()
+        actions.add_widget(AccentButton(text="Kaldır", on_release=remove))
+        box.add_widget(actions)
+        popup.open()
 
     def open_scenario(self, scenario_id):
         try:
