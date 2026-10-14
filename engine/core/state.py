@@ -178,8 +178,9 @@ class EventState:
 class QuestObjective:
     """Authoritative quest objective progress.
 
-    `type` is one of collect/reach/defeat/talk. Progress is derived from
-    authoritative state by the quest system; AI narrative cannot complete it.
+    `type` is one of collect/reach/defeat/talk/interact. Progress is derived
+    from authoritative state or an explicit engine-recognized player action;
+    AI narrative cannot complete an objective by itself.
     """
 
     id: str
