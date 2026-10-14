@@ -98,6 +98,7 @@ def save_scenario_document(
     suggested_name: str,
     on_saved: Callable[[str], None],
     on_error: Callable[[str], None] | None = None,
+    on_cancel: Callable[[], None] | None = None,
 ) -> bool:
     """Use Android SAF to save a generated scenario ZIP to user-selected storage."""
     try:
@@ -122,9 +123,13 @@ def save_scenario_document(
         except Exception:
             pass
         if result != -1 or intent is None:
+            if on_cancel is not None:
+                on_cancel()
             return
         uri = intent.getData()
         if uri is None:
+            if on_cancel is not None:
+                on_cancel()
             return
         stream = None
         try:
