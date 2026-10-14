@@ -47,3 +47,22 @@ def test_game_session_rejects_partial_scenario_composition():
         assert "scenario_retriever" in str(exc)
     else:
         raise AssertionError("partial scenario composition must be rejected")
+
+
+def test_runtime_context_includes_world_simulation_contract():
+    from engine.ai.context import assemble_context
+
+    pack = load_scenario("scenarios/demo-bootstrap")
+    context = assemble_context(
+        pack.build_state(),
+        recent_turns=[],
+        player_input="Look around",
+        scenario_retriever=pack.retriever,
+        scenario_configuration=ScenarioContext.from_pack(pack).configuration,
+        scenario_registry=pack.registry,
+        current_turn=1,
+    )
+    assert "GAMEPLAY BEHAVIOUR CONTRACT:" in context
+    assert "Never teleport the player, NPCs, or items" in context
+    assert "Do not force a future event when its conditions no longer hold" in context
+    assert "the engine accepts" in context
