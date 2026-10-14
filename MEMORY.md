@@ -88,3 +88,13 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Scenario-import root cause remains unknown until the original failing archive is inspected. Do not relax validation merely to silence the error.
 - Model downloader already has .part and HTTP Range resume logic. Verify recovery after process/app closure instead of rewriting it from scratch.
 - Last successful APK is on an older commit; no APK or physical-device evidence for current HEAD.
+
+
+## 2026-10-14 — Revised master campaign and new user requirements
+
+- Updated canonical priority plan: docs/DEVELOPMENT_PLAN.md. The new weighted scores and one-campaign execution sequence supersede the prior priority table.
+- New scope: engine-compatible ChatGPT scenario creation guide + validator; separate runtime AI behaviour guide connected to prompt/context; incremental chapter/source queue with visible order arrows, checkpoints, stable-ID merge, source retention and later additions; scenario customization workspace; consistent scenario/demo management; rounded chat composer/keyboard fixes; simple provider/key setup; downloader resume checks; previously reproduced memory/index/bool issues; test-helper repair; full test/CI/current APK gates.
+- The user explicitly requires task tracking: use persistent checkboxes, mark [x] only when acceptance criteria and evidence pass, keep partial/incomplete work [ ], prefer retaining checked task history, and update relevant Markdown/handoff documents after every completed task.
+- Original failed scenario .rpgscenario.zip is still needed. The screenshot identifies the validation message but not the exact malformed source data. Never claim root cause without the archive.
+- The existing Master Specification should be reconciled against actual loader/registry models; do not copy schema examples blindly. Runtime instructions must be programmatically included in prompts, not merely stored as an unused Markdown file.
+- This was a documentation-only planning update. No application code, UI, validator or APK changes have been made; the implementation campaign awaits explicit user approval.
