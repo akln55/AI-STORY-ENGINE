@@ -247,10 +247,23 @@ class InteractionRule:
                 if self._matches(query, location_id, name):
                     matches.append(("location", location_id, name, state.character.location_id == location_id))
 
-        # Do not silently select an arbitrary entity if the phrase is ambiguous.
+        # An explicit inspection doubles as a deterministic quest signal only when
+        # it targets a pending, active interact objective. Otherwise let the AI handle
+        # ordinary examination so it can narrate discoveries and propose validated memory.
         unique = {(kind, entity_id): (kind, entity_id, name, accessible) for kind, entity_id, name, accessible in matches}
         if not unique:
-            return RuleResult([], f"You cannot find an interactable target matching '{query}'.")
+            return None
+
+        pending_ids = {
+            objective.target_id
+            for quest in state.world.quests.values()
+            if quest.status == "active"
+            for objective in quest.objectives
+            if objective.type == "interact" and not objective.completed
+        }
+        pending_matches = [value for value in unique.values() if value[1] in pending_ids]
+        if not pending_matches:
+            return None
         if len(unique) > 1:
             labels = sorted(value[2] for value in unique.values())
             return RuleResult([], "That name is ambiguous. Specify one: " + ", ".join(labels[:4]) + ".")
