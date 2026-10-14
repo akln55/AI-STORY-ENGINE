@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 import json
+import os
 from uuid import uuid4
 import re
 import ssl
@@ -515,6 +516,8 @@ def download_huggingface_model(
 
     with response as stream:
         status = getattr(stream, "status", None) or getattr(stream, "code", None)
+        if status is not None and status not in (200, 206):
+            raise ModelDownloadError(f"Hugging Face returned HTTP {status}")
         response_headers = getattr(stream, "headers", {})
         content_range = response_headers.get("Content-Range", "")
         response_etag = response_headers.get("ETag")
