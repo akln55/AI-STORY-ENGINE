@@ -245,17 +245,18 @@ class HomeScreen(BaseScreen):
             size_hint_y=None, height=dp(20),
         ))
         self.status = _aligned_label(
-            text="Demo dünyası hazır", color=TEXT, font_size=sp(21), bold=True,
+            text="Henüz dünya seçilmedi", color=TEXT, font_size=sp(21), bold=True,
             size_hint_y=None, height=dp(34),
         )
         card.add_widget(self.status)
         self.meta = _aligned_label(
-            text="Demo / AI kapalı · Tur 0", color=MUTED, font_size=sp(12),
-            size_hint_y=None, height=dp(24),
+            text="Bir senaryo içe aktar veya Senaryo Atölyesi'nden oluştur.",
+            color=MUTED, font_size=sp(12), size_hint_y=None, height=dp(24),
         )
         card.add_widget(self.meta)
-        start = AccentButton(text="Dünyayı aç", size_hint_y=None, height=dp(48))
-        start.bind(on_release=lambda *_: self.app_ref.open_gameplay())
+        start = AccentButton(text="Senaryoları aç", size_hint_y=None, height=dp(48))
+        start.bind(on_release=lambda *_: self.app_ref.open_current_campaign_or_scenarios())
+        self.start_button = start
         card.add_widget(start)
         content.add_widget(card)
 
@@ -281,7 +282,15 @@ class HomeScreen(BaseScreen):
         self.add_widget(root)
 
     def refresh(self):
-        self.meta.text = f"{self.app_ref.controller.provider_name} · Tur {self.app_ref.controller.turn}"
+        pack = getattr(self.app_ref.controller, "scenario_pack", None)
+        if pack is None:
+            self.status.text = "Henüz dünya seçilmedi"
+            self.meta.text = "Senaryoları açıp dünya seç veya yeni senaryo oluştur."
+            self.start_button.text = "Senaryoları aç"
+        else:
+            self.status.text = pack.name
+            self.meta.text = f"{self.app_ref.controller.provider_name} · Tur {self.app_ref.controller.turn}"
+            self.start_button.text = "Dünyayı aç"
 
 
 class MessageBubble(RoundedPanel):
@@ -635,11 +644,14 @@ class ScenariosScreen(BaseScreen):
             "Senaryolar",
             "Kurulu dünyalar ve içe aktarabileceğin .rpgscenario paketleri.",
         ))
-        import_btn = AccentButton(
-            text="+ Senaryo içe aktar", size_hint_y=None, height=dp(46),
-        )
+        actions = BoxLayout(orientation="horizontal", spacing=dp(8), size_hint_y=None, height=dp(46))
+        workshop_btn = SoftButton(text="Senaryo Atölyesi", font_size=sp(11))
+        workshop_btn.bind(on_release=lambda *_: self.app_ref.open_source_workspace())
+        import_btn = AccentButton(text="+ Senaryo içe aktar", font_size=sp(11))
         import_btn.bind(on_release=lambda *_: self.app_ref.import_scenario())
-        root.add_widget(import_btn)
+        actions.add_widget(workshop_btn)
+        actions.add_widget(import_btn)
+        root.add_widget(actions)
 
         self.list_box = BoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
         self.list_box.bind(minimum_height=self.list_box.setter("height"))
@@ -704,6 +716,11 @@ class ScenariosScreen(BaseScreen):
             )
             btn.bind(on_release=lambda *_a, sid=item.scenario_id: self.app_ref.open_scenario(sid))
             card.add_widget(btn)
+            remove = GhostButton(
+                text="Kaldır", size_hint_x=None, width=dp(64), font_size=sp(10),
+            )
+            remove.bind(on_release=lambda *_a, selected=item: self.app_ref.confirm_remove_scenario(selected))
+            card.add_widget(remove)
             self.list_box.add_widget(card)
 
 
@@ -1963,9 +1980,10 @@ class RPGEngineApp(App):
             self.games = RecentGamesScreen(self)
             self.game = GameplayScreen(self)
             self.scenarios = ScenariosScreen(self)
+            self.source_workspace = SourceWorkspaceScreen(self)
             self.ai = AIScreen(self)
             self.settings = SettingsScreen(self)
-            for screen in (self.home, self.games, self.game, self.scenarios, self.ai, self.settings):
+            for screen in (self.home, self.games, self.game, self.scenarios, self.source_workspace, self.ai, self.settings):
                 self.manager.add_widget(screen)
 
             root = BoxLayout(orientation="vertical", spacing=0)
@@ -1973,7 +1991,17 @@ class RPGEngineApp(App):
             root.add_widget(self._bottom_nav())
             self.manager.current = "home"
             self._update_nav_state()
-            self._record_recent_scenario("demo-bootstrap", "Demo dünyası")
+            # The demo runtime remains available internally, but is not pinned as an
+            # active world or injected into the user's recent-scenarios list.
+            self.recent_scenarios = [
+                item for item in self.recent_scenarios
+                if item.get("scenario_id") != "demo-bootstrap"
+            ]
+            try:
+                if self._recent_store is not None:
+                    self._recent_store.put("recent", items=self.recent_scenarios)
+            except Exception:
+                pass
             Clock.schedule_once(lambda *_: self.home.refresh(), 0)
             return root
         except Exception as exc:
@@ -2035,7 +2063,7 @@ class RPGEngineApp(App):
     def _update_nav_state(self):
         current = self.manager.current
         active = (
-            "games" if current in {"games", "gameplay", "scenarios"}
+            "games" if current in {"games", "gameplay", "scenarios", "source_workspace"}
             else "settings" if current == "ai"
             else current
         )
@@ -2062,13 +2090,20 @@ class RPGEngineApp(App):
             self._initial_game()
         self.go("gameplay")
     def open_scenarios(self): self.go("scenarios")
+    def open_source_workspace(self): self.go("source_workspace")
     def open_ai(self): self.go("ai")
+
+    def open_current_campaign_or_scenarios(self):
+        if getattr(self.controller, "scenario_pack", None) is None:
+            self.open_scenarios()
+        else:
+            self.open_gameplay()
 
     def current_campaign_name(self):
         pack = getattr(self.controller, "scenario_pack", None)
         if pack is not None:
             return getattr(pack, "name", self.controller.scenario_id)
-        return "Demo dünyası" if self.controller.scenario_id == "demo-bootstrap" else self.controller.scenario_id
+        return "Henüz dünya seçilmedi"
 
     def _record_recent_scenario(self, scenario_id, name):
         item = {"scenario_id": str(scenario_id), "name": str(name)}
