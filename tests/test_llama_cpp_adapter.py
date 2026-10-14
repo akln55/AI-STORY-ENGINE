@@ -128,6 +128,22 @@ def test_nonexistent_model_path_rejected():
             LlamaCppAdapter(LlamaCppConfig(model_path="/no/such/model.gguf"))
 
 
+def test_raw_source_generation_skips_gameplay_schema_parser():
+    expected = '{"entities":[],"relations":[],"unresolved":[]}'
+    adapter = object.__new__(LlamaCppAdapter)
+    captured = {}
+    adapter._run_inference = lambda prompt: (
+        captured.update({"prompt": prompt}) or {"choices": [{"text": expected}]}
+    )
+    text = adapter.generate_text(
+        "BATCH SOURCE TEXT", system_instruction="Extract source entities."
+    )
+    assert text == expected
+    assert "Extract source entities." in captured["prompt"]
+    assert "BATCH SOURCE TEXT" in captured["prompt"]
+    assert "structured response contract above" not in captured["prompt"]
+
+
 def test_model_init_failure_wrapped_as_model_error():
     with _stubbed_llama():
         with raises(LlamaCppModelError):

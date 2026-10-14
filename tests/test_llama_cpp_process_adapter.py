@@ -175,6 +175,22 @@ def test_fenced_model_output_is_stripped_and_parsed():
         assert resp.narrative == "Fenced."
 
 
+def test_raw_source_generation_returns_extraction_json_without_gameplay_schema():
+    expected = '{"entities":[],"relations":[],"unresolved":[]}'
+    with _fake_server() as url:
+        _Script.kind, _Script.status = "json", 200
+        _Script.body = {"content": expected}
+        adapter = LlamaCppProcessAdapter(LlamaCppProcessConfig(server_url=url))
+        text = adapter.generate_text(
+            "BATCH SOURCE TEXT", system_instruction="Extract source entities."
+        )
+        request = _Script.received[-1]["body"]
+    assert text == expected
+    assert "Extract source entities." in request["prompt"]
+    assert "BATCH SOURCE TEXT" in request["prompt"]
+    assert "structured response contract above" not in request["prompt"]
+
+
 def test_correct_request_sent_to_configured_endpoint():
     with _fake_server() as url:
         _Script.kind, _Script.status = "json", 200
