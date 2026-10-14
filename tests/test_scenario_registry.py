@@ -225,3 +225,27 @@ def test_free_mode_configuration_can_retain_explicit_pack_order():
     manager.validate_selection(("p3", "p1"), require_contiguous=False)
     config = ScenarioConfiguration("s", "1", "free", ("p3", "p1"), 21, 21)
     assert config.to_dict()["selected_pack_ids"] == ["p3", "p1"]
+
+
+def test_goal_validation_reports_index_and_expected_object_fields():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "bad"
+        (root / "data").mkdir(parents=True)
+        (root / "manifest.json").write_text(json.dumps({
+            "scenario_id": "bad-goal", "name": "Bad Goal", "version": "1"
+        }))
+        (root / "world.json").write_text(json.dumps({
+            "character": {}, "locations": {}
+        }))
+        (root / "data" / "characters.json").write_text(json.dumps({
+            "npc_example": {
+                "id": "npc_example",
+                "name": "Example NPC",
+                "goals": ["Prepare before the outbreak"],
+            }
+        }))
+        with raises(
+            ScenarioError,
+            match="goals[0] must be an object",
+        ):
+            load_scenario(root)
