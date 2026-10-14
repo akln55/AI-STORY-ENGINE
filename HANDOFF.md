@@ -138,3 +138,16 @@ Code/docs already changed on main:
 - `docs/DEVELOPMENT_PLAN.md`: records verified findings and leaves task 1 unchecked until engine validation passes.
 
 Do not claim the archive or app import is fully fixed yet. Next: verify CI for the error-message test, validate a corrected pack using the actual loader, then continue the approved campaign in dependency order.
+
+## Campaign execution checkpoint — 2026-10-14
+
+The user approved the full campaign. Work has started; the main task checkboxes remain unchecked until tests and acceptance evidence pass.
+
+- Actual scenario ZIP inspected: invalid string goal in `data/characters.json:npc_kim_minjae.goals[0]`; runtime relationship keys in `world.json` are not canonical. A corrected local copy exists but has not passed the real project validator yet.
+- Added `docs/SCENARIO_CREATION_GUIDE.md` and `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md`.
+- Improved scenario goal validation diagnostics and added a regression test.
+- Added gameplay simulation instructions to runtime context and a test.
+- Modified `rpg_android_app.py` to draw rounded inputs with a transparent native TextInput background, allow a multi-line growing gameplay composer, and hide routine provider endpoint/model fields behind advanced settings. Device testing is still required.
+- Fixed known engine correctness cases in code: rejected event proposals now block associated memory updates; deduplicated memory updates refresh secondary indexes; boolean resource values are rejected as integers. Regression tests were added.
+- Latest relevant CI run: [38621453513](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38621453513) is pending at this checkpoint. Do not claim tests passed until the run finishes.
+- Remaining major work includes the actual scenario-builder/source queue and checkpointed chapter pipeline, scenario/demo deletion semantics, download resume lifecycle verification, full test/CI/APK gate, and real-device acceptance.
