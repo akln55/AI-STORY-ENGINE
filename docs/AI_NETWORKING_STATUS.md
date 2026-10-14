@@ -42,3 +42,14 @@ Source CI validates code contracts, not carrier/provider behavior or physical-de
 - [ ] APK build and scenario testing — outside this stage's agreed scope.
 
 **Conclusion:** Stage 1 source work is complete and CI-green. Device-specific behavior remains unverified; do not describe the APK as built or device-tested.
+
+## Follow-up findings from user device feedback — 2026-10-14
+
+The networking implementation has source-level tests, but the user reports the wider AI settings UX remains inadequate. Open work for the next implementation pass:
+
+- Reduce API configuration to the minimum fields required by the selected provider. Do not ask for a custom endpoint for Gemini; expose custom endpoint configuration only for OpenAI-compatible providers.
+- Preserve the distinction between a model-list connection probe and an actual generation request.
+- Fix the remaining text-entry/composer layout, settings-screen usability, and malformed/inconsistent UI symbols; these are UI acceptance blockers, not networking test failures.
+- A scenario import also fails with `characters.json:npc_kim_minjae.goals entries must be objects`; track this separately as a scenario data-contract issue, not as a network failure.
+
+The Android build [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595) succeeded and uploaded an APK artifact, but it built commit `ad611254d90578e375b53f7445d1e7f1d4d243ae`, before the above follow-up fixes. It does not establish physical-device rendering, provider access over mobile data, or successful scenario import. Do not mark these gates complete until tested.
