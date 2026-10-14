@@ -15,3 +15,12 @@ class AIAdapter(ABC):
     @abstractmethod
     def generate(self, context: str) -> StructuredResponse:
         """Produce a structured response for the assembled context."""
+
+    def generate_text(self, prompt: str, *, system_instruction: str | None = None) -> str:
+        """Return raw model text for non-gameplay tasks such as scenario extraction.
+
+        Concrete providers should implement this without parsing the response as the
+        gameplay StructuredResponse schema. External adapters that do not support raw
+        text may keep the default and report NotImplementedError to the caller.
+        """
+        raise NotImplementedError("this AI adapter does not support raw text generation")
