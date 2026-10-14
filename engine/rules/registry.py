@@ -32,6 +32,7 @@ def default_rules(encounter_resolver: EncounterResolver | None = None) -> list[R
         basic.DropRule(),
         basic.AcceptQuestRule(),
         basic.AbandonQuestRule(),
+        basic.InteractionRule(),
         basic.AttackRule(encounter_resolver),
         basic.TechniqueRule(encounter_resolver),
     ]
