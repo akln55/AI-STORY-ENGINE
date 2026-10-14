@@ -39,3 +39,18 @@ Current run: [Android build #122](https://github.com/akln55/AI-STORY-ENGINE/acti
 - [ ] Long-session stability and performance/thermal/memory checks
 
 Source tests do not establish that an APK installs or works on a physical device. Do not mark the release Android-verified before device evidence exists.
+
+
+## 2026-10-14 — Current source/release status
+
+This dated note supersedes stale build-run references above without deleting the historical record.
+
+- [x] Source CI run 38517225272 succeeded on HEAD 59e30799162f94fa59201f75b0b9972577718032.
+- [x] Snapshot checks: pytest 549 passed; compileall and Android readiness passed; mutation smoke 3/3; demo-bootstrap scenario valid.
+- [ ] Repair/document tools/run_tests.py: 31 passed / 5 failed (pytest/monkeypatch fixture incompatibility).
+- [ ] Validate a real ChatGPT-generated scenario archive through import, launch, AI context/retrieval and save/load.
+- [ ] Finish scenario list/demo deletion behavior and test Android composer/provider/settings UI on a device.
+- [ ] Build APK from current HEAD and verify metadata, provenance and artifact.
+- [ ] Physical-device launch, gameplay, save/load and local GGUF inference remain unverified.
+
+Detailed plan: docs/DEVELOPMENT_PLAN.md. This commit updates documentation only; no code fix or APK build was performed.

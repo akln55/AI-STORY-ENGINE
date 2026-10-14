@@ -139,3 +139,20 @@ The following issues are **open** and must not be described as fixed merely beca
 ### Next AI: required working method
 
 Read this file, `HANDOFF.md`, `MEMORY.md`, and the relevant UI/scenario code before editing. Treat the user's screenshot and exact import error as reproducible acceptance targets. Inspect current code rather than relying on older summaries. Make the smallest coherent implementation, test it, and update these status docs after observing real results. Do not start with a generic redesign plan or stop after producing recommendations.
+
+
+## Development plan and approval gate — 2026-10-14
+
+Prioritized work list and acceptance criteria: docs/DEVELOPMENT_PLAN.md. Before a code/product behavior change, prepare the plan (impact, unknowns, likely files, tests, acceptance criteria) and get user approval. Do not guess about scenario schema or deletion semantics; request the real file/clarification.
+
+### Current source verification
+
+- Inspected source HEAD: 59e30799162f94fa59201f75b0b9972577718032.
+- Same source snapshot: pytest 549 passed; compileall, Android readiness, mutation smoke 3/3, and demo-bootstrap validation passed.
+- tools/run_tests.py: 31 passed, 5 failed due to pytest import/monkeypatch fixture incompatibility. CI uses pytest directly; helper needs separate repair or documentation update.
+- Current source CI: https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38517225272 succeeded.
+- Latest successful APK build is for older commit ad611254d90578e375b53f7445d1e7f1d4d243ae: https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595. No APK/device verification for current HEAD.
+- Reproduced review findings: rejected event proposals can still add related memory; duplicate memory updates leave secondary indexes stale; boolean resource effects can pass as integers. Details and tests-to-add are in the development plan.
+- Scenario import root cause is not known until the actual failing archive is inspected.
+
+This is a documentation-only commit. No code fix or Android build is included.

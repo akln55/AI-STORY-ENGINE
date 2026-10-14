@@ -88,3 +88,12 @@ These remain unresolved until a later commit and verification demonstrate otherw
 ### Next handoff acceptance gate
 
 Implement the blockers in source, add scenario/UI regression tests, run full pytest + compileall + Android readiness + mutation smoke, push the verified changes, then trigger and verify a fresh Android build and artifact. Inspect the first failing CI step/log if anything fails. Report actual results only; keep device verification separate.
+
+
+## Prioritized plan and approval gate — 2026-10-14
+
+Use docs/DEVELOPMENT_PLAN.md for priorities and acceptance criteria. First priorities: inspect the actual failing scenario archive (10.0/10), define the ChatGPT-generated .rpgscenario.zip contract (9.8/10), refactor scenario listing/demo management (9.5/10), and repair verified memory/index/type issues (9.4/9.2/8.3).
+
+Before changing code or product behavior: plan the scope, unknowns, acceptance criteria and tests; obtain user approval. Ask for the real scenario archive instead of guessing at its schema. After every implementation, run applicable tests and update the handoff docs with evidence.
+
+Current HEAD 59e30799162f94fa59201f75b0b9972577718032: pytest 549 passed; compileall/readiness passed; mutation smoke 3/3; demo-bootstrap valid. tools/run_tests.py had 31 passed / 5 failed (pytest/monkeypatch helper incompatibility). CI run 38517225272 succeeded. The last successful APK is for an older commit; no APK/device test was done for this HEAD. The commit that adds this plan is documentation-only.

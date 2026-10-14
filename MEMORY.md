@@ -76,3 +76,15 @@ These are open requirements, not completed features:
 User expects implementation, tests, GitHub changes, and a new APK build—not just an audit or plan. Never claim the current old APK includes these fixes.
 
 Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595), success on `ad611254d90578e375b53f7445d1e7f1d4d243ae`; artifact `rpg-engine-v1.1.4-android-debug`, ID `11845055403`, digest `sha256:513c11b5287e35a1122ee583ce62ad584afd5e661222c5f5653c70cae5e2657e`. This is only a successful baseline packaging run; device launch/rendering, gameplay, and SAF scenario import remain unproven.
+
+
+## 2026-10-14 — Approval workflow and verified review notes
+
+- Binding workflow: plan -> show impact/unknowns/acceptance/tests -> obtain user approval before any code or product behavior change. Do not guess at unprovided schemas or deletion semantics.
+- Plan: docs/DEVELOPMENT_PLAN.md. After every implementation, update AI_START_HERE.md, HANDOFF.md, MEMORY.md and relevant technical docs with real observed results.
+- HEAD 59e30799162f94fa59201f75b0b9972577718032: pytest 549 passed; compileall/readiness passed; mutation smoke 3/3; demo-bootstrap valid; current CI run 38517225272 succeeded.
+- tools/run_tests.py: 31 passed / 5 failed from pytest import/monkeypatch fixture incompatibility.
+- Reproduced findings: rejected event-trigger proposals can still yield persisted memory claims; deduplicated memory updates do not refresh secondary indexes; JSON boolean resource values can be treated as integers.
+- Scenario-import root cause remains unknown until the original failing archive is inspected. Do not relax validation merely to silence the error.
+- Model downloader already has .part and HTTP Range resume logic. Verify recovery after process/app closure instead of rewriting it from scratch.
+- Last successful APK is on an older commit; no APK or physical-device evidence for current HEAD.
