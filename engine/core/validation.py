@@ -174,8 +174,8 @@ def validate_effect(effect: Effect, state: GameState) -> tuple[bool, object, str
         ceiling = getattr(target, max_field, None)
         if ceiling is None:
             return False, None, f"resource field '{fld}' has no '{max_field}' bound"
-        if not isinstance(effect.value, int):
-            return False, None, "resource value must be int"
+        if not isinstance(effect.value, int) or isinstance(effect.value, bool):
+            return False, None, "resource value must be int (boolean values are not accepted)"
         current = getattr(target, fld)
         if effect.operation == "set":
             return True, _clamp(effect.value, 0, ceiling), ""
