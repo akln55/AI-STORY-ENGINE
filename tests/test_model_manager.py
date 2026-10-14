@@ -562,6 +562,8 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
     part = models_dir / (spec.destination_name + ".part")
     offset = len(payload) // 2
     part.write_bytes(payload[:offset])
+    import engine.ai.model_manager as module
+    module._write_partial_metadata(module._part_metadata_path(part), module._download_fingerprint(spec))
     calls = []
 
     class FakeResponse:
@@ -593,6 +595,7 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
     assert installed.path.read_bytes() == payload
     assert installed.sha256 == hashlib.sha256(payload).hexdigest()
     assert not part.exists()
+    assert not module._part_metadata_path(part).exists()
 
 
 def test_download_keeps_partial_file_when_stream_is_interrupted(tmp_path):
@@ -627,3 +630,78 @@ def test_download_keeps_partial_file_when_stream_is_interrupted(tmp_path):
     else:
         raise AssertionError("interrupted stream should fail")
     assert (tmp_path / "models" / (spec.destination_name + ".part")).exists()
+
+def test_download_discards_partial_from_a_different_revision(tmp_path):
+    import engine.ai.model_manager as module
+
+    old_payload = _gguf_payload(b"REVISION-OLD")
+    new_payload = _gguf_payload(b"REVISION-NEW")
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    old_spec = ModelSpec("org/model", "model.Q4_K_M.gguf", revision="abc123")
+    new_spec = ModelSpec(
+        "org/model", "model.Q4_K_M.gguf", revision="def456",
+        expected_size_bytes=len(new_payload),
+    )
+    part = models_dir / (new_spec.destination_name + ".part")
+    part.write_bytes(old_payload[:len(old_payload) // 2])
+    module._write_partial_metadata(module._part_metadata_path(part), module._download_fingerprint(old_spec))
+    seen_ranges = []
+
+    class FakeResponse:
+        status = 200
+        def __init__(self):
+            self.headers = {"Content-Length": str(len(new_payload))}
+            self.remaining = new_payload
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            return False
+        def read(self, size=-1):
+            chunk, self.remaining = self.remaining[:size], self.remaining[size:]
+            return chunk
+
+    def opener(request, timeout):
+        seen_ranges.append(request.get_header("Range"))
+        return FakeResponse()
+
+    installed = download_huggingface_model(new_spec, models_dir, opener=opener)
+    assert seen_ranges == [None]
+    assert installed.path.read_bytes() == new_payload
+    assert not part.exists()
+    assert not module._part_metadata_path(part).exists()
+
+
+def test_download_partial_without_metadata_is_restarted_safely(tmp_path):
+    import engine.ai.model_manager as module
+
+    payload = _gguf_payload(b"FULL-BODY")
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
+    part = models_dir / (spec.destination_name + ".part")
+    part.write_bytes(payload[:len(payload) // 2])
+    calls = []
+
+    class FakeResponse:
+        status = 200
+        def __init__(self):
+            self.headers = {"Content-Length": str(len(payload))}
+            self.remaining = payload
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            return False
+        def read(self, size=-1):
+            chunk, self.remaining = self.remaining[:size], self.remaining[size:]
+            return chunk
+
+    def opener(request, timeout):
+        calls.append(request.get_header("Range"))
+        return FakeResponse()
+
+    installed = download_huggingface_model(spec, models_dir, opener=opener)
+    assert calls == [None]
+    assert installed.path.read_bytes() == payload
+    assert not part.exists()
+    assert not module._part_metadata_path(part).exists()
