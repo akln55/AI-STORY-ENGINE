@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import Thread
+from types import SimpleNamespace
+import json
 
 from kivy.app import App
 from kivy.animation import Animation
@@ -663,6 +665,8 @@ class ScenariosScreen(BaseScreen):
         actions.add_widget(import_btn)
         root.add_widget(actions)
 
+        self._bundled_demo = None
+        self._bundled_demo_checked = False
         self.list_box = BoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
         self.list_box.bind(minimum_height=self.list_box.setter("height"))
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(3))
@@ -688,8 +692,29 @@ class ScenariosScreen(BaseScreen):
 
     def refresh(self):
         self.list_box.clear_widgets()
-        installed = self.app_ref.controller.installed_scenarios()
-        if not installed:
+        installed = list(self.app_ref.controller.installed_scenarios())
+        if not self._bundled_demo_checked:
+            self._bundled_demo_checked = True
+            demo_root = Path(__file__).resolve().parent / "scenarios" / "demo-bootstrap"
+            try:
+                manifest = json.loads((demo_root / "manifest.json").read_text(encoding="utf-8"))
+                self._bundled_demo = SimpleNamespace(
+                    scenario_id=str(manifest.get("scenario_id", "demo-bootstrap")),
+                    name=str(manifest.get("name", "Demo dünyası")),
+                    version=str(manifest.get("version", "bundled")),
+                    chapter_count=int(manifest.get("chapter_count", 1)),
+                    path=str(demo_root),
+                )
+            except (OSError, ValueError, TypeError):
+                self._bundled_demo = None
+
+        items = [(item, False) for item in installed]
+        if self._bundled_demo and not any(
+            item.scenario_id == self._bundled_demo.scenario_id for item, _bundled in items
+        ):
+            items.insert(0, (self._bundled_demo, True))
+
+        if not items:
             empty = RoundedPanel(
                 orientation="vertical", padding=dp(16), spacing=dp(8),
                 size_hint_y=None, height=dp(132), fill=SURFACE, radius=dp(20),
@@ -699,15 +724,16 @@ class ScenariosScreen(BaseScreen):
                 size_hint_y=None, height=dp(28),
             ))
             empty.add_widget(_aligned_label(
-                text="İlk dünyanı eklemek için yukarıdaki “Senaryo içe aktar” düğmesini kullan.",
+                text="Bir .rpgscenario.zip içe aktar veya Senaryo Atölyesi'nde kendi dünyanı oluştur.",
                 color=MUTED, font_size=sp(12), valign="top",
                 size_hint_y=None, height=dp(48),
             ))
             self.list_box.add_widget(empty)
             return
-        for item in installed:
+
+        for item, bundled in items:
             card = RoundedPanel(
-                orientation="horizontal", padding=dp(12), spacing=dp(10),
+                orientation="horizontal", padding=dp(12), spacing=dp(8),
                 size_hint_y=None, height=dp(84), fill=SURFACE, radius=dp(18),
             )
             info = BoxLayout(orientation="vertical", spacing=dp(4))
@@ -715,22 +741,31 @@ class ScenariosScreen(BaseScreen):
                 text=item.name, color=TEXT, font_size=sp(14), bold=True,
                 size_hint_y=None, height=dp(28),
             ))
+            badge_text = (
+                f"Örnek dünya · v{item.version} · {item.chapter_count} bölüm"
+                if bundled else f"v{item.version} · {item.chapter_count} bölüm"
+            )
             info.add_widget(_aligned_label(
-                text=f"v{item.version} · {item.chapter_count} bölüm",
-                color=MUTED, font_size=sp(11), size_hint_y=None, height=dp(20),
+                text=badge_text, color=MUTED, font_size=sp(10),
+                size_hint_y=None, height=dp(20),
             ))
             card.add_widget(info)
             btn = AccentButton(
-                text="Başlat", size_hint_x=None, width=dp(88),
-                font_size=sp(12),
+                text="Başlat", size_hint_x=None, width=dp(82), font_size=sp(11),
             )
             btn.bind(on_release=lambda *_a, sid=item.scenario_id: self.app_ref.open_scenario(sid))
             card.add_widget(btn)
-            remove = GhostButton(
-                text="Kaldır", size_hint_x=None, width=dp(64), font_size=sp(10),
-            )
-            remove.bind(on_release=lambda *_a, selected=item: self.app_ref.confirm_remove_scenario(selected))
-            card.add_widget(remove)
+            if bundled:
+                card.add_widget(GhostButton(
+                    text="Dahili", size_hint_x=None, width=dp(54),
+                    font_size=sp(9), disabled=True,
+                ))
+            else:
+                remove = GhostButton(
+                    text="Kaldır", size_hint_x=None, width=dp(60), font_size=sp(9),
+                )
+                remove.bind(on_release=lambda *_a, selected=item: self.app_ref.confirm_remove_scenario(selected))
+                card.add_widget(remove)
             self.list_box.add_widget(card)
 
 
@@ -2480,7 +2515,12 @@ class RPGEngineApp(App):
 
     def open_scenario(self, scenario_id):
         try:
-            pack = self.controller.load_installed_scenario(scenario_id)
+            if scenario_id == "demo-bootstrap":
+                from engine.scenario.loader import load_scenario
+                demo_path = Path(__file__).resolve().parent / "scenarios" / "demo-bootstrap"
+                pack = load_scenario(demo_path)
+            else:
+                pack = self.controller.load_installed_scenario(scenario_id)
             self.controller.start_scenario(pack)
             self._gameplay_initialized = False
             self._record_recent_scenario(pack.scenario_id, pack.name)
