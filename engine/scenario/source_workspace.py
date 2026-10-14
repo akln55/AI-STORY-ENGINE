@@ -204,13 +204,22 @@ class SourceWorkspaceManager:
         if chapter_hint is not None and (not isinstance(chapter_hint, int) or isinstance(chapter_hint, bool) or chapter_hint < 1):
             raise ScenarioError("chapter hint must be a positive integer")
         meta = self.get_workspace(workspace_id)
+        digest = sha256(raw).hexdigest()
+        duplicate = next(
+            (item for item in meta["sources"] if item.get("sha256") == digest),
+            None,
+        )
+        if duplicate is not None:
+            raise ScenarioError(
+                f"identical source content already exists as sequence {duplicate['sequence']}: "
+                f"{duplicate['original_name']}"
+            )
         source_id = "src_" + uuid4().hex[:16]
         stored_name = source_id + suffix
         stored = self._workspace_path(workspace_id) / "sources" / stored_name
         stored.parent.mkdir(parents=True, exist_ok=True)
         # Copy the original bytes; normalization is only used for parsing in-memory text.
         stored.write_bytes(raw)
-        digest = sha256(raw).hexdigest()
         entry = {
             "source_id": source_id,
             "original_name": source_path.name,
@@ -238,10 +247,13 @@ class SourceWorkspaceManager:
         entry = next((x for x in meta["sources"] if x["source_id"] == source_id), None)
         if entry is None:
             return False
-        if entry.get("status") == "processing" or entry.get("chunks_completed"):
+        if any(
+            item.get("status") == "processing" or item.get("chunks_completed")
+            for item in meta["sources"]
+        ):
             raise ScenarioError(
-                "cannot remove a source after extraction starts; add new sources at the end "
-                "or create a new workspace to preserve chapter provenance"
+                "cannot remove sources after extraction starts; add new sources at the end "
+                "so existing chapter provenance and order remain stable"
             )
         # Keep completed extraction batches as an audit record.
         entry["removed_at"] = _now()
