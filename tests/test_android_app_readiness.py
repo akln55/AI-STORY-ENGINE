@@ -302,3 +302,16 @@ def test_scenario_studio_exposes_candidate_identity_resolution():
     assert "def _record_identity_decision(" in manager
     assert "identity_decisions.json" in manager
     assert "resolve possible duplicate identities before export" in manager
+
+def test_settings_exposes_safe_partial_model_resume_with_saved_revision():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    manager = (ROOT / "engine/ai/model_manager.py").read_text()
+    controller = (ROOT / "engine/app/controller.py").read_text()
+    assert "partial_local_model_downloads()" in app
+    assert 'text="Yarım kalan indirmeler"' in app
+    assert 'text="Devam et"' in app
+    assert "revision=item.spec.revision" in app
+    assert "expected_sha256=item.spec.expected_sha256" in app
+    assert "def list_partial_model_downloads(" in manager
+    assert "_download_fingerprint(spec) != fingerprint" in manager
+    assert "list_partial_model_downloads(default_model_storage_dir())" in controller
