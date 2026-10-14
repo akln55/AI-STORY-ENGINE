@@ -44,7 +44,7 @@ def test_workspace_copies_source_bytes_and_lists_durable_metadata(tmp_path):
     assert manager.list_workspaces()[0]["source_count"] == 1
 
 
-def test_workspace_rejects_unsupported_empty_invalid_and_oversize_sources(tmp_path):
+def test_workspace_rejects_unsupported_empty_invalid_and_oversize_sources(tmp_path, monkeypatch):
     manager = SourceWorkspaceManager(tmp_path / "workspaces")
     workspace_id = manager.create("Test")
     unsupported = tmp_path / "chapter.pdf"
@@ -60,10 +60,9 @@ def test_workspace_rejects_unsupported_empty_invalid_and_oversize_sources(tmp_pa
     from engine.scenario import source_workspace as source_module
     oversized = tmp_path / "oversized.txt"
     oversized.write_text("more than three bytes", encoding="utf-8")
-    source_module.MAX_SOURCE_BYTES = 3
+    monkeypatch.setattr(source_module, "MAX_SOURCE_BYTES", 3)
     with pytest.raises(ScenarioError, match="exceeds"):
         manager.add_source(workspace_id, oversized)
-    source_module.MAX_SOURCE_BYTES = 32 * 1024 * 1024
 
     invalid = tmp_path / "invalid.txt"
     invalid.write_bytes(b"\xff\xfe\x80")
