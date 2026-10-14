@@ -118,3 +118,26 @@ def test_export_refuses_unfinished_sources_conflicts_and_unknown_start_location(
             scenario_id="pending-test", scenario_name="Pending",
             player_name="Player", start_location_id="loc_apartment",
         )
+
+def test_candidate_index_flags_shared_names_without_automatic_merge(tmp_path):
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    source = tmp_path / "duplicates.md"
+    source.write_text("Two differently named people appear.", encoding="utf-8")
+    wid = manager.create("Duplicates")
+    manager.add_source(wid, source)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+    manager.complete_batch(batch, {
+        "entities": [
+            {"category": "characters", "id_candidate": "char_lee_1", "name": "Lee", "aliases": ["L."], "facts": []},
+            {"category": "characters", "id_candidate": "char_lee_2", "name": "Different Person", "aliases": ["Lee"], "facts": []},
+        ],
+        "relations": [], "unresolved": [],
+    })
+    index = manager.candidate_index(wid)
+    assert any(
+        item["matching_name_or_alias"] == "lee"
+        and item["candidate_ids"] == ["char_lee_1", "char_lee_2"]
+        for item in index["possible_duplicates"]
+    )
+    assert {entity["id_candidate"] for entity in index["entities"]} == {"char_lee_1", "char_lee_2"}
