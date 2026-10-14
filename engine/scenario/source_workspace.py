@@ -191,7 +191,7 @@ class SourceWorkspaceManager:
         except (OSError, UnicodeError) as exc:
             raise ScenarioError("source must be readable UTF-8 text") from exc
         if not text.strip():
-            raise ScenarioError("source contains no readable text")
+            raise ScenarioError("source file is empty or contains no readable text")
         if chapter_hint is not None and (not isinstance(chapter_hint, int) or isinstance(chapter_hint, bool) or chapter_hint < 1):
             raise ScenarioError("chapter hint must be a positive integer")
         meta = self.get_workspace(workspace_id)
