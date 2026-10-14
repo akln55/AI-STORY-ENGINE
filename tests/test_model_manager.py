@@ -563,7 +563,9 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
     offset = len(payload) // 2
     part.write_bytes(payload[:offset])
     import engine.ai.model_manager as module
-    module._write_partial_metadata(module._part_metadata_path(part), module._download_fingerprint(spec))
+    module._write_partial_metadata(
+        module._part_metadata_path(part), module._download_fingerprint(spec), etag='"fixture-etag"'
+    )
     calls = []
 
     class FakeResponse:
@@ -573,6 +575,7 @@ def test_download_resumes_partial_file_with_http_range(tmp_path):
             self.headers = {
                 "Content-Length": str(len(payload) - offset),
                 "Content-Range": f"bytes {offset}-{len(payload)-1}/{len(payload)}",
+                "ETag": '"fixture-etag"',
             }
             self.remaining = payload[offset:]
 
@@ -705,3 +708,80 @@ def test_download_partial_without_metadata_is_restarted_safely(tmp_path):
     assert installed.path.read_bytes() == payload
     assert not part.exists()
     assert not module._part_metadata_path(part).exists()
+
+def test_download_refuses_206_resume_without_a_stable_validator(tmp_path):
+    import engine.ai.model_manager as module
+    from engine.ai.model_manager import ModelIntegrityError
+
+    payload = _gguf_payload(b"PARTIAL-RESUME")
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
+    part = models_dir / (spec.destination_name + ".part")
+    part.write_bytes(payload[:5])
+    module._write_partial_metadata(module._part_metadata_path(part), module._download_fingerprint(spec))
+
+    class FakeResponse:
+        status = 206
+        headers = {
+            "Content-Length": str(len(payload) - 5),
+            "Content-Range": f"bytes 5-{len(payload)-1}/{len(payload)}",
+        }
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            return False
+        def read(self, size=-1):
+            return payload[5:][0:size]
+
+    def opener(request, timeout):
+        assert request.get_header("Range") == "bytes=5-"
+        assert request.get_header("If-range") is None
+        return FakeResponse()
+
+    try:
+        download_huggingface_model(spec, models_dir, opener=opener)
+    except ModelIntegrityError as exc:
+        assert "no stable validator" in str(exc)
+    else:
+        raise AssertionError("resume without a stable validator must be refused")
+    assert not part.exists()
+    assert not module._part_metadata_path(part).exists()
+
+
+def test_download_sends_if_range_for_saved_etag(tmp_path):
+    import engine.ai.model_manager as module
+
+    payload = _gguf_payload(b"etag-safe")
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    spec = ModelSpec("org/model", "model.Q4_K_M.gguf", expected_size_bytes=len(payload))
+    part = models_dir / (spec.destination_name + ".part")
+    offset = 5
+    part.write_bytes(payload[:offset])
+    etag = '"stable-etag"'
+    module._write_partial_metadata(module._part_metadata_path(part), module._download_fingerprint(spec), etag=etag)
+
+    class FakeResponse:
+        status = 206
+        def __init__(self):
+            self.headers = {
+                "Content-Length": str(len(payload) - offset),
+                "Content-Range": f"bytes {offset}-{len(payload)-1}/{len(payload)}",
+                "ETag": etag,
+            }
+            self.remaining = payload[offset:]
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            return False
+        def read(self, size=-1):
+            chunk, self.remaining = self.remaining[:size], self.remaining[size:]
+            return chunk
+
+    def opener(request, timeout):
+        assert request.get_header("If-range") == etag
+        return FakeResponse()
+
+    installed = download_huggingface_model(spec, models_dir, opener=opener)
+    assert installed.path.read_bytes() == payload
