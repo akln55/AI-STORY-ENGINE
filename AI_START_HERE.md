@@ -170,3 +170,14 @@ The user has requested a unified implementation campaign covering scenario impor
 - A separate in-game AI behaviour guide is only useful when actually included in every applicable backend's runtime prompt/context path and covered by tests.
 - Source-based chapter processing must be resumable, preserve the original source files, merge by stable IDs, and keep canon separate from player runtime state.
 - No source code/UI/product behaviour or APK was modified by the plan revision. The campaign awaits explicit user approval.
+
+
+## Scenario archive finding — 2026-10-14
+
+The user supplied `Return_Survival_Kirilma_Noktasi.rpgscenario.zip`. Confirmed:
+- `data/characters.json:npc_kim_minjae.goals[0]` is a string, but canonical scenario goal entries must be objects with `id`, `description`, and `priority`.
+- Runtime `world.json.relationships` keys are not canonical; keys must be the alphabetically sorted pair of `party_a` and `party_b`, joined with `|`.
+
+The chapter metadata and explicit canonical references passed manual structural checks. A corrected local archive passed manual structural checks, not yet the real engine validator. Keep the main task unchecked until `tools/validate_scenario.py` and real import tests pass.
+
+See `docs/SCENARIO_CREATION_GUIDE.md` for the newly added generator guide. It is aligned to current loader/registry rules and must be updated together with schema changes.
