@@ -125,7 +125,9 @@ class ScenarioRetriever:
     ) -> tuple[tuple[ScenarioHit, str], ...]:
         """Return linked canon records, filtered by the same visibility/chapter rules."""
         related: list[tuple[ScenarioHit, str]] = []
-        for node, relation in self.knowledge_graph.related(category, record_id, limit=limit * 2):
+        for node, relation in self.knowledge_graph.related(
+            category, record_id, limit=len(self.knowledge_graph.nodes),
+        ):
             visible = self.record(
                 category=node.category, record_id=node.id, chapter=chapter,
                 viewer=viewer, limit=1,
