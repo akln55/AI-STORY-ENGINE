@@ -120,3 +120,21 @@ The user has added these product requirements to the existing blocker list:
 5. End-to-end scenario import/play/retrieval/save-load tests (9.2/10).
 
 No application code, UI behaviour, validator, or APK has been changed in the plan revision. Do not mark implementation tasks complete. The plan documentation is updated; the implementation campaign is waiting for explicit user approval. After approval, ask for the actual failed scenario ZIP before closing the import-diagnosis task. Preserve saves by default; never silently delete campaign saves while removing a scenario.
+
+
+## Scenario ZIP diagnosis — 2026-10-14
+
+The user uploaded `Return_Survival_Kirilma_Noktasi.rpgscenario.zip`. Archive inspection verified two schema/runtime mismatches:
+
+1. `data/characters.json:npc_kim_minjae.goals[0]` is a string, but `ScenarioRegistry` requires each goal to be an object with `id`, `description`, and `priority`.
+2. `world.json.relationships` uses descriptive keys (`rel_minjae_yuna`, `rel_minjae_dohyun`), while runtime invariants require the key `"|".join(sorted([party_a, party_b]))`.
+
+JSON parsing, canonical embedded IDs, explicit references, and chapter count/pack IDs were manually checked and passed. This is not yet a complete engine validation. A corrected local copy was generated and basic structural checks passed, but it has not been run through the actual project validator or Android import path.
+
+Code/docs already changed on main:
+- `engine/scenario/registry.py`: goal validation error now includes the offending index and expected fields.
+- `tests/test_scenario_registry.py`: regression test for malformed string goal.
+- `docs/SCENARIO_CREATION_GUIDE.md`: new ChatGPT-facing guide; documents structured goals and canonical runtime relationship keys.
+- `docs/DEVELOPMENT_PLAN.md`: records verified findings and leaves task 1 unchecked until engine validation passes.
+
+Do not claim the archive or app import is fully fixed yet. Next: verify CI for the error-message test, validate a corrected pack using the actual loader, then continue the approved campaign in dependency order.
