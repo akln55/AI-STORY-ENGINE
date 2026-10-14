@@ -851,7 +851,21 @@ class SourceWorkspaceManager:
                 f"across IDs {', '.join(issue.get('candidate_ids', []))}; review before merging."
             )
         for index, issue in enumerate(review_claims, start=1):
-            review_lines.append(f"{index}. Review required: {issue.get('reason', 'Claim not promoted')}")
+            identity = ":".join(
+                str(issue[key]) for key in ("category", "id", "field")
+                if issue.get(key) is not None
+            )
+            source = issue.get("source", {})
+            source_hint = ""
+            if isinstance(source, Mapping):
+                source_hint = str(source.get("source_path") or source.get("source_name") or "")
+                if source.get("chunk_index") is not None:
+                    source_hint += f"#{source.get('chunk_index')}"
+            prefix = f"{identity}: " if identity else ""
+            suffix = f" (source: {source_hint})" if source_hint else ""
+            review_lines.append(
+                f"{index}. Review required: {prefix}{issue.get('reason', 'Claim not promoted')}{suffix}"
+            )
         review_lines.extend([
             "",
             "Only explicit, allow-listed claims were promoted into canonical JSON automatically. Review candidate_index.json in the source workspace for detailed source provenance, aliases, claim evidence, and conflicts.",
