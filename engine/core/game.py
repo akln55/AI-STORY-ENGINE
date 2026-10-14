@@ -174,7 +174,10 @@ class GameSession:
                             quest = self.state.world.quests.get(effect.target)
                             if quest is not None and quest.started_turn is None:
                                 quest.started_turn = self.clock.turn
-                    evaluate_quests(self.state, current_turn=self.clock.turn)
+                    evaluate_quests(
+                        self.state, interacted_with=result.interaction_target,
+                        current_turn=self.clock.turn,
+                    )
                 self._evaluate_scenario_events()
                 self._maintain_memory()
                 return self._compose_rule_output(intent, result, report)
