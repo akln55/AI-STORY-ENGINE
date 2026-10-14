@@ -2221,6 +2221,9 @@ class RPGEngineApp(App):
                 on_error=lambda error: Clock.schedule_once(
                     lambda *_: self._finish_scenario_export(None, error), 0
                 ),
+                on_cancel=lambda: Clock.schedule_once(
+                    lambda *_: self._finish_scenario_export(None, None), 0
+                ),
             )
         except Exception as exc:
             self._saf_scenario_export_in_progress = False
