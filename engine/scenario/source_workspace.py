@@ -580,6 +580,10 @@ class SourceWorkspaceManager:
             raise ScenarioError(
                 "resolve candidate ID/name conflicts before export; inspect the candidate index"
             )
+        if candidates["possible_duplicates"]:
+            raise ScenarioError(
+                "resolve possible duplicate identities before export; inspect the candidate index"
+            )
         location_candidates = {
             str(entity["id_candidate"]): entity
             for entity in candidates["entities"] if entity["category"] == "locations"
@@ -889,6 +893,177 @@ class SourceWorkspaceManager:
                 raise
             raise ScenarioError(f"could not build a valid scenario archive: {type(exc).__name__}") from None
         return target
+
+    def resolve_candidate_identity(
+        self,
+        workspace_id: str,
+        *,
+        category: str,
+        source_id: str,
+        target_id: str,
+        preferred_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Apply a user-confirmed identity decision and retain a durable audit record.
+
+        Different IDs merge into the target ID. If IDs are equal, preferred_name must
+        select one of the observed names so a same-ID name conflict can be reconciled.
+        """
+        if category not in ENTITY_CATEGORIES:
+            raise ScenarioError(f"unsupported entity category: {category}")
+        if not source_id or not target_id:
+            raise ScenarioError("source and target candidate IDs are required")
+        index = self.candidate_index(workspace_id)
+        category_entities = [
+            item for item in index["entities"] if item["category"] == category
+        ]
+        source_records = [item for item in category_entities if item["id_candidate"] == source_id]
+        target_records = [item for item in category_entities if item["id_candidate"] == target_id]
+        if not source_records or not target_records:
+            raise ScenarioError("source and target IDs must exist in the same category")
+        if source_id == target_id:
+            names = sorted({item["name"] for item in source_records})
+            if len(names) < 2:
+                raise ScenarioError("this ID has no conflicting names to resolve")
+            if preferred_name not in names:
+                raise ScenarioError("preferred name must be one of the observed names")
+            survivor_id = source_id
+            survivor_name = preferred_name
+            action = "choose_canonical_name"
+        else:
+            if len({item["name"] for item in source_records}) != 1:
+                raise ScenarioError("resolve source ID/name conflicts before merging identities")
+            if len({item["name"] for item in target_records}) != 1:
+                raise ScenarioError("resolve target ID/name conflicts before merging identities")
+            source_name = source_records[0]["name"]
+            target_name = target_records[0]["name"]
+            survivor_id = target_id
+            survivor_name = target_name
+            action = "merge_candidate_identity"
+
+        source_names = {item["name"] for item in source_records}
+        target_names = {item["name"] for item in target_records}
+        if source_id == target_id:
+            old_names = source_names
+            source_aliases = {
+                alias for item in source_records for alias in item.get("aliases", [])
+            }
+            target_aliases = set()
+        else:
+            old_names = source_names
+            source_aliases = {
+                alias for item in source_records for alias in item.get("aliases", [])
+            }
+            target_aliases = {
+                alias for item in target_records for alias in item.get("aliases", [])
+            }
+
+        all_known_ids_by_category: dict[str, set[str]] = {}
+        for item in index["entities"]:
+            all_known_ids_by_category.setdefault(item["category"], set()).add(item["id_candidate"])
+        source_id_is_ambiguous = sum(
+            source_id in record_ids for record_ids in all_known_ids_by_category.values()
+        ) > 1
+
+        batch_files = sorted((self._workspace_path(workspace_id) / "batches").glob("*/*.json"))
+        updated_files: list[tuple[Path, dict[str, Any]]] = []
+        changed_entities = changed_relations = 0
+        for path in batch_files:
+            output = _read_json(path)
+            extraction = output.get("extraction", {})
+            changed = False
+            if source_id == target_id:
+                for entity in extraction.get("entities", []):
+                    if entity.get("category") != category:
+                        continue
+                    entity_id = str(entity.get("canonical_id") or entity.get("id_candidate") or "")
+                    if entity_id != source_id:
+                        continue
+                    name = str(entity.get("name", "")).strip()
+                    aliases = entity.get("aliases", [])
+                    aliases = list(aliases) if isinstance(aliases, list) else []
+                    if name and _normalize_entity_name(name) != _normalize_entity_name(survivor_name):
+                        aliases.append(name)
+                    aliases.extend(source_aliases)
+                    entity["name"] = survivor_name
+                    entity["id_candidate"] = survivor_id
+                    entity["canonical_id"] = survivor_id
+                    entity["aliases"] = list(dict.fromkeys(
+                        alias.strip() for alias in aliases
+                        if isinstance(alias, str) and alias.strip()
+                        and _normalize_entity_name(alias) != _normalize_entity_name(survivor_name)
+                    ))
+                    changed_entities += 1
+                    changed = True
+            else:
+                for entity in extraction.get("entities", []):
+                    if entity.get("category") != category:
+                        continue
+                    entity_id = str(entity.get("canonical_id") or entity.get("id_candidate") or "")
+                    if entity_id != source_id:
+                        continue
+                    aliases = entity.get("aliases", [])
+                    aliases = list(aliases) if isinstance(aliases, list) else []
+                    if _normalize_entity_name(str(entity.get("name", ""))) != _normalize_entity_name(survivor_name):
+                        aliases.append(str(entity.get("name", "")))
+                    aliases.extend(source_aliases)
+                    aliases.extend(target_aliases)
+                    entity["id_candidate"] = survivor_id
+                    entity["canonical_id"] = survivor_id
+                    entity["name"] = survivor_name
+                    entity["aliases"] = list(dict.fromkeys(
+                        alias.strip() for alias in aliases
+                        if isinstance(alias, str) and alias.strip()
+                        and _normalize_entity_name(alias) != _normalize_entity_name(survivor_name)
+                    ))
+                    changed_entities += 1
+                    changed = True
+
+                # Update explicit typed endpoints. Untyped endpoints are only updated
+                # when the old ID is globally unambiguous; never guess the target category.
+                for relation in extraction.get("relations", []):
+                    if relation.get("source_id") == source_id and (
+                        relation.get("source_category") == category
+                        or (relation.get("source_category") is None and not source_id_is_ambiguous)
+                    ):
+                        relation["source_id"] = survivor_id
+                        relation["source_category"] = category
+                        changed_relations += 1
+                        changed = True
+                    if relation.get("target_id") == source_id and (
+                        relation.get("target_category") == category
+                        or (relation.get("target_category") is None and not source_id_is_ambiguous)
+                    ):
+                        relation["target_id"] = survivor_id
+                        relation["target_category"] = category
+                        changed_relations += 1
+                        changed = True
+
+            if changed:
+                output["extraction"] = self._validate_extraction(extraction)
+                updated_files.append((path, output))
+
+        if not updated_files or changed_entities == 0:
+            raise ScenarioError("identity decision did not match any source batch records")
+        for path, payload in updated_files:
+            _atomic_json(path, payload)
+
+        decision: dict[str, Any] = {
+            "action": action,
+            "category": category,
+            "source_id": source_id,
+            "target_id": target_id,
+            "survivor_id": survivor_id,
+            "survivor_name": survivor_name,
+            "previous_names": sorted(old_names | target_names),
+            "updated_entity_records": changed_entities,
+            "updated_relation_endpoints": changed_relations,
+            "updated_batch_files": [
+                path.relative_to(self._workspace_path(workspace_id)).as_posix()
+                for path, _ in updated_files
+            ],
+        }
+        self._record_identity_decision(workspace_id, decision)
+        return self.candidate_index(workspace_id)
 
     def export_candidate_index(self, workspace_id: str) -> Path:
         """Write a portable review artifact; it is not an importable scenario pack."""
