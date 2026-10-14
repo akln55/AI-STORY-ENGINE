@@ -178,7 +178,7 @@ def assemble_context(
         location_id = state.character.location_id
         location_name = state.world.locations.get(location_id, location_id)
         query = " ".join([location_name, *terms])
-        categories = ("characters", "locations", "items", "events", "factions", "techniques", "knowledge")
+        categories = ("characters", "locations", "items", "events", "factions", "techniques", "realms", "creatures", "relationships", "timeline", "knowledge")
         hits = []
         for category in categories:
             hits.extend(scenario_retriever.record(
@@ -195,11 +195,14 @@ def assemble_context(
             scenario_lines += ["", "RELEVANT SCENARIO CANON:"]
             if chapter is not None:
                 scenario_lines.append(f"  active chapter: {chapter}")
+            seen_records: set[tuple[str, str]] = set()
             for hit in hits:
                 rec = hit
                 data = rec.document.content if rec.document is not None else None
-                if data is not None:
+                if data is not None or rec.category is None or rec.record_id is None:
                     continue
+                key = (rec.category, rec.record_id)
+                seen_records.add(key)
                 record = scenario_retriever.registry.require(rec.category, rec.record_id).data
                 name = record.get("name", rec.record_id)
                 summary = record.get("summary", record.get("description", ""))
@@ -207,6 +210,28 @@ def assemble_context(
                 if summary:
                     line += f": {summary}"
                 scenario_lines.append(line)
+
+            # Expand a small, deterministic number of first-degree canonical links.
+            # Every neighbour is re-checked through the retriever's chapter/viewer gate.
+            for hit in hits[:3]:
+                if hit.category is None or hit.record_id is None:
+                    continue
+                for linked, relation in scenario_retriever.related_records(
+                    hit.category, hit.record_id, chapter=chapter, viewer=viewer, limit=2,
+                ):
+                    if linked.category is None or linked.record_id is None:
+                        continue
+                    key = (linked.category, linked.record_id)
+                    if key in seen_records:
+                        continue
+                    seen_records.add(key)
+                    data = scenario_retriever.registry.require(linked.category, linked.record_id).data
+                    name = data.get("name", linked.record_id)
+                    summary = data.get("summary", data.get("description", ""))
+                    line = f"  - [linked via {relation}] [{linked.category}] {name} (id={linked.record_id})"
+                    if summary:
+                        line += f": {summary}"
+                    scenario_lines.append(line)
             for hit in docs:
                 doc = hit.document
                 if doc is not None:
