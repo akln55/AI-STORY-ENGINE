@@ -93,6 +93,76 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
     return target
 
 
+def save_scenario_document(
+    source_path: str | Path,
+    suggested_name: str,
+    on_saved: Callable[[str], None],
+    on_error: Callable[[str], None] | None = None,
+) -> bool:
+    """Use Android SAF to save a generated scenario ZIP to user-selected storage."""
+    try:
+        from android import activity
+        from jnius import autoclass
+    except ImportError:
+        return False
+
+    source = Path(source_path)
+    if not source.is_file() or not source.name.lower().endswith(".rpgscenario.zip"):
+        raise ValueError("Kaydedilecek dosya geçerli bir .rpgscenario.zip olmalı")
+
+    Intent = autoclass("android.content.Intent")
+    PythonActivity = autoclass("org.kivy.android.PythonActivity")
+    request_code = 18430
+
+    def on_result(request, result, intent):
+        if request != request_code:
+            return
+        try:
+            activity.unbind(on_activity_result=on_result)
+        except Exception:
+            pass
+        if result != -1 or intent is None:
+            return
+        uri = intent.getData()
+        if uri is None:
+            return
+        stream = None
+        try:
+            resolver = PythonActivity.mActivity.getContentResolver()
+            stream = resolver.openOutputStream(uri)
+            if stream is None:
+                raise OSError("Seçilen konum yazılabilir değil")
+            with source.open("rb") as input_file:
+                while True:
+                    chunk = input_file.read(64 * 1024)
+                    if not chunk:
+                        break
+                    stream.write(chunk)
+            stream.flush()
+            stream.close()
+            stream = None
+            on_saved(str(uri.toString()))
+        except Exception as exc:
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+            if on_error is not None:
+                on_error(type(exc).__name__)
+            else:
+                raise
+
+    activity.bind(on_activity_result=on_result)
+    intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+    intent.addCategory(Intent.CATEGORY_OPENABLE)
+    intent.setType("application/zip")
+    intent.putExtra(Intent.EXTRA_TITLE, Path(suggested_name).name)
+    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, False)
+    PythonActivity.mActivity.startActivityForResult(intent, request_code)
+    return True
+
+
 def open_source_document(on_path: Callable[[str], None]) -> bool:
     """Open Android SAF for a UTF-8 source text file (.txt or .md)."""
     try:
