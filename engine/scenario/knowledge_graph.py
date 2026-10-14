@@ -170,11 +170,11 @@ class ScenarioKnowledgeGraph:
             return ()
         allowed = set(categories) if categories is not None else None
         exact_keys = self._alias_index.get(normalized, ())
-        if exact_keys:
-            return tuple(
-                self.nodes[key] for key in exact_keys
-                if allowed is None or key[0] in allowed
-            )[:limit]
+        filtered_exact = [
+            key for key in exact_keys if allowed is None or key[0] in allowed
+        ]
+        if filtered_exact:
+            return tuple(self.nodes[key] for key in filtered_exact[:limit])
 
         query_terms = set(normalized.split())
         scored: list[tuple[int, NodeKey]] = []
