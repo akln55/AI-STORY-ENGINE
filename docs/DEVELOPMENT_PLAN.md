@@ -306,3 +306,19 @@ Kullanıcı tüm bu kapsamı onaylarsa işler tek bir geliştirme kampanyası ol
 - Kampanya onaylanırsa ilk adım, gerçek arşivi kod değiştirmeden incelemektir. ZIP sağlanmadan import hatası düzeltilmiş sayılmayacak.
 - Demo silme için güvenli varsayılan: senaryo listesi/paketi ile save slotları ayrı tutulur; save slotları sessizce silinmez.
 - Plan dışı yıkıcı migration, Android foreground service veya yeni dosya parser'ı gerekirse durup yeniden onay alınır.
+
+
+## 12.7. Implementation progress log — 2026-10-14
+
+**Campaign state:** started under the user's approval. No implementation task is marked complete until its tests and acceptance evidence pass.
+
+- [x] Actual scenario ZIP inspected and two schema/runtime mismatches identified.
+- [ ] Scenario import fix accepted by the real engine validator and app import path. A corrected local ZIP exists, but only manual structural checks have passed.
+- [ ] Actionable goal validation message and regression test pass CI.
+- [ ] ChatGPT scenario creation guide is committed at `docs/SCENARIO_CREATION_GUIDE.md`; the corrected pack still needs actual engine validation before the guide/schema task can be marked complete.
+- [ ] In-game AI behaviour guide is committed at `docs/IN_GAME_AI_BEHAVIOR_GUIDE.md`; core rules were added to `engine/ai/context.py`, with a runtime-context regression test awaiting CI.
+- [ ] Composer and provider/API settings UI changes were committed in `rpg_android_app.py`; static/CI checks and real Android device acceptance are pending.
+- [ ] Memory event-rejection, secondary-index, and boolean-resource fixes plus regression tests were committed; CI is pending.
+- [ ] Full scenario-builder/source-queue workflow, chapter processing checkpoints, save-safe scenario management, download lifecycle and release build remain unimplemented.
+
+The latest commit's GitHub Actions run is queued/pending; until it finishes, do not mark code/test tasks as complete.
