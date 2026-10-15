@@ -34,7 +34,7 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert "command -v cython" in text
     assert "cython --version" in text
     assert "command -v buildozer" in text
-    assert "android_native/arm64-v8a/llama-server.bin" in text
+    assert "android_native/arm64-v8a/libllama-server.so" in text
     assert 'name: rpg-engine-v1.1.4-android-debug' in text
     assert '${{ env.BIN_DIR }}/*.apk' in text
     assert "package: name='org.rpgengine'" in text
@@ -43,7 +43,7 @@ def test_android_ci_workflow_has_deterministic_native_and_build_paths():
     assert "package.domain = org" in spec
     assert "build_dir = ./.ci/build-cache" in spec
     assert "bin_dir = ./.ci/bin" in spec
-    assert "./android_native/arm64-v8a/llama-server.bin --version" not in text
+    assert "./android_native/arm64-v8a/libllama-server.so --version" not in text
 
 
 def test_native_build_script_is_real_checkout_and_fully_pinned():

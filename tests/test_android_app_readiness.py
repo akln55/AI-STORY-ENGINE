@@ -330,7 +330,9 @@ def test_android_llama_server_is_packaged_in_native_library_directory():
     assert "nativeLibraryDir" in runtime
     assert "install_runtime_binary" not in runtime
     assert "android_native/arm64-v8a/libllama-server.so" in native_build
-    assert "lib/arm64-v8a/libllama-server.so" in apk_verifier
+    assert "NATIVE_LIBRARY_APK_PATH" in apk_verifier
+    apk_contents = (ROOT / "tools/android_apk_contents.py").read_text()
+    assert "NATIVE_LIBRARY_APK_PATH = " + chr(34) + "lib/arm64-v8a/libllama-server.so" + chr(34) in apk_contents
 
 
 def test_android_build_verifies_native_pie_and_starts_on_pull_request():
