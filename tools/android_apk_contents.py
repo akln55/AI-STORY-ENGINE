@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Read Python app sources and the native server from a python-for-android APK.
+"""Read Python app sources from the private payload of a python-for-android APK.
 
 Recent python-for-android builds store private application files inside
-assets/private.tar instead of exposing them as individual ZIP members. Older
-builds may still expose assets/private/<path>, so both layouts are supported.
+assets/private.tar instead of exposing them as individual ZIP members. Native
+executables belong in APK lib/<abi>/ entries, not the writable private payload.
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ PRIVATE_BUNDLES = (
     "assets/private.mp3",
     "assets/private.tar.gz",
 )
-NATIVE_BINARY_PATH = "android_native/arm64-v8a/llama-server.bin"
+NATIVE_BINARY_PATH = "android_native/arm64-v8a/libllama-server.so"
+NATIVE_LIBRARY_APK_PATH = "lib/arm64-v8a/libllama-server.so"
 VERIFIER_SCRIPTS = {
     "tools/verify_android_staging.py",
     "tools/verify_android_apk.py",
@@ -50,8 +51,9 @@ def _is_relevant_private_file(path: str) -> bool:
 def load_apk_private_files(apk: zipfile.ZipFile, errors: list[str]) -> dict[str, bytes]:
     """Load relevant app files from direct APK entries and p4a private tarballs.
 
-    Only Python sources and the pinned native llama-server are retained in
-    memory. Tar members are never extracted to disk, and path traversal,
+    Python sources and a legacy copy of the native server are retained for
+    validation. The expected current native server is a separate APK lib entry.
+    Tar members are never extracted to disk, and path traversal,
     symlinks, and conflicting duplicate payloads are rejected.
     """
     files: dict[str, bytes] = {}
