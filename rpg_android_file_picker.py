@@ -89,7 +89,10 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
         next_progress = 8 * 1024 * 1024
         try:
             with temporary.open("wb") as output:
-                buffer = bytearray(64 * 1024)
+                # Java InputStream.read(byte[]) requires a Java byte[].
+                # A Python-only mock can hide this JNI overload mismatch.
+                from jnius import jarray
+                buffer = jarray("b")(64 * 1024)
                 while True:
                     count = stream.read(buffer)
                     if count <= 0:
@@ -97,7 +100,7 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
                     written += count
                     if max_bytes is not None and written > max_bytes:
                         raise ValueError("Model dosyası izin verilen boyuttan büyük")
-                    output.write(buffer[:count])
+                    output.write(bytes((int(value) & 0xFF) for value in buffer[:count]))
                     if on_progress is not None and written >= next_progress:
                         on_progress(written, None)
                         next_progress = written + 8 * 1024 * 1024
