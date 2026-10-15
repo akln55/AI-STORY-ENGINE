@@ -837,3 +837,46 @@ def test_partial_download_listing_ignores_orphaned_or_mismatched_files(tmp_path)
     )
 
     assert list_partial_model_downloads(models_dir) == []
+
+
+def test_import_can_atomically_adopt_app_owned_staging_file(tmp_path, monkeypatch):
+    import hashlib
+    import engine.ai.model_manager as module
+
+    staging = tmp_path / "imports"
+    staging.mkdir()
+    source = staging / "model.gguf"
+    payload = _gguf_payload(b"ADOPT-MODEL")
+    source.write_bytes(payload)
+    expected_sha = hashlib.sha256(payload).hexdigest()
+
+    def no_copy(*_args, **_kwargs):
+        raise AssertionError("move_source must not duplicate the multi-GB file")
+
+    monkeypatch.setattr(module, "_copy_stream", no_copy)
+    installed = install_imported_model(
+        source, tmp_path / "app" / "models", move_source=True,
+        expected_sha256=expected_sha,
+    )
+    assert installed.path.read_bytes() == payload
+    assert not source.exists()
+    assert installed.sha256 == expected_sha
+    assert not list((tmp_path / "app" / "models").glob("*.part"))
+
+
+def test_failed_staged_import_preserves_source_file(tmp_path):
+    source_dir = tmp_path / "imports"
+    source_dir.mkdir()
+    source = source_dir / "model.gguf"
+    source.write_bytes(_gguf_payload(b"DO-NOT-LOSE"))
+    try:
+        install_imported_model(
+            source, tmp_path / "app" / "models", move_source=True,
+            expected_sha256="0" * 64,
+        )
+    except ModelIntegrityError:
+        pass
+    else:
+        raise AssertionError("expected ModelIntegrityError")
+    assert source.exists()
+    assert not list((tmp_path / "app" / "models").glob("*.gguf"))
