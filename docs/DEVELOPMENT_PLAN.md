@@ -454,3 +454,10 @@ Current observed acceptance blockers:
 The runtime source already copies the packaged binary and calls `chmod(0o700)`. Therefore do not treat another chmod call as a proven fix. Diagnose the real Android `EACCES` cause first. Work in this order: P0 native runtime + real inference; P1 GGUF import/model activation UX; P2 composer/API/advanced-field rendering, touch regions and keyboard behavior; P3 full tests, fresh APK/provenance and device acceptance.
 
 This subplan is an ordered detour for the currently blocking, user-verified Android issues. Once its acceptance criteria pass, return here and continue previously open master-campaign tasks without deleting or reopening historical completed tasks. No application code or runtime behavior is changed by this planning update.
+
+
+## 2026-10-15 — Two-session Android blocker implementation
+
+The user requested two separate sessions and authorized moving to session 2 after session 1's code/build work. Session 1 P0 fix is [PR #4](https://github.com/akln55/AI-STORY-ENGINE/pull/4); source CI [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android build/static APK provenance [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed. Artifact id 11956422925. Physical device inference remains open.
+
+Session 2 P1/P2 implementation is [PR #5](https://github.com/akln55/AI-STORY-ENGINE/pull/5). It moves Android SAF GGUF copying to a worker; reports picker cancellation, bad extension and copy errors; cleans temporary copies; and resets the import busy flag at terminal states. It disables/collapses hidden API endpoint/model TextInputs, uses soft-input pan and scroll-to-focus. Regressions were added for mocked SAF and input behavior. CI initially reported 627 passed / 1 stale method-name assertion failure, then the old assertion was updated in commit d9a667b800b41d1c9a781b29f642a4c90aeed507. Retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued at note time. Keep prior master-plan tasks intact; finish current P1/P2 CI and device acceptance before returning to the older backlog.
