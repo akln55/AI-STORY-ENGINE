@@ -19,3 +19,10 @@ Version 1.0 · Phase 0 · 2026-09-23
 | R10 | **Scope creep** — RPG feature enthusiasm outpaces the plan | Never-shipping engine | Constitution §4 scope boundaries; ROADMAP exit criteria gate every phase |
 
 Watch list (re-evaluated at each phase exit): R1, R2, R4.
+
+
+## 2026-10-15 audit update
+
+- `tools/release_verify.py` previously relied on platform-dependent `Path` checks before `ZipFile.extractall`. It now validates normalized POSIX/Windows paths, rejects symlinks and duplicate/case-colliding paths, and enforces entry/per-file/total-expanded-size limits before and during extraction.
+- Regression coverage is in `tests/test_release_verify.py`; CI run [38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384) passed all 610 tests plus compileall, Android readiness and mutation smoke.
+- APK build/provenance and physical-device checks remain release gates and are not verified by the unit/CI run.
