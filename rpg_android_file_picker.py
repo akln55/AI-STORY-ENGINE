@@ -97,12 +97,12 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
                     if max_bytes is not None and written > max_bytes:
                         raise ValueError("Model dosyası izin verilen boyuttan büyük")
                     output.write(buffer[:count])
-            temporary.replace(target)
-        except Exception:
-            temporary.unlink(missing_ok=True)
-            raise
-    finally:
-        stream.close()
+        finally:
+            stream.close()
+        temporary.replace(target)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
     return target
 
 
@@ -300,7 +300,10 @@ def open_model_document(
             except Exception as exc:
                 report_error(exc)
 
-        Thread(target=copy_worker, name="gguf-import-copy", daemon=True).start()
+        try:
+            Thread(target=copy_worker, name="gguf-import-copy", daemon=True).start()
+        except Exception as exc:
+            report_error(exc)
 
     activity.bind(on_activity_result=on_result)
     intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
