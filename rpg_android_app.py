@@ -2222,19 +2222,23 @@ class AIScreen(BaseScreen):
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
                 self.api_generation_test_button.disabled = not apply_success
-                if apply_success and model_ids:
+                if model_ids:
                     self._api_all_model_ids = tuple(model_ids)
                     self.api_model_filter.text = ""
                     self.api_models_picker.values = model_ids[:30]
                     self.api_models_picker.text = "Bulunan modelleri seç"
+                    if not apply_success:
+                        self.api_advanced_open = True
                 else:
                     self._api_all_model_ids = ()
                     self.api_model_filter.text = ""
                     self.api_models_picker.values = ()
                     self.api_models_picker.text = "Model listesi bulunamadı"
                 self._update_api_advanced_visibility()
-                if apply_success and model_ids:
+                if model_ids and apply_success:
                     self.api_status.text = final_message + " Model listesini filtreleyebilir veya adını elle yazabilirsin."
+                elif model_ids and not apply_success:
+                    self.api_status.text = final_message + " Model listesinden doğru kimliği seçip tekrar test et."
 
             Clock.schedule_once(finish, 0)
 
@@ -2879,6 +2883,7 @@ class RPGEngineApp(App):
             )
         except Exception as exc:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self.notify(f"Dosya seçicisi açılamadı: {type(exc).__name__}")
             return
         if not launched:
