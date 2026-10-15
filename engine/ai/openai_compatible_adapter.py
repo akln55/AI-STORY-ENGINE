@@ -87,28 +87,7 @@ class OpenAICompatibleAdapter(AIAdapter):
             "temperature": 0.8,
             "response_format": {"type": "json_object"},
         }
-        request = urllib.request.Request(
-            self.url,
-            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
-        )
-        try:
-            with open_url(request, timeout=self.timeout) as response:
-                raw = response.read().decode("utf-8")
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise OpenAICompatibleProviderError(
-                f"API HTTP {exc.code}: {_safe_detail(detail)}"
-            ) from exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise OpenAICompatibleProviderError(
-                f"API network error: {_safe_detail(str(exc))}"
-            ) from exc
-
+        raw = self._post_completion(payload)
         try:
             body = json.loads(raw)
             choices = body.get("choices", [])
@@ -126,4 +105,47 @@ class OpenAICompatibleAdapter(AIAdapter):
         except (ValueError, TypeError, KeyError, IndexError) as exc:
             raise OpenAICompatibleProviderError(
                 f"invalid API response envelope: {_safe_detail(str(exc))}"
+            ) from exc
+
+    def _post_completion(self, payload: dict) -> str:
+        """Retry once without optional JSON mode when a compatible server rejects it.
+
+        The system/user messages still request JSON and the engine's strict
+        parser remains authoritative. Only explicit response_format rejection
+        on HTTP 400/422 is retried; authentication, quota and other failures
+        are never retried.
+        """
+        request = urllib.request.Request(
+            self.url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            },
+            method="POST",
+        )
+        try:
+            with open_url(request, timeout=self.timeout) as response:
+                return response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            lowered = detail.lower()
+            unsupported_json_mode = (
+                "response_format" in lowered
+                and exc.code in {400, 422}
+                and any(marker in lowered for marker in (
+                    "unsupported", "not supported", "unknown", "unrecognized",
+                    "invalid parameter", "extra fields", "does not support",
+                ))
+            )
+            if payload.get("response_format") and unsupported_json_mode:
+                fallback = dict(payload)
+                fallback.pop("response_format", None)
+                return self._post_completion(fallback)
+            raise OpenAICompatibleProviderError(
+                f"API HTTP {exc.code}: {_safe_detail(detail)}"
+            ) from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise OpenAICompatibleProviderError(
+                f"API network error: {_safe_detail(str(exc))}"
             ) from exc
