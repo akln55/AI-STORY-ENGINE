@@ -81,6 +81,8 @@ def test_command_is_local_only_and_explicit(tmp_path: Path):
         "--port", "8123",
         "--ctx-size", "4096",
         "--n-predict", "256",
+        "--batch-size", "256",
+        "--ubatch-size", "128",
         "--threads", "6",
     ]
 
@@ -174,3 +176,20 @@ def test_permission_denied_diagnostic_identifies_packaged_path(tmp_path: Path, m
 def test_pick_free_local_port_returns_loopback_port():
     port = pick_free_local_port()
     assert 1024 <= port <= 65535
+
+
+def test_mobile_runtime_defaults_are_bounded():
+    config = NativeLlamaRuntimeConfig("runtime.so", "runtime", "model.gguf")
+    assert config.ctx_size == 2048
+    assert config.max_tokens == 192
+    assert config.threads == 4
+    assert config.batch_size == 256
+    assert config.ubatch_size == 128
+
+
+def test_runtime_rejects_invalid_batch_configuration():
+    config = NativeLlamaRuntimeConfig(
+        "runtime.so", "runtime", "model.gguf", batch_size=64, ubatch_size=128
+    )
+    with pytest.raises(NativeLlamaRuntimeConfigError, match="batch sizes"):
+        config.validate()
