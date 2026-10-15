@@ -383,3 +383,21 @@ def test_hidden_api_text_inputs_cannot_capture_taps_and_focused_inputs_scroll_in
     gameplay = app[app.index("class GameplayScreen(BaseScreen):"):app.index("class RecentGamesScreen(BaseScreen):")]
     assert 'multiline=True' in gameplay
     assert "self.input.bind(text=self._resize_composer, width=self._resize_composer)" in gameplay
+
+
+
+def test_mobile_inputs_force_readable_colors_and_api_probe_uses_real_generation():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    controller = (ROOT / "engine/app/controller.py").read_text()
+    pill = app[app.index("class PillInput(TextInput):"):app.index("class BodyLabel(Label):")]
+    connect = app[app.index("    def connect_api(self):"):app.index("    def test_api_generation(self):")]
+    assert 'kwargs.setdefault("foreground_color", TEXT)' in pill
+    assert 'kwargs.setdefault("hint_text_color", MUTED)' in pill
+    assert 'kwargs.setdefault("cursor_color", ACCENT)' in pill
+    assert 'disabled_foreground_color=TEXT' in app
+    assert "probe_adapter.generate(" in connect
+    assert "API bağlantısı ve gerçek AI üretimi başarılı." in connect
+    assert "self.api_key.text = \"\"" in connect
+    assert "ctx_size=min(n_ctx, 2048) if mobile else n_ctx" in controller
+    assert "max_tokens=min(max_tokens, 128) if mobile else max_tokens" in controller
+    assert "threads=4 if mobile else None" in controller
