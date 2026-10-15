@@ -184,7 +184,9 @@ class PillInput(TextInput):
         kwargs.setdefault("multiline", False)
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_active", "")
+        kwargs.setdefault("background_disabled_normal", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
+        kwargs.setdefault("cursor_width", dp(2))
         super().__init__(**kwargs)
         with self.canvas.before:
             self._color = Color(rgba=self.fill_color)
@@ -2089,7 +2091,11 @@ class AIScreen(BaseScreen):
         popup.open()
 
     def activate_local_model(self, path):
-        if getattr(self.app_ref, "_model_activation_in_progress", False):
+        if (
+            getattr(self.app_ref, "_model_activation_in_progress", False)
+            or getattr(self.app_ref, "_model_import_in_progress", False)
+        ):
+            self.app_ref.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
             return
         self.app_ref._model_activation_in_progress = True
         self.app_ref.notify("Local model doğrulanıyor ve başlatılıyor…")
