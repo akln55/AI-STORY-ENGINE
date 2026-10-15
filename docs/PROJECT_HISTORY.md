@@ -1,5 +1,8 @@
 # RPG Engine — Unified Project History
 
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
+
 **Purpose:** the single chronological record for project history, durable decisions, major failures, corrective actions, and lessons learned.
 
 **Current state:** `AI_START_HERE.md` is authoritative for the present. This file is historical; it must not be used to infer current implementation status when it conflicts with code/tests.

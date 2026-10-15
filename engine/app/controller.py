@@ -177,23 +177,37 @@ class AppController:
                     raise ValueError("model returned no extraction JSON")
                 extraction = manager.parse_extraction_response(narrative)
                 manager.complete_batch(batch, extraction)
-                for entity in extraction.get("entities", []):
-                    known_index.append({
-                        "category": entity["category"],
-                        "id": entity.get("canonical_id") or entity["id_candidate"],
-                        "name": entity["name"],
-                    })
-                completed += 1
-                if progress_callback is not None:
-                    progress_callback(batch, None)
             except Exception as exc:
-                manager.fail_batch(batch, f"AI extraction failed ({type(exc).__name__}); check provider output and retry")
+                # A failed/late worker must not overwrite a checkpoint that has already
+                # moved on. Preserve the original extraction error if checkpoint state
+                # has changed before the failure handler runs.
+                try:
+                    manager.fail_batch(batch, f"AI extraction failed ({type(exc).__name__}); check provider output and retry")
+                except Exception:
+                    pass
                 if progress_callback is not None:
-                    progress_callback(batch, type(exc).__name__)
+                    try:
+                        progress_callback(batch, type(exc).__name__)
+                    except Exception:
+                        pass
                 raise RuntimeError(
                     f"Kaynak işleme durdu: {batch.source_name}, parça {batch.chunk_index + 1}. "
                     "Hata durumu kaydedildi; sağlayıcıyı kontrol edip devam edebilirsin."
                 ) from None
+
+            for entity in extraction.get("entities", []):
+                known_index.append({
+                    "category": entity["category"],
+                    "id": entity.get("canonical_id") or entity["id_candidate"],
+                    "name": entity["name"],
+                })
+            completed += 1
+            # UI/progress observers are best-effort; persisted checkpoint state is authoritative.
+            if progress_callback is not None:
+                try:
+                    progress_callback(batch, None)
+                except Exception:
+                    pass
         return completed
 
     @property
