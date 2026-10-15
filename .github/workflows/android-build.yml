@@ -2,6 +2,20 @@ name: Android build
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/android-build.yml"
+      - "buildozer.spec"
+      - "android_native/**"
+      - "engine/ai/llama_native_runtime.py"
+      - "engine/app/controller.py"
+      - "tools/build_llama_server_android.sh"
+      - "tools/android_apk_contents.py"
+      - "tools/verify_android_apk.py"
+      - "tools/verify_android_staging.py"
+      - "tests/test_llama_native_runtime.py"
+      - "tests/test_android_apk_verifier.py"
+      - "tests/test_android_app_readiness.py"
 
 permissions:
   contents: read
