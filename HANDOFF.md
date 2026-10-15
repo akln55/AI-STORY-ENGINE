@@ -214,3 +214,15 @@ No product/code changes were made as part of the plan-writing request. Recheck c
 - Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
 - Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
 - The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
+
+
+## 2026-10-15 — User's latest Android test; next work plan
+
+**Important:** the user installed and interacted with the built app on a physical phone. This reveals runtime failures not covered by the previous green source CI or APK packaging checks. Use [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md) as the immediate ordered work plan; after it passes, resume the older open tasks in `docs/DEVELOPMENT_PLAN.md`.
+
+1. **P0 local AI runtime:** device dialog says `runtime could not start: could not start llama-server: [Errno 13] Permission denied: /data/data/org.rpgengine/files/native_runtime/…`. The source implementation already copies the binary and calls `chmod(0o700)`; do not mark a further chmod as the answer without isolating Android's EACCES cause. Gameplay later reports `You can't do that. (no AI adapter configured)` because no usable adapter is active after the failure. Must validate real generation on-device.
+2. **P1 GGUF workflow:** picking a GGUF for import leaves the screen black/stuck; a downloaded model's activation also fails. Diagnose import, background copy/validation, UI callback and runtime activation separately.
+3. **P2 text fields:** chat composer and API/advanced settings text fields accept typing but characters are visually hidden/covered before submission. A tap near advanced settings sometimes opens the keyboard, suggesting a touch/focus/layout overlap. Fix actual drawing order, bounds, scroll/keyboard behavior and focus handling.
+4. **P3 release proof:** full source tests, compile/readiness/mutation gates, native cross-build, fresh APK/provenance, and physical Android acceptance for P0/P1/P2.
+
+Only this plan/documentation was added in the current planning pass. No code changes or fixes are claimed. Treat the exact runtime error and input visibility/touch behavior as acceptance targets. Once this plan is verified complete, return to the other still-open master-plan tasks; preserve their checkboxes and historical evidence.
