@@ -276,13 +276,19 @@ class AppController:
             # Validate the complete GGUF before touching the currently running
             # model. A bad replacement must not take down a healthy session.
             validated = validate_model_file(model_path)
+            # Android phones have tight RAM limits. A 4K context plus 512
+            # generated tokens can trigger a process-level OOM (the OS kills the
+            # app, leaving only the "İşleniyor…" bubble). Keep mobile defaults
+            # bounded; desktop keeps the caller's requested values.
+            mobile = bool(self.is_android)
             runtime = NativeLlamaServer(NativeLlamaRuntimeConfig(
                 binary_source=packaged,
                 runtime_dir=default_runtime_dir(),
                 model_path=validated.path,
                 port=pick_free_local_port(),
-                ctx_size=n_ctx,
-                max_tokens=max_tokens,
+                ctx_size=min(n_ctx, 2048) if mobile else n_ctx,
+                max_tokens=min(max_tokens, 128) if mobile else max_tokens,
+                threads=4 if mobile else None,
             ))
             try:
                 base_url = runtime.start()
