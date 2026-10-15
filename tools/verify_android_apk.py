@@ -15,7 +15,7 @@ import zipfile
 
 try:
     from tools.android_apk_contents import (
-        NATIVE_BINARY_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
+        NATIVE_BINARY_PATH, NATIVE_LIBRARY_APK_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
         load_apk_private_files,
     )
 except ModuleNotFoundError:  # Direct execution as: python tools/verify_android_apk.py
@@ -33,7 +33,8 @@ FORBIDDEN_IMPORTS = ("android.main", "android.file_picker")
 
 EXPECTED_PACKAGE = "org.rpgengine"
 EXPECTED_VERSION = "1.1.4"
-NATIVE_BINARY = NATIVE_BINARY_PATH
+NATIVE_BINARY_SOURCE = NATIVE_BINARY_PATH
+NATIVE_LIBRARY_ENTRY = NATIVE_LIBRARY_APK_PATH
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -124,13 +125,34 @@ def verify_apk(source_dir: Path, apk_path: Path, *, aapt: Path | None = None) ->
                         f"obsolete Android module import {forbidden!r} in {name}"
                     )
 
-            native = private_files.get(NATIVE_BINARY)
-            if native is None:
-                errors.append(f"packaged llama-server missing: {NATIVE_BINARY}")
-            elif len(native) < 20 or native[:4] != b"\x7fELF" or native[4] != 2 or native[5] != 1:
-                errors.append("packaged llama-server is not an ELF64 little-endian binary")
-            elif int.from_bytes(native[18:20], "little") != 183:
-                errors.append("packaged llama-server is not AArch64")
+            if NATIVE_BINARY_SOURCE in private_files:
+                errors.append(
+                    "llama-server is incorrectly packaged in writable app-private payload; "
+                    "it must be installed from the APK native-library directory"
+                )
+
+            native_source_path = source_dir / NATIVE_BINARY_SOURCE
+            if not native_source_path.is_file():
+                errors.append(f"native server source artifact missing: {NATIVE_BINARY_SOURCE}")
+            if NATIVE_LIBRARY_ENTRY not in names:
+                errors.append(
+                    f"packaged llama-server missing from Android native library directory: {NATIVE_LIBRARY_ENTRY}"
+                )
+            else:
+                native = apk.read(NATIVE_LIBRARY_ENTRY)
+                if len(native) < 20 or native[:4] != b"\x7fELF" or native[4] != 2 or native[5] != 1:
+                    errors.append("packaged llama-server is not an ELF64 little-endian binary")
+                else:
+                    elf_type = int.from_bytes(native[16:18], "little")
+                    if elf_type != 3:
+                        errors.append(f"packaged llama-server is not a PIE executable (ELF type={elf_type})")
+                    if int.from_bytes(native[18:20], "little") != 183:
+                        errors.append("packaged llama-server is not AArch64")
+                    if native_source_path.is_file():
+                        source_digest = hashlib.sha256(native_source_path.read_bytes()).hexdigest()
+                        native_digest = hashlib.sha256(native).hexdigest()
+                        if source_digest != native_digest:
+                            errors.append("packaged llama-server differs from the verified native source artifact")
 
             if aapt is not None:
                 try:
