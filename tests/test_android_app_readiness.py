@@ -235,7 +235,8 @@ def test_selecting_discovered_api_model_updates_live_adapter():
     callback = ai[ai.index("    def _choose_api_model"):ai.index("    def refresh(self):")]
     assert 'adapter = getattr(self.app_ref.controller.session, "adapter", None)' in callback
     assert 'adapter.model = selected' in callback
-    assert 'self.api_status.text = f"Model seçildi: {selected}"' in callback
+    assert 'f"Model seçildi: {selected}"' in callback
+    assert 'getattr(self, "_api_probe_succeeded", False) and adapter is not None' in callback
 
 
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
