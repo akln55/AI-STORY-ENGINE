@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -170,6 +171,31 @@ def test_invalid_extraction_never_advances_checkpoint(tmp_path):
     status = manager.status(wid)[0]
     assert status.chunks_completed == 0
     assert manager.read_batch_results(wid) == ()
+
+
+def test_batch_checkpoint_rejects_forged_indices_and_stale_failures(tmp_path):
+    source = tmp_path / "story.md"
+    source.write_text("The phone is important.", encoding="utf-8")
+    manager = SourceWorkspaceManager(tmp_path / "ws")
+    wid = manager.create("Checkpoint integrity")
+    manager.add_source(wid, source)
+    batch = manager.next_batch(wid)
+    assert batch is not None
+
+    forged = replace(batch, chunk_index=batch.chunk_count)
+    with pytest.raises(ScenarioError, match="chunk index"):
+        manager.complete_batch(forged, _valid_extraction())
+    adulterated = replace(batch, content="not the source content")
+    with pytest.raises(ScenarioError, match="stored source chunk"):
+        manager.complete_batch(adulterated, _valid_extraction())
+    assert manager.status(wid)[0].chunks_completed == 0
+    assert manager.read_batch_results(wid) == ()
+
+    manager.complete_batch(batch, _valid_extraction())
+    assert manager.status(wid)[0].status == "completed"
+    with pytest.raises(ScenarioError, match="current processing checkpoint"):
+        manager.fail_batch(batch, "late worker failure")
+    assert manager.status(wid)[0].status == "completed"
 
 
 def test_extraction_parser_accepts_fenced_json_and_rejects_malformed_content():

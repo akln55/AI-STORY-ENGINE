@@ -1,5 +1,8 @@
 # AI-STORY-ENGINE — Oyun İçi AI Davranış Rehberi
 
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
+
 **Amaç:** Uygulama içindeki anlatıcı modelin tutarlı, dünyaya bağlı ve motor kurallarına uygun rol yapmasını tanımlar. Bu belge tek başına modele otomatik yüklenmez. Çalışma anında kullanılan temel kurallar `engine/ai/context.py` içindeki `GAMEPLAY BEHAVIOUR CONTRACT` bölümüne de eklenir; bu iki kaynak birlikte güncellenmelidir.
 
 ## 1. Rol ve yetki sınırı

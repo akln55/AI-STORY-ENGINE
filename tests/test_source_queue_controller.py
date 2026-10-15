@@ -95,6 +95,27 @@ def test_controller_failed_extraction_checkpoint_can_be_retried(tmp_path):
     assert len(manager.read_batch_results(workspace_id)) == 1
 
 
+def test_progress_callback_failure_does_not_corrupt_completed_checkpoint(tmp_path):
+    adapter = ScriptedAdapter([_extraction_payload()])
+    controller = AppController.demo(adapter=adapter)
+    manager = SourceWorkspaceManager(tmp_path / "workspaces")
+    controller._source_workspaces = manager
+    source = tmp_path / "chapter.md"
+    source.write_text("The player checks the phone for local news.", encoding="utf-8")
+    workspace_id = controller.create_source_workspace("Progress callback")
+
+    controller.add_source_to_workspace(workspace_id, source)
+
+    def broken_progress(_batch, error):
+        if error is None:
+            raise RuntimeError("display update failed")
+
+    processed = controller.process_source_queue(workspace_id, progress_callback=broken_progress)
+    assert processed == 1
+    assert manager.status(workspace_id)[0].status == "completed"
+    assert len(manager.read_batch_results(workspace_id)) == 1
+
+
 def test_controller_requires_active_ai_provider_before_claiming_work(tmp_path):
     controller = AppController.demo(adapter=None)
     manager = SourceWorkspaceManager(tmp_path / "workspaces")

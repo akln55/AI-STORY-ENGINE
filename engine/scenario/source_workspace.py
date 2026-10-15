@@ -357,12 +357,59 @@ class SourceWorkspaceManager:
         self._save_metadata(workspace_id, meta)
         return None
 
+    def _require_current_batch(self, batch: SourceBatch, entry: Mapping[str, Any]) -> None:
+        """Reject stale or forged work results before they can alter a checkpoint."""
+        index = batch.chunk_index
+        count = batch.chunk_count
+        if type(index) is not int or type(count) is not int or count <= 0 or index < 0 or index >= count:
+            raise ScenarioError("batch chunk index is outside the saved checkpoint")
+        try:
+            saved_sequence = int(entry["sequence"])
+            saved_count = int(entry.get("chunks_total", 0))
+            chunk_chars = int(entry["chunk_chars"])
+            overlap = int(entry["chunk_overlap"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ScenarioError("source checkpoint metadata is invalid") from exc
+        if (
+            batch.source_sha256 != entry.get("sha256")
+            or batch.source_name != entry.get("original_name")
+            or batch.source_path != entry.get("stored_name")
+            or type(batch.sequence) is not int
+            or batch.sequence != saved_sequence
+            or batch.chapter_hint != entry.get("chapter_hint")
+            or batch.chunk_count != saved_count
+        ):
+            raise ScenarioError("batch metadata does not match the saved checkpoint")
+        if entry.get("status") != "processing" or entry.get("current_chunk") != index:
+            raise ScenarioError("batch is not the current processing checkpoint")
+
+        source_path = self._workspace_path(batch.workspace_id) / "sources" / str(entry["stored_name"])
+        try:
+            raw = source_path.read_bytes()
+            text = raw.decode("utf-8-sig")
+        except (OSError, UnicodeError) as exc:
+            raise ScenarioError("stored source is unavailable or invalid") from exc
+        if sha256(raw).hexdigest() != entry.get("sha256"):
+            raise ScenarioError("source changed after the batch was prepared")
+        chunks = self._chunks(text, chunk_chars, overlap)
+        if count != len(chunks) or index >= len(chunks):
+            raise ScenarioError("batch chunk count does not match the stored source")
+        expected_start, expected_end, expected_content = chunks[index]
+        if (
+            type(batch.start_offset) is not int
+            or type(batch.end_offset) is not int
+            or (batch.start_offset, batch.end_offset, batch.content)
+            != (expected_start, expected_end, expected_content)
+        ):
+            raise ScenarioError("batch content does not match the stored source chunk")
+
     def complete_batch(self, batch: SourceBatch, extracted: Mapping[str, Any]) -> Path:
-        normalized = self._validate_extraction(extracted)
         meta = self.get_workspace(batch.workspace_id)
         entry = next((x for x in meta["sources"] if x["source_id"] == batch.source_id), None)
         if entry is None:
             raise ScenarioError(f"source was removed from workspace: {batch.source_name}")
+        self._require_current_batch(batch, entry)
+        normalized = self._validate_extraction(extracted)
         base = self._workspace_path(batch.workspace_id)
         source_path = base / "sources" / str(entry["stored_name"])
         raw = source_path.read_bytes()
@@ -401,6 +448,7 @@ class SourceWorkspaceManager:
         entry = next((x for x in meta["sources"] if x["source_id"] == batch.source_id), None)
         if entry is None:
             raise ScenarioError(f"source was removed from workspace: {batch.source_name}")
+        self._require_current_batch(batch, entry)
         entry["status"] = "failed"
         entry["current_chunk"] = None
         entry["last_error"] = " ".join(str(error).split())[:500] or "source processing failed"

@@ -134,14 +134,15 @@ def test_huggingface_catalog_is_available_from_ai_settings():
     assert 'def search_huggingface_models(' in (ROOT / "engine/ai/model_manager.py").read_text()
 
 
-def test_void_panel_reference_is_applied_to_mobile_ui():
+def test_mobile_ui_uses_void_black_theme_and_current_local_model_heading():
     source = (ROOT / "rpg_android_app.py").read_text()
     assert "BG = (0.0, 0.0, 0.0, 1)" in source
     assert "#111111" in source
     assert 'ColorProperty(TEXT)' in source
     assert 'radius = NumericProperty(dp(22))' in source
     assert 'class RecentGamesScreen(BaseScreen)' in source
-    assert 'text="◇  Yerel modeller · Local GGUF"' in source
+    assert 'text="Yerel modeller · Local GGUF"' in source
+    assert 'text="◇  Yerel modeller · Local GGUF"' not in source
 
 
 def test_ai_forms_are_labelled_and_catalog_errors_are_user_friendly():

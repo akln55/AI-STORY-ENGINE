@@ -1,5 +1,8 @@
 # RPG Engine Testing & Verification
 
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
+
 ## Purpose
 
 Verification is layered. A green unit suite alone is not sufficient release evidence. Report the exact run/result rather than copying old counts into current documentation.
@@ -67,3 +70,11 @@ The dependency-free runner must fail on import errors, exceptions, unresolved fi
 7. Gameplay, save/load/autosave, SAF import, and local-GGUF inference smoke.
 
 An APK build is not physical-device verification. Keep source, artifact, and device evidence distinct.
+
+
+## 2026-10-15 audit update
+
+- Current audited commit: `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`.
+- CI run [38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384): 610 tests passed, `compileall` passed, Android readiness passed, mutation smoke passed (3/3 mutations detected).
+- `tests/test_release_verify.py` validates safe extraction of release ZIPs, including POSIX/Windows traversal, symlinks, duplicate/case-colliding paths and expanded-size limits.
+- This is source/CI verification, not evidence of a newly built APK or physical-device acceptance.

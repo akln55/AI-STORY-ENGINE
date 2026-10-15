@@ -1,3 +1,5 @@
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
 > **Historical document notice (updated 2026-10-12):** This file retains its original v1.28.0 design context. The initial status statements below are historical and must not be used as current implementation evidence. For current status, read `AI_START_HERE.md` and `docs/PROJECT_HISTORY.md`.
 
 ## Current implementation snapshot — 2026-10-12

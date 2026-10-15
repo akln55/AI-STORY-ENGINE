@@ -1,5 +1,8 @@
 # AI-STORY-ENGINE — Geliştirme Planı ve Çalışma Kuralları
 
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
+
 **Durum:** Kullanıcı tarafından onaylanan uygulama kampanyası yürütülüyor; kabul testleri devam ediyor  
 **Plan tarihi:** 2026-10-14  
 **Repository:** `akln55/AI-STORY-ENGINE`  
@@ -25,17 +28,17 @@ Toplam puan, bu ağırlıklarla hesaplanan mühendislik tahminidir. Bu değerler
 |---:|---|---:|---:|---:|---:|---:|---|---|
 | 1 | Gerçek başarısız senaryo ZIP'ini incele; import kök nedenini kanıtla ve loader/üretici sözleşmesini düzelt | 10.0 | 10.0 | 10.0 | 9.5 | **9.9** | 0 | [ ] Goal, ilişki anahtarı ve `interact` hedef türü uyuşmazlıkları bulundu; resmi doğrulama ve gerçek uygulama import'u bekliyor |
 | 2 | Engine şemasına bağlı senaryo sözleşmesi, validator örnekleri ve ChatGPT Senaryo Oluşturma Rehberi (MD) | 10.0 | 9.8 | 10.0 | 9.5 | **9.9** | 1 | [ ] Rehber `interact` hedefi ve açık kayıt bağlantılarıyla güncellendi; CI/validator kabulü bekliyor |
-| 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | 1 | [ ] Planlandı |
-| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [x] Runtime sözleşmesi ve bağlantılı kayıt retrieval'ı eklendi; CI 560 test ve tüm ek kapıları geçti (run 38624639579) |
-| 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | 1, 5 | [ ] Planlandı |
+| 3 | Uzun hikâyeler için kaynak paketi yaşam döngüsü: sıralı işleme, checkpoint/devam etme, kararlı ID ile birleştirme ve yeni chapter paketleri ekleme | 9.5 | 9.8 | 9.3 | 9.5 | **9.5** | 1 | [ ] Kaynak kuyruğu/checkpoint/aday indeksi/dışa aktarma kodu ve testleri mevcut; sahte/stale checkpoint doğrulaması ve tam kabul CI bekliyor |
+| 4 | Oyun AI Davranış Rehberi ve gerçek prompt/context bağlantısı: anlatıcı/NPC rolü, kanon/runtime ayrımı, bilgi görünürlüğü ve doğrulamaya bağlı efekt önerileri | 9.0 | 9.3 | 9.4 | 9.5 | **9.3** | 2 | [x] Runtime sözleşmesi ve retrieval kodu/testleri mevcut; PR CI run 38690247384 tüm 610 testi ve ek kapıları geçti |
+| 5 | Senaryo import → başlat → retrieval/context → oynama → save/load uçtan uca testleri ve geçerli/bozuk fixture'lar | 8.8 | 9.4 | 9.6 | 9.4 | **9.2** | 1, 5 | [ ] Genel entegrasyon testleri mevcut; gerçek kullanıcı arşivi ile import → play → save/load kabulü bekliyor |
 | 6 | Tam regresyon, CI, güncel APK build, artifact/provenance ve gerçek cihaz kabul kapısı | 9.0 | 8.0 | 9.5 | 9.2 | **8.9** | 5 (son kapı) | [ ] Bağımlı işlerin ardından |
-| 7 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | 3 | [ ] Planlandı |
-| 8 | Motor bütünlüğü düzeltmeleri: reddedilmiş event'ten sahte memory yazılmasını engelle; dedup sonrası indeksleri yenile; resource integer doğrulamasında bool reddet | 8.3 | 8.3 | 7.8 | 9.7 | **8.5** | 4 | [x] Düzeltmeler ve regresyon testleri mevcut; güncel CI geçti (run 38624639579) |
-| 9 | Oyun/Senaryolar listesi ve demo yönetimi: demo sabitlenmesini kaldırma, silme onayı ve save koruması | 8.2 | 8.0 | 7.0 | 8.0 | **7.9** | 3 | [ ] Planlandı; güvenli silme varsayımı açıkça korunacak |
-| 10 | Sohbet yazma alanı: yuvarlak composer, metin/imleç/hint hizası, uzun metin, klavye ve gönderme kontrolü | 8.8 | 7.0 | 7.0 | 7.0 | **7.6** | 3 | [ ] Ekran görüntüsü var; cihazda doğrulanmadı |
-| 11 | AI/API ayarlarını sadeleştir: sağlayıcı seçimi + anahtar; OpenAI-compatible için gerekli gelişmiş alanları koşullu göster; API anahtarı girişi tasarımı | 7.8 | 7.0 | 7.5 | 7.7 | **7.5** | 3 | [ ] Mevcut UX kullanıcı beklentisini karşılamıyor |
-| 12 | Hugging Face indirmesinde partial dosyayı koruma ve uygulama yeniden açılınca devam etme akışını doğrula | 7.5 | 6.8 | 6.8 | 8.2 | **7.3** | 4 | [ ] Kısmi altyapı var; lifecycle testi eksik |
-| 13 | tools/run_tests.py davranışını düzelt veya desteklenen test komutunu açıkça belgele | 6.5 | 5.5 | 5.8 | 6.5 | **6.1** | 4 | [ ] 31 geçti, 5 test helper/fixture uyumsuzluğu nedeniyle başarısız |
+| 7 | Profesyonel Senaryo Oluştur çalışma alanı: kişiselleştirme, kaynak yükleme/sıralama okları, işlem durumu/ilerlemesi, hatalar ve yeni paket ekleme | 9.5 | 8.5 | 8.6 | 8.5 | **8.9** | 3 | [ ] Kaynak ekranı ve temel akış kodlandı; bölüm paketlerine devam etme, kullanılabilirlik ve cihaz kabulü açık |
+| 8 | Motor bütünlüğü düzeltmeleri: reddedilmiş event'ten sahte memory yazılmasını engelle; dedup sonrası indeksleri yenile; resource integer doğrulamasında bool reddet | 8.3 | 8.3 | 7.8 | 9.7 | **8.5** | 4 | [x] Düzeltmeler ve regresyon testleri mevcut; PR CI run 38690247384 610 testi ve ek kapıları geçti |
+| 9 | Oyun/Senaryolar listesi ve demo yönetimi: demo sabitlenmesini kaldırma, silme onayı ve save koruması | 8.2 | 8.0 | 7.0 | 8.0 | **7.9** | 3 | [x] Demo sabitleme ve silme onayı/save koruması kaynak testlerinde mevcut; gerçek cihaz kabulü ayrı kapı |
+| 10 | Sohbet yazma alanı: yuvarlak composer, metin/imleç/hint hizası, uzun metin, klavye ve gönderme kontrolü | 8.8 | 7.0 | 7.0 | 7.0 | **7.6** | 3 | [ ] Composer boyutlandırma/çift gönderim korumaları kaynak testlerinden geçiyor; klavye görünürlüğü, imleç/hint hizası ve kaydırma gerçek cihazda doğrulanmadı |
+| 11 | AI/API ayarlarını sadeleştir: sağlayıcı seçimi + anahtar; OpenAI-compatible için gerekli gelişmiş alanları koşullu göster; API anahtarı girişi tasarımı | 7.8 | 7.0 | 7.5 | 7.7 | **7.5** | 3 | [ ] Sağlayıcıya göre alan gizleme ve bağlantı/gerçek generation ayrımı kaynakta mevcut; fiziksel cihazdaki kullanım kabulü açık |
+| 12 | Hugging Face indirmesinde partial dosyayı koruma ve uygulama yeniden açılınca devam etme akışını doğrula | 7.5 | 6.8 | 6.8 | 8.2 | **7.3** | 4 | [ ] Range/ETag/partial doğrulama kodu ve birim testleri mevcut; uygulama kapat-aç ve Android cihaz lifecycle kabulü açık |
+| 13 | tools/run_tests.py davranışını düzelt veya desteklenen test komutunu açıkça belgele | 6.5 | 5.5 | 5.8 | 6.5 | **6.1** | 4 | [x] Tam proje komutu `python -m pytest -q tests` runner içinde belgeli; eski 31/5 sonucu tarihî. Güncel CI run 38690247384 610 test ve tüm ek kapılardan geçti |
 
 Görev 13'ün puanı yüksek olsa da diğer işler tamamlanmadan APK üretmek doğru sıralama değildir. Puan önem/etkiyi, aşağıdaki kampanya akışı ise bağımlılıkları gösterir.
 
@@ -399,3 +402,38 @@ Bu kapı, B–F kapsamındaki kod ve dokümantasyon değişiklikleri tamamlandı
 6. Kabul sonucu ve açık kalanlar `docs/DEVELOPMENT_PLAN.md`, `HANDOFF.md`, `MEMORY.md` ve `AI_START_HERE.md` içine commit SHA ve run/artifact bağlantılarıyla kaydedilsin.
 
 **Kapsam dışında:** Bu plan sırasında kaynak metnin üzerinde otomatik yıkıcı değişiklik, save slotlarını otomatik silme, OCR/PDF desteği ya da Android foreground service eklenmeyecek. Bunlar gerekirse ayrı tasarlanıp onaylanmalı.
+
+
+## 2026-10-15 — Authoritative audit note (replaces stale live-status claims; preserves history)
+
+- Review baseline: pre-audit `main` HEAD `5e4ae4668f310f425fbb398d2f180cbe801ad3a8`; latest audited implementation commit is `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d` on `review/comprehensive-code-audit-2026-10-15` (PR #2).
+- The last known Test Suite run for that baseline failed: run [38632774268](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38632774268). The failure is a stale source-level UI assertion in `tests/test_android_app_readiness.py`: it expected the removed `◇` prefix while `rpg_android_app.py` now uses `text="Yerel modeller · Local GGUF"`. Source shows 598 other tests passed in that run; this is not a current green CI result.
+- The source-workspace queue/checkpoint/candidate-index/export implementation already exists in `engine/scenario/source_workspace.py`, is wired through `engine/app/controller.py`, is exposed by `SourceWorkspaceScreen`, and has targeted tests. Older checklist entries saying this feature is wholly unimplemented are stale; end-to-end acceptance and device behavior remain separate gates.
+- Model download partial metadata, Range/If-Range resume and model-integrity checks exist in `engine/ai/model_manager.py` and have focused unit tests. App/process lifecycle and physical Android acceptance remain unproven.
+- Audit fixes include checkpoint verification against the saved source chunk, best-effort progress callbacks, current UI assertion, PR CI trigger, and safe bounded release ZIP extraction. Commit `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d` passed [GitHub Actions run 38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384): 610 tests passed, `compileall` passed, Android readiness passed, and mutation smoke detected 3/3 mutations. This verifies source/CI gates only; no fresh APK or physical-device acceptance was performed.
+- Still open: validate the actual user-provided scenario archive through the real engine validator/import path, confirm scenario quest authoring/export coverage, perform full pytest/compile/readiness/mutation gates, produce a fresh APK with provenance, and run real-device acceptance. Do not infer completion from source presence alone.
+- Do not rewrite historical notes below as if they were current evidence. Use this dated audit and later dated evidence sections for current status.
+
+## Zorunlu çalışma sonu kuralı — her oturumda uygulanır
+
+- Her kod veya davranış değişikliği tamamlandığında bu dosyayı, `AI_START_HERE.md`, `HANDOFF.md`, `MEMORY.md`, `docs/DEVELOPMENT_PLAN.md`, ilgili checklist'i ve değişiklikten etkilenen **bütün bilgi içeren `.md` dosyalarını** güncelle.
+- Her raporda kaynak branch/HEAD SHA'sını, değişen dosyaları, gerçek test komutlarını ve sonuçlarını, CI run bağlantısını, APK/artifact doğrulamasını ve fiziksel cihaz durumunu ayrı ayrı yaz.
+- “Kaynakta mevcut”, “yerel test geçti”, “GitHub CI geçti”, “APK üretildi/metadata doğrulandı” ve “gerçek Android cihazında doğrulandı” farklı kanıt seviyeleridir. Birbirinin yerine kullanma.
+- Eski tarihli kayıtları silme veya güncel gerçek gibi sunma; tarihî bağlamı koru ve yeni, yetkili durum bölümünü ekle.
+- Önceki oturum kesilmişse veya dosyaların güncelliği belirsizse önce ilgili kodu, testleri, mevcut HEAD'i ve son CI kayıtlarını kontrol et. Eski Markdown durumunu kanıt kabul etme.
+- Son kontrolde hiçbir bilgi belgesi eski veya çelişkili kalmamalı; kanıtı olmayan kabul kriterleri açık kalmalı.
+
+## 2026-10-15 — Current implementation and acceptance status
+
+- Latest audited code commit: `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`. CI: [run 38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384) — 610 tests passed; Python compileall, Android readiness (version 1.1.4, target API 36, SAF enabled) and mutation smoke (3/3) passed.
+- Source workspace, ordered queue, durable checkpoints, candidate identity resolution and scenario ZIP export exist in code and have unit/integration tests. Checkpoints now validate the current source metadata and re-derived source chunk; progress callbacks cannot mark an already completed chunk failed.
+- Release verification ZIP extraction is hardened against POSIX/Windows path traversal, symlinks, duplicate/case-colliding paths, and excessive entry/expanded sizes. `tests/test_release_verify.py` covers these cases.
+- Provider-conditional API fields and separate connection/generation tests exist in source. Composer and keyboard behavior still need physical Android acceptance.
+- Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
+- Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
+- The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
+
+## 2026-10-15 — Release-verifier security finding
+
+- `tools/release_verify.py` now uses bounded, platform-independent ZIP extraction instead of `extractall` after a POSIX-only check. Regression tests cover path traversal, symlinks, duplicate paths and expanded-size limits.
+- Source/CI evidence: commit `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`, run [38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384), 610 tests passed and all configured source gates passed.

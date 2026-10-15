@@ -1,5 +1,8 @@
 # RPG Engine — Current Handoff
 
+> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+
+
 **Updated:** 2026-10-13  
 **Product version:** v1.1.4  
 **Historical engineering baseline:** v1.28.3  
@@ -181,3 +184,33 @@ The current code baseline is green: [CI run 38625436847](https://github.com/akln
 The integrated batch is documented in `docs/DEVELOPMENT_PLAN.md` §14: (1) source/intermediate schema and provenance/stable IDs, checkpoint/resume and safe chapter append; (2) ordered source queue and scenario workspace UI; (3) normal scenario/demo library management with save-safe removal confirmation; (4) finish composer and provider-specific API UX; (5) durable Hugging Face partial-download resume and test-runner behavior. Run targeted tests as each area changes. Only after those changes settle, run the full suite plus official archive validator/import/gameplay/save-load, build the current APK, check provenance, and perform device acceptance.
 
 No product/code changes were made as part of the plan-writing request. Recheck current `main` HEAD before implementation begins. Do not check final acceptance boxes before evidence exists.
+
+
+## Zorunlu çalışma sonu kuralı — her oturumda uygulanır
+
+- Her kod veya davranış değişikliği tamamlandığında bu dosyayı, `AI_START_HERE.md`, `HANDOFF.md`, `MEMORY.md`, `docs/DEVELOPMENT_PLAN.md`, ilgili checklist'i ve değişiklikten etkilenen **bütün bilgi içeren `.md` dosyalarını** güncelle.
+- Her raporda kaynak branch/HEAD SHA'sını, değişen dosyaları, gerçek test komutlarını ve sonuçlarını, CI run bağlantısını, APK/artifact doğrulamasını ve fiziksel cihaz durumunu ayrı ayrı yaz.
+- “Kaynakta mevcut”, “yerel test geçti”, “GitHub CI geçti”, “APK üretildi/metadata doğrulandı” ve “gerçek Android cihazında doğrulandı” farklı kanıt seviyeleridir. Birbirinin yerine kullanma.
+- Eski tarihli kayıtları silme veya güncel gerçek gibi sunma; tarihî bağlamı koru ve yeni, yetkili durum bölümünü ekle.
+- Önceki oturum kesilmişse veya dosyaların güncelliği belirsizse önce ilgili kodu, testleri, mevcut HEAD'i ve son CI kayıtlarını kontrol et. Eski Markdown durumunu kanıt kabul etme.
+- Son kontrolde hiçbir bilgi belgesi eski veya çelişkili kalmamalı; kanıtı olmayan kabul kriterleri açık kalmalı.
+
+## 2026-10-15 — Authoritative audit note (replaces stale live-status claims; preserves history)
+
+- Review baseline: pre-audit `main` HEAD `5e4ae4668f310f425fbb398d2f180cbe801ad3a8`; latest audited implementation commit is `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d` on `review/comprehensive-code-audit-2026-10-15` (PR #2).
+- The last known Test Suite run for that baseline failed: run [38632774268](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38632774268). The failure is a stale source-level UI assertion in `tests/test_android_app_readiness.py`: it expected the removed `◇` prefix while `rpg_android_app.py` now uses `text="Yerel modeller · Local GGUF"`. Source shows 598 other tests passed in that run; this is not a current green CI result.
+- The source-workspace queue/checkpoint/candidate-index/export implementation already exists in `engine/scenario/source_workspace.py`, is wired through `engine/app/controller.py`, is exposed by `SourceWorkspaceScreen`, and has targeted tests. Older checklist entries saying this feature is wholly unimplemented are stale; end-to-end acceptance and device behavior remain separate gates.
+- Model download partial metadata, Range/If-Range resume and model-integrity checks exist in `engine/ai/model_manager.py` and have focused unit tests. App/process lifecycle and physical Android acceptance remain unproven.
+- Audit fixes include checkpoint verification against the saved source chunk, best-effort progress callbacks, current UI assertion, PR CI trigger, and safe bounded release ZIP extraction. Commit `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d` passed [GitHub Actions run 38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384): 610 tests passed, `compileall` passed, Android readiness passed, and mutation smoke detected 3/3 mutations. This verifies source/CI gates only; no fresh APK or physical-device acceptance was performed.
+- Still open: validate the actual user-provided scenario archive through the real engine validator/import path, confirm scenario quest authoring/export coverage, perform full pytest/compile/readiness/mutation gates, produce a fresh APK with provenance, and run real-device acceptance. Do not infer completion from source presence alone.
+- Do not rewrite historical notes below as if they were current evidence. Use this dated audit and later dated evidence sections for current status.
+
+## 2026-10-15 — Current implementation and acceptance status
+
+- Latest audited code commit: `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`. CI: [run 38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384) — 610 tests passed; Python compileall, Android readiness (version 1.1.4, target API 36, SAF enabled) and mutation smoke (3/3) passed.
+- Source workspace, ordered queue, durable checkpoints, candidate identity resolution and scenario ZIP export exist in code and have unit/integration tests. Checkpoints now validate the current source metadata and re-derived source chunk; progress callbacks cannot mark an already completed chunk failed.
+- Release verification ZIP extraction is hardened against POSIX/Windows path traversal, symlinks, duplicate/case-colliding paths, and excessive entry/expanded sizes. `tests/test_release_verify.py` covers these cases.
+- Provider-conditional API fields and separate connection/generation tests exist in source. Composer and keyboard behavior still need physical Android acceptance.
+- Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
+- Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
+- The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
