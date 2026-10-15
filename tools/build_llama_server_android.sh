@@ -3,7 +3,7 @@ set -euo pipefail
 
 LLAMA_TAG="v0.6.0"
 LLAMA_COMMIT="d81235049384534c167caea52b85a694f6103d14"
-OUT="android_native/arm64-v8a/llama-server.bin"
+OUT="android_native/arm64-v8a/libllama-server.so"
 WORK="build/native/llama.cpp"
 
 : "${ANDROID_NDK:?ANDROID_NDK must point to the Android NDK root}"
