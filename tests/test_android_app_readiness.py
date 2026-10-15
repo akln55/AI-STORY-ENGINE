@@ -54,9 +54,9 @@ def test_android_uses_model_saf_picker():
 
 def test_desktop_model_selection_does_not_delete_user_source():
     source = (ROOT / "rpg_android_app.py").read_text()
-    assert '_activate_local_model(chooser.selection[0], cleanup_source=False)' in source
-    assert '_activate_local_model(path, cleanup_source=True)' in source
-    assert 'def _activate_local_model(self, path, *, cleanup_source=False):' in source
+    assert '_install_imported_model(path, cleanup_source=False)' in source
+    assert '_install_imported_model(path, cleanup_source=True)' in source
+    assert 'def _install_imported_model(self, path, *, cleanup_source=False):' in source
 
 
 def test_entrypoint_has_startup_failure_logging():
