@@ -97,7 +97,7 @@ def test_gameplay_failures_are_separate_from_story_and_do_not_expose_raw_errors(
     bubble = source[source.index("class MessageBubble"):source.index("class GameplayScreen")]
 
     assert "self._record_gameplay_error(\"turn_submission\", exc)" in worker
-    assert "API ayarlarını ve bağlantını kontrol edip tekrar dene." in worker
+    assert "self._friendly_gameplay_error(exc)" in worker
     assert "f\"[İşlem başarısız: {exc}]\"" not in worker
     assert 'self.game.append(result, role="error" if error else "npc")' in finish
     assert '"error": ("HATA", DANGER)' in bubble
