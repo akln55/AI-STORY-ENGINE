@@ -168,3 +168,16 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 - Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
 - Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
 - The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
+
+
+## 2026-10-15 — New device-tested blocker, saved priority and handoff
+
+The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
+
+Evidence from the user's screenshots/messages:
+- Local runtime start fails with `[Errno 13] Permission denied` executing `/data/data/org.rpgengine/files/native_runtime/…`.
+- Gameplay then reports `(no AI adapter configured)`.
+- GGUF import selection leads to a black/stuck screen; downloaded-model activation also errors.
+- In chat composer and API/advanced settings, entered text is hidden/occluded; tapping a button sometimes opens the keyboard unexpectedly.
+
+Source `engine/ai/llama_native_runtime.py` already copies the packaged ELF binary into app-private storage and calls `os.chmod(..., 0o700)`. The actual Android EACCES cause is not yet known; diagnose first rather than assuming the execute bit alone is missing. Required order: (P0) local runtime and true inference, (P1) GGUF import/model activation, (P2) input drawing/hitboxes/focus/keyboard, (P3) full CI, new APK and physical-device acceptance. Current change is documentation only; no implementation is claimed.
