@@ -252,3 +252,14 @@ def test_model_picker_enforces_copy_size_limit_and_does_not_leave_partial_file(m
     assert selected == []
     assert errors == ["Model dosyası izin verilen boyuttan büyük"]
     assert not list((tmp_path / "app-private").rglob("*.part")) if (tmp_path / "app-private").exists() else True
+
+
+def test_model_copy_reports_final_progress(monkeypatch, tmp_path):
+    _activity, resolver = _install_android_mocks(monkeypatch, tmp_path, data=b"small model bytes")
+    reports = []
+    target = picker._copy_uri_to_cache(
+        resolver, "content://provider/document/1", "tiny.gguf",
+        on_progress=lambda written, total: reports.append((written, total)),
+    )
+    assert target.read_bytes() == b"small model bytes"
+    assert reports[-1] == (len(b"small model bytes"), len(b"small model bytes"))
