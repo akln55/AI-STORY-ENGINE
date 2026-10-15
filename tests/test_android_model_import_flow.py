@@ -142,6 +142,7 @@ def _install_android_mocks(monkeypatch, tmp_path, *, display_name="tiny.gguf", d
 
     jnius_module = types.ModuleType("jnius")
     openable_columns = types.SimpleNamespace(DISPLAY_NAME="display-name")
+    jnius_module.jarray = lambda _kind: (lambda size: bytearray(size))
     jnius_module.autoclass = lambda name: (
         FakeIntent if name == "android.content.Intent"
         else types.SimpleNamespace(mActivity=fake_activity)
