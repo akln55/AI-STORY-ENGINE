@@ -71,7 +71,7 @@ def _display_name(resolver, uri, *, default: str = "document") -> str:
     return default
 
 
-def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_bytes: int | None = None) -> Path:
+def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_bytes: int | None = None, on_progress: Callable[[int, int | None], None] | None = None) -> Path:
     """Copy a SAF document atomically so failed imports never leave partial targets."""
     from android.storage import app_storage_path
     cache = Path(app_storage_path()) / subdir
@@ -86,6 +86,7 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
         raise OSError("Seçilen dosya açılamadı")
     try:
         written = 0
+        next_progress = 8 * 1024 * 1024
         try:
             with temporary.open("wb") as output:
                 buffer = bytearray(64 * 1024)
@@ -97,6 +98,9 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
                     if max_bytes is not None and written > max_bytes:
                         raise ValueError("Model dosyası izin verilen boyuttan büyük")
                     output.write(buffer[:count])
+                    if on_progress is not None and written >= next_progress:
+                        on_progress(written, None)
+                        next_progress = written + 8 * 1024 * 1024
         finally:
             stream.close()
         temporary.replace(target)
@@ -238,6 +242,7 @@ def open_model_document(
     *,
     on_error: Callable[[str], None] | None = None,
     on_cancel: Callable[[], None] | None = None,
+    on_progress: Callable[[int, int | None], None] | None = None,
 ) -> bool:
     """Pick a GGUF document; copy it off-thread so large files cannot freeze the UI.
 
@@ -295,6 +300,7 @@ def open_model_document(
                 destination = _copy_uri_to_cache(
                     resolver, uri, name, subdir="imports",
                     max_bytes=3 * 1024 * 1024 * 1024,
+                    on_progress=on_progress,
                 )
                 on_path(str(destination))
             except Exception as exc:
