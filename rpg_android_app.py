@@ -2592,13 +2592,32 @@ class RPGEngineApp(App):
     def _append(self, text):
         self.game.append(text)
 
+    def _friendly_gameplay_error(self, exc):
+        """Give useful failure guidance without exposing secrets or raw provider bodies."""
+        detail = str(exc).lower()
+        if "401" in detail or "unauthorized" in detail:
+            return "AI isteği reddedildi: API anahtarı geçersiz veya kabul edilmedi. Ayarlar > Yapay zekâ bölümünü kontrol et."
+        if "403" in detail or "forbidden" in detail:
+            return "AI isteği reddedildi: bu model için erişim yetkin yok. Sağlayıcı planını ve model izinlerini kontrol et."
+        if "404" in detail or "not found" in detail:
+            return "AI modeli veya endpoint bulunamadı. Model kimliğini ve API endpoint adresini kontrol et."
+        if "429" in detail or "quota" in detail or "rate limit" in detail:
+            return "AI sağlayıcısının kotası dolmuş veya istek sınırına ulaşılmış. Hesap kotanı kontrol et."
+        if "timeout" in detail or "timed out" in detail:
+            return "AI yanıtı zamanında gelmedi. Daha küçük bir yerel model dene veya ağ bağlantısını kontrol et."
+        if "native llama" in detail or "llama-server" in detail or "memory" in detail or "allocation" in detail:
+            return "Yerel model çalışırken hata oluştu. Daha küçük/az bellek kullanan bir GGUF seçip yeniden etkinleştir."
+        if "invalid structured response" in detail or "json" in type(exc).__name__.lower():
+            return "AI yanıtı RPG Engine biçiminde değildi. Ayarlardaki gerçek AI üretim testini çalıştır veya uyumlu başka bir model seç."
+        return "AI yanıt üretemedi. Ayarlar > Yapay zekâ bölümünde gerçek AI üretim testini çalıştırıp modeli/endpointi doğrula."
+
     def _submit_worker(self, text):
         try:
             result = self.controller.submit(text)
             error = False
         except Exception as exc:
             # Keep provider details and credentials out of the visible chat.
-            result = "İstek tamamlanamadı. API ayarlarını ve bağlantını kontrol edip tekrar dene."
+            result = self._friendly_gameplay_error(exc)
             error = True
             self._record_gameplay_error("turn_submission", exc)
         Clock.schedule_once(lambda *_: self._finish_submit(result, error=error), 0)
