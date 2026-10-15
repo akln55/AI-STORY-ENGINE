@@ -186,6 +186,10 @@ class PillInput(TextInput):
         kwargs.setdefault("background_active", "")
         kwargs.setdefault("background_disabled_normal", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
+        kwargs.setdefault("foreground_color", TEXT)
+        kwargs.setdefault("hint_text_color", MUTED)
+        kwargs.setdefault("cursor_color", ACCENT)
+        kwargs.setdefault("selection_color", (0.12, 0.40, 0.22, 0.85))
         kwargs.setdefault("cursor_width", dp(2))
         super().__init__(**kwargs)
         with self.canvas.before:
@@ -351,7 +355,7 @@ class MessageBubble(RoundedPanel):
             size_hint_y=None,
             markup=False,
         )
-        self._label.bind(texture_size=self._sync_height)
+        self._label.bind(texture_size=self._sync_height, width=self._sync_height)
         self.add_widget(self._label)
         self.bind(width=lambda *_: self._sync_width())
         Clock.schedule_once(lambda *_: self._sync_width(), 0)
@@ -366,11 +370,15 @@ class MessageBubble(RoundedPanel):
         self._sync_width()
 
     def _sync_width(self):
+        # Explicit width and wrapping are more reliable during animated Kivy layout
+        # changes than relying on the Label texture before the bubble is measured.
         width = max(dp(40), self.width - dp(28))
+        self._label.width = width
         self._label.text_size = (width, None)
+        self._sync_height()
 
     def _sync_height(self, *_):
-        # Account for the role caption as well as the body and panel padding.
+        # Account for the role caption as well as body and panel padding.
         self._label.height = max(dp(24), self._label.texture_size[1])
         self.height = self._label.height + dp(34)
 
@@ -406,6 +414,8 @@ class GameplayScreen(BaseScreen):
         self.input = PillInput(
             hint_text="Ne yapmak istiyorsun?", size_hint_x=1, size_hint_y=1,
             multiline=True, padding=[dp(14), dp(8)], font_size=sp(15),
+            foreground_color=TEXT, hint_text_color=MUTED, cursor_color=ACCENT,
+            background_color=(0, 0, 0, 0),
             fill_color=(0.12, 0.12, 0.12, 1),
         )
         self.input.bind(text=self._resize_composer, width=self._resize_composer)
@@ -2754,6 +2764,47 @@ class RPGEngineApp(App):
         except Exception as exc:
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
+    def _show_model_import_status(self, message):
+        popup = getattr(self, "_model_import_popup", None)
+        if popup is not None:
+            label = getattr(self, "_model_import_status_label", None)
+            if label is not None:
+                label.text = str(message)
+            return
+        body = BoxLayout(orientation="vertical", padding=[dp(16), dp(14)], spacing=dp(10))
+        label = _aligned_label(
+            text=str(message), color=TEXT, font_size=sp(13), valign="middle",
+        )
+        body.add_widget(label)
+        self._model_import_status_label = label
+        self._model_import_popup = Popup(
+            title="GGUF içe aktarma", content=body, size_hint=(0.90, None),
+            height=dp(176), background_color=SURFACE, separator_color=ACCENT,
+            auto_dismiss=False,
+        )
+        self._model_import_popup.open()
+
+    def _update_model_import_progress(self, written, total=None):
+        if total is not None and total > 0 and written >= total:
+            message = "Dosya kopyalandı. GGUF başlığı ve bütünlük kontrolü yapılıyor…"
+        else:
+            copied_mib = written / (1024 * 1024)
+            message = (
+                f"GGUF dosyası kopyalanıyor… {copied_mib:.0f} MiB aktarıldı.\n\n"
+                "Büyük modellerde bu adım sürebilir; uygulama yanıt vermeye devam edecek."
+            )
+        self._show_model_import_status(message)
+
+    def _close_model_import_status(self):
+        popup = getattr(self, "_model_import_popup", None)
+        self._model_import_popup = None
+        self._model_import_status_label = None
+        if popup is not None:
+            try:
+                popup.dismiss()
+            except Exception:
+                pass
+
     def import_model(self):
         if self._model_import_in_progress or self._model_activation_in_progress:
             self.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
@@ -2764,12 +2815,15 @@ class RPGEngineApp(App):
             self._desktop_model_picker()
             return
         self._model_import_in_progress = True
-        self.notify("GGUF dosyası seçiliyor…")
+        self._show_model_import_status("Dosya seçicisi açılıyor…")
         try:
             launched = open_model_document(
                 self._on_model_import,
                 on_error=self._on_model_import_error,
                 on_cancel=self._on_model_import_cancel,
+                on_progress=lambda written, total: Clock.schedule_once(
+                    lambda *_: self._update_model_import_progress(written, total), 0
+                ),
             )
         except Exception as exc:
             self._model_import_in_progress = False
@@ -2777,6 +2831,7 @@ class RPGEngineApp(App):
             return
         if not launched:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self._desktop_model_picker()
 
     def _desktop_model_picker(self):
@@ -2811,14 +2866,17 @@ class RPGEngineApp(App):
 
     def _finish_model_import_error(self, message):
         self._model_import_in_progress = False
+        self._close_model_import_status()
         self.notify(f"GGUF içe aktarma başarısız: {message}")
 
     def _finish_model_import_cancel(self):
         self._model_import_in_progress = False
+        self._close_model_import_status()
         self.notify("GGUF içe aktarma iptal edildi.")
 
     def _finish_model_import(self, path):
-        # Keep the import flag set until validation and the atomic install finish.
+        # Keep the progress surface and busy flag until validation/install finishes.
+        self._show_model_import_status("Dosya kopyalandı. Model biçimi ve bütünlük kontrolü yapılıyor…")
         self._install_imported_model(path, cleanup_source=True)
 
     def _install_imported_model(self, path, *, cleanup_source=False):
@@ -2827,19 +2885,30 @@ class RPGEngineApp(App):
             self.notify("Başka bir model işlemi devam ediyor. Yeniden dene.")
             return
         self._model_import_in_progress = True
-        self.notify("GGUF dosyası doğrulanıyor ve içe aktarılıyor…")
+        self._show_model_import_status("GGUF dosyası doğrulanıyor; bu sırada sohbet kapatılmayacak…")
 
         def worker():
             try:
-                installed = self.controller.install_local_model(path)
+                installed = self.controller.install_local_model(path, move_source=cleanup_source)
                 if cleanup_source:
                     Path(path).unlink(missing_ok=True)
                 message = f"Local model içe aktarıldı: {installed.name}"
+                success = True
             except Exception as exc:
-                message = f"Local model içe aktarılamadı: {exc}"
+                detail = str(exc).lower()
+                if "gguf" in detail or "header" in detail or "format" in detail:
+                    message = "Dosya geçerli bir GGUF modeli değil veya indirme tamamlanmamış."
+                elif "larger" in detail or "size" in detail or "boyut" in detail:
+                    message = "Model boyutu izin verilen sınırı aşıyor."
+                elif isinstance(exc, OSError):
+                    message = "Model kopyalanamadı. Telefonda yeterli boş alan ve dosya erişimi olduğundan emin ol."
+                else:
+                    message = f"Model içe aktarılamadı ({type(exc).__name__}). Dosyanın tam indiğini kontrol et."
+                success = False
 
             def finish(*_):
                 self._model_import_in_progress = False
+                self._close_model_import_status()
                 self.notify(message)
                 self.ai.refresh()
 
