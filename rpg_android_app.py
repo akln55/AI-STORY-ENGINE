@@ -1591,6 +1591,7 @@ class AIScreen(BaseScreen):
             self.api_model.text = "gemini-2.5-flash"
             self.api_advanced_open = False
         self._last_api_provider = provider
+        self._api_probe_succeeded = False
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
         if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini", "gemini-3.6-flash"}:
@@ -1712,10 +1713,14 @@ class AIScreen(BaseScreen):
             return
         self.api_model.text = selected
         adapter = getattr(self.app_ref.controller.session, "adapter", None)
-        if adapter is not None and hasattr(adapter, "model"):
+        if getattr(self, "_api_probe_succeeded", False) and adapter is not None and hasattr(adapter, "model"):
             adapter.model = selected
-            self.api_status.text = f"Model seçildi: {selected}"
-            self.api_status.color = ACCENT
+        self.api_status.text = (
+            f"Model seçildi: {selected}. Ayarları yeniden test ederek uygula."
+            if not getattr(self, "_api_probe_succeeded", False)
+            else f"Model seçildi: {selected}"
+        )
+        self.api_status.color = ACCENT if getattr(self, "_api_probe_succeeded", False) else MUTED
 
     def refresh(self):
         self.provider.text = self.app_ref.controller.provider_name
@@ -2165,6 +2170,7 @@ class AIScreen(BaseScreen):
         # Do not replace a working provider until the new credentials and
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
+        self._api_probe_succeeded = False
         self.api_status.text = "Bağlantı ve gerçek AI üretimi kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
@@ -2187,7 +2193,7 @@ class AIScreen(BaseScreen):
                 else:
                     probe_adapter = OpenAICompatibleAdapter(endpoint, api_key, model_name)
                 probe = probe_adapter.generate(
-                    "PLAYER ACTION: look. Return exactly one valid JSON object matching the RPG structured response contract. Keep narrative to one short sentence; use empty arrays when no state changes are needed."
+                    "PLAYER ACTION: look. Return exactly one JSON object shaped like {"narrative":"A short scene.","state_changes":[],"memory_updates":[],"npc_changes":[],"events_triggered":[],"available_actions":[]}. Keep narrative to one short sentence. Do not use Markdown."
                 )
                 if not isinstance(getattr(probe, "narrative", None), str) or not probe.narrative.strip():
                     raise RuntimeError("provider returned no valid RPG narrative")
@@ -2217,6 +2223,7 @@ class AIScreen(BaseScreen):
                     except Exception as exc:
                         apply_success = False
                         final_message = self._friendly_api_error(exc)
+                self._api_probe_succeeded = apply_success
                 self.api_status.text = final_message
                 self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
@@ -2262,8 +2269,10 @@ class AIScreen(BaseScreen):
         def worker():
             try:
                 result = adapter.generate(
-                    "PLAYER ACTION: look. Return a valid response using the required "
-                    "structured RPG response schema. Keep the narrative to one short sentence."
+                    'PLAYER ACTION: look. Return exactly one JSON object shaped like '
+                    '{"narrative":"A short scene.","state_changes":[],"memory_updates":[],'
+                    '"npc_changes":[],"events_triggered":[],"available_actions":[]}. '
+                    'Keep narrative to one short sentence. Do not use Markdown.'
                 )
                 narrative = getattr(result, "narrative", "")
                 if not isinstance(narrative, str) or not narrative.strip():
