@@ -416,3 +416,9 @@ def test_chat_surface_reports_useful_ai_failure_instead_of_generic_error():
     assert "def _friendly_gameplay_error(self, exc)" in worker
     assert "self._friendly_gameplay_error(exc)" in worker
     assert "daha küçük" in worker.lower()
+
+
+def test_android_application_source_compiles_without_importing_kivy():
+    source_path = ROOT / "rpg_android_app.py"
+    source = source_path.read_text(encoding="utf-8")
+    compile(source, str(source_path), "exec")
