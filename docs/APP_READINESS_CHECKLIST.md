@@ -81,11 +81,11 @@ Note: `docs/SCENARIO_CREATION_GUIDE.md` has been created and aligned to the curr
 
 ## 2026-10-15 — Authoritative audit note (replaces stale live-status claims; preserves history)
 
-- Review baseline: `main` HEAD `5e4ae4668f310f425fbb398d2f180cbe801ad3a8`. This is the snapshot reviewed before the audit patch. Re-check branch HEAD and current Actions after proposed changes.
+- Review baseline: pre-audit `main` HEAD `5e4ae4668f310f425fbb398d2f180cbe801ad3a8`; latest reviewed implementation commit is `cdfb0a78eca2afe31c1b36d53d44f0e9a165b929` on `review/comprehensive-code-audit-2026-10-15` (PR #2).
 - The last known Test Suite run for that baseline failed: run [38632774268](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38632774268). The failure is a stale source-level UI assertion in `tests/test_android_app_readiness.py`: it expected the removed `◇` prefix while `rpg_android_app.py` now uses `text="Yerel modeller · Local GGUF"`. Source shows 598 other tests passed in that run; this is not a current green CI result.
 - The source-workspace queue/checkpoint/candidate-index/export implementation already exists in `engine/scenario/source_workspace.py`, is wired through `engine/app/controller.py`, is exposed by `SourceWorkspaceScreen`, and has targeted tests. Older checklist entries saying this feature is wholly unimplemented are stale; end-to-end acceptance and device behavior remain separate gates.
 - Model download partial metadata, Range/If-Range resume and model-integrity checks exist in `engine/ai/model_manager.py` and have focused unit tests. App/process lifecycle and physical Android acceptance remain unproven.
-- The audit patch adds validation that a returned source batch matches the currently persisted checkpoint and makes progress callbacks non-authoritative, plus regression tests. These changes are **not accepted until the new branch commit's CI runs successfully**.
+- The audit patch validates source batches against the persisted checkpoint and re-derived source chunk; progress callbacks are best-effort. PR commit `cdfb0a78eca2afe31c1b36d53d44f0e9a165b929` passed [GitHub Actions run 38689828532](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38689828532): 601 tests passed, `compileall` passed, Android readiness passed (version 1.1.4, API 36, SAF enabled), and mutation smoke detected 3/3 mutations. This verifies source/CI gates only; no fresh APK or physical-device acceptance was performed.
 - Still open: validate the actual user-provided scenario archive through the real engine validator/import path, confirm scenario quest authoring/export coverage, perform full pytest/compile/readiness/mutation gates, produce a fresh APK with provenance, and run real-device acceptance. Do not infer completion from source presence alone.
 - Do not rewrite historical notes below as if they were current evidence. Use this dated audit and later dated evidence sections for current status.
 
@@ -97,3 +97,12 @@ Note: `docs/SCENARIO_CREATION_GUIDE.md` has been created and aligned to the curr
 - Eski tarihli kayıtları silme veya güncel gerçek gibi sunma; tarihî bağlamı koru ve yeni, yetkili durum bölümünü ekle.
 - Önceki oturum kesilmişse veya dosyaların güncelliği belirsizse önce ilgili kodu, testleri, mevcut HEAD'i ve son CI kayıtlarını kontrol et. Eski Markdown durumunu kanıt kabul etme.
 - Son kontrolde hiçbir bilgi belgesi eski veya çelişkili kalmamalı; kanıtı olmayan kabul kriterleri açık kalmalı.
+
+## 2026-10-15 — Current implementation and acceptance status
+
+- Latest code/documentation commit: `cdfb0a78eca2afe31c1b36d53d44f0e9a165b929`. CI: [run 38689828532](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38689828532) — 601 tests passed; Python compileall, Android readiness and mutation smoke (3/3) passed.
+- Source workspace, ordered queue, durable checkpoints, candidate identity resolution and scenario ZIP export exist in code and have unit/integration tests. The PR also adds stale/forged chunk protection and callback-failure regression coverage.
+- Provider-conditional API fields and separate connection/generation tests exist in source. Composer and keyboard behavior still need physical Android acceptance.
+- Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
+- Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
+- The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
