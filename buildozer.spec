@@ -5,7 +5,7 @@ title = RPG Engine
 package.name = rpgengine
 package.domain = org
 source.dir = .
-source.include_exts = py,md,json,txt,kv,db,rpgscenario,gguf,bin
+source.include_exts = py,md,json,txt,kv,db,rpgscenario,gguf
 source.exclude_dirs = .git,.venv,__pycache__,.pytest_cache,tests,saves,bin,.buildozer,dist,build
 version = 1.1.4
 requirements = python3,kivy==2.3.1,certifi
@@ -16,6 +16,7 @@ android.ndk = 29
 android.minapi = 26
 android.permissions = INTERNET, ACCESS_NETWORK_STATE
 android.archs = arm64-v8a
+android.add_libs_arm64_v8a = android_native/arm64-v8a/libllama-server.so
 android.allow_backup = 1
 android.accept_sdk_license = True
 android.no-byte-compile-python = True
