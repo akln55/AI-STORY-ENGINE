@@ -253,8 +253,10 @@ class AppController:
             default_model_storage_dir(), verify_integrity=verify_integrity
         )
 
-    def install_local_model(self, source: str | Path):
-        return install_imported_model(source, default_model_storage_dir())
+    def install_local_model(self, source: str | Path, *, move_source: bool = False):
+        return install_imported_model(
+            source, default_model_storage_dir(), move_source=move_source
+        )
 
     def download_local_model(self, spec: ModelSpec, progress_callback=None):
         return download_huggingface_model(
@@ -267,7 +269,7 @@ class AppController:
     def remote_model_files(self, repo_id: str):
         return list_huggingface_gguf_files(repo_id)
 
-    def set_local_model(self, model_path: str, *, n_ctx: int = 4096, max_tokens: int = 512,
+    def set_local_model(self, model_path: str, *, n_ctx: int = 2048, max_tokens: int = 192,
                         temperature: float = 0.7, n_gpu_layers: int = 0) -> None:
         # Android must use the native llama.cpp server. The Python llama-cpp
         # adapter remains available for desktop/development environments only.
@@ -283,6 +285,9 @@ class AppController:
                 port=pick_free_local_port(),
                 ctx_size=n_ctx,
                 max_tokens=max_tokens,
+                threads=4,
+                batch_size=256,
+                ubatch_size=128,
             ))
             try:
                 base_url = runtime.start()
