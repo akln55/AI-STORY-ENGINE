@@ -128,7 +128,7 @@ def validate_runtime_binary(source: Path | str) -> Path:
     with src.open("rb") as input_file:
         header = input_file.read(20)
     # ELF64 AArch64 PIE: magic + class=2 + little-endian=1 + ET_DYN + EM_AARCH64=183.
-    if len(header) < 20 or header[:4] != b"\\x7fELF" or header[4] != 2 or header[5] != 1:
+    if len(header) < 20 or header[:4] != b"\x7fELF" or header[4] != 2 or header[5] != 1:
         raise NativeLlamaRuntimeStartError("packaged native runtime is not a valid ELF64 binary")
     elf_type = int.from_bytes(header[16:18], "little")
     if elf_type != 3:
