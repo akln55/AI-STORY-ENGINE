@@ -186,6 +186,11 @@ class PillInput(TextInput):
         kwargs.setdefault("background_active", "")
         kwargs.setdefault("background_disabled_normal", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
+        # Explicit instance colors survive Android focus/disabled theme changes.
+        kwargs.setdefault("foreground_color", TEXT)
+        kwargs.setdefault("hint_text_color", MUTED)
+        kwargs.setdefault("cursor_color", ACCENT)
+        kwargs.setdefault("disabled_foreground_color", TEXT)
         kwargs.setdefault("cursor_width", dp(2))
         super().__init__(**kwargs)
         with self.canvas.before:
@@ -406,6 +411,8 @@ class GameplayScreen(BaseScreen):
         self.input = PillInput(
             hint_text="Ne yapmak istiyorsun?", size_hint_x=1, size_hint_y=1,
             multiline=True, padding=[dp(14), dp(8)], font_size=sp(15),
+            foreground_color=TEXT, hint_text_color=MUTED, cursor_color=ACCENT,
+            disabled_foreground_color=TEXT, write_tab=False,
             fill_color=(0.12, 0.12, 0.12, 1),
         )
         self.input.bind(text=self._resize_composer, width=self._resize_composer)
@@ -2132,8 +2139,8 @@ class AIScreen(BaseScreen):
         # Do not replace a working provider until the new credentials and
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
-        self.api_key.text = ""
-        self.api_status.text = "Bağlantı kontrol ediliyor…"
+        # Keep the key visible until real structured generation succeeds.
+        self.api_status.text = "Bağlantı ve kısa üretim testi yapılıyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
         self.api_provider.disabled = True
@@ -2149,8 +2156,22 @@ class AIScreen(BaseScreen):
                     api_key=api_key,
                     timeout=12.0,
                 )
-                message = result.message
                 model_ids = result.model_ids
+                # /models can succeed even when the selected model cannot generate.
+                if provider == "Gemini":
+                    from engine.ai.gemini_adapter import GeminiAdapter
+                    probe_adapter = GeminiAdapter(api_key, model=model_name, timeout=20.0)
+                else:
+                    from engine.ai.openai_compatible_adapter import OpenAICompatibleAdapter
+                    probe_adapter = OpenAICompatibleAdapter(
+                        endpoint=endpoint, api_key=api_key, model=model_name, timeout=20.0
+                    )
+                probe = probe_adapter.generate(
+                    "PLAYER ACTION: look. Return one short valid RPG narration and no state changes."
+                )
+                if not isinstance(getattr(probe, "narrative", None), str) or not probe.narrative.strip():
+                    raise RuntimeError("Structured generation returned no narrative")
+                message = "API bağlantısı ve gerçek AI üretimi başarılı."
                 success = True
             except APIConnectionError as exc:
                 message = str(exc)
@@ -2176,6 +2197,8 @@ class AIScreen(BaseScreen):
                         final_message = f"Ayarlar uygulanamadı: {exc}"
                 self.api_status.text = final_message
                 self.api_status.color = ACCENT if apply_success else DANGER
+                if apply_success:
+                    self.api_key.text = ""
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
                 self.api_generation_test_button.disabled = not apply_success
