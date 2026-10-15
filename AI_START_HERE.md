@@ -272,3 +272,10 @@ The user has installed and exercised the Android APK on a physical phone. These 
 - Chat/API/advanced-setting TextInput values are not visible before sending, and touch/focus regions appear to overlap so a button sometimes opens the keyboard.
 
 **Current work status:** documentation/planning only. No source fix or new APK has been produced for these reports. Complete P0 local runtime plus real inference first, P1 GGUF import, P2 text fields/touch/keyboard, and P3 full CI/build/device acceptance before returning to the previous master backlog. Keep build verification separate from physical-device verification.
+
+
+## 2026-10-15 — Android session progress (supersedes the planning-only status above)
+
+Session 1 P0 is implemented in [PR #4](https://github.com/akln55/AI-STORY-ENGINE/pull/4): the llama server is now packaged into the APK native-library directory and resolved through Android's nativeLibraryDir instead of copying the executable to writable app storage. Source CI [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android build/static APK provenance [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed; artifact id is 11956422925. Physical-device activation/inference remains unverified.
+
+Session 2 P1/P2 implementation is [PR #5](https://github.com/akln55/AI-STORY-ENGINE/pull/5). The Android SAF GGUF file copy is on a worker with explicit error/cancel callbacks and atomic temporary-file replacement. API model/endpoint TextInputs are disabled and collapsed when hidden; focused settings inputs scroll into view and soft-input mode is pan. The first session-2 CI run showed 627 passed / 1 outdated static assertion failed; the assertion was corrected, and retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued when this note was recorded. Check it before merging. Physical device import, model inference, and text/keyboard interaction are still required acceptance checks.
