@@ -226,3 +226,10 @@ No product/code changes were made as part of the plan-writing request. Recheck c
 4. **P3 release proof:** full source tests, compile/readiness/mutation gates, native cross-build, fresh APK/provenance, and physical Android acceptance for P0/P1/P2.
 
 Only this plan/documentation was added in the current planning pass. No code changes or fixes are claimed. Treat the exact runtime error and input visibility/touch behavior as acceptance targets. Once this plan is verified complete, return to the other still-open master-plan tasks; preserve their checkboxes and historical evidence.
+
+
+## 2026-10-15 — Current Android handoff (supersedes planning-only status above)
+
+Session 1 runtime fix is in [PR #4](https://github.com/akln55/AI-STORY-ENGINE/pull/4). Source CI [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android build/static APK verification [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed; artifact id 11956422925. The user still needs to confirm model activation and one genuine local AI response on a physical ARM64 device.
+
+Session 2 is [PR #5](https://github.com/akln55/AI-STORY-ENGINE/pull/5), stacked on the session-1 branch. It moves SAF GGUF copying off the UI thread, provides cancellation/error callbacks, cleans temporary copies, and fixes hidden API TextInput controls by collapsing/disabling the children, not only their wrappers. It sets soft-input mode to pan and scrolls focused settings inputs into view. Initial CI was 627 passed / 1 stale method-name assertion failure; corrected test is on head commit d9a667b800b41d1c9a781b29f642a4c90aeed507. Retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued when recorded. Check current CI and do not begin another feature scope. P1/P2 physical-device acceptance remains open.
