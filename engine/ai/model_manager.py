@@ -250,8 +250,15 @@ def install_imported_model(
     *,
     expected_sha256: str | None = None,
     max_bytes: int = HARD_MAX_MODEL_BYTES,
+    move_source: bool = False,
 ) -> InstalledModel:
-    """Copy an imported model into app-private storage atomically."""
+    """Validate and install a GGUF atomically.
+
+    move_source is reserved for app-owned SAF staging files: those files live
+    on the same private-storage filesystem as the models directory, so they
+    can be atomically adopted without a second multi-gigabyte copy. Desktop
+    user-selected files retain copy semantics by default.
+    """
     src = Path(source).expanduser().resolve()
     _inspect_model_file(src, max_bytes=max_bytes)
     if expected_sha256 is not None and not _HEX_SHA256_RE.fullmatch(expected_sha256):
@@ -260,6 +267,28 @@ def install_imported_model(
     destination_dir = Path(models_dir).expanduser().resolve()
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / src.name
+
+    if move_source:
+        size_bytes = src.stat().st_size
+        digest = _sha256_file(src)
+        if expected_sha256 and digest.lower() != expected_sha256.lower():
+            raise ModelIntegrityError("imported model SHA-256 does not match the expected digest")
+        if src == destination:
+            return InstalledModel(destination, size_bytes, digest)
+        temporary = destination.with_name("." + destination.name + "." + uuid4().hex + ".part")
+        try:
+            src.replace(temporary)
+            temporary.replace(destination)
+        except Exception:
+            # Restore a staged source when final replacement failed and possible.
+            if temporary.exists() and not src.exists():
+                try:
+                    temporary.replace(src)
+                except OSError:
+                    pass
+            raise
+        return InstalledModel(destination, size_bytes, digest)
+
     part = destination.with_name(destination.name + ".part")
     try:
         _copy_stream(src, part, max_bytes=max_bytes)
@@ -272,8 +301,6 @@ def install_imported_model(
     except Exception:
         part.unlink(missing_ok=True)
         raise
-
-
 def search_huggingface_models(
     query: str, *, limit: int = 12, sort_by: str = "downloads",
     opener: Callable[..., object] | None = None
