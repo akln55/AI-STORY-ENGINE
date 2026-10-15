@@ -181,3 +181,10 @@ Evidence from the user's screenshots/messages:
 - In chat composer and API/advanced settings, entered text is hidden/occluded; tapping a button sometimes opens the keyboard unexpectedly.
 
 Source `engine/ai/llama_native_runtime.py` already copies the packaged ELF binary into app-private storage and calls `os.chmod(..., 0o700)`. The actual Android EACCES cause is not yet known; diagnose first rather than assuming the execute bit alone is missing. Required order: (P0) local runtime and true inference, (P1) GGUF import/model activation, (P2) input drawing/hitboxes/focus/keyboard, (P3) full CI, new APK and physical-device acceptance. Current change is documentation only; no implementation is claimed.
+
+
+## 2026-10-15 — Current Android implementation memory (supersedes planning-only note above)
+
+P0 native runtime fix is in PR #4 and passed source CI + Android APK static/provenance checks (runs [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385), [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501)); artifact id 11956422925. Root cause was the executable being copied to writable app-private storage; new packaging uses Android nativeLibraryDir. A physical-device model activation and one real AI generation are not yet verified.
+
+Session 2 P1/P2 changes are in PR #5. GGUF SAF copy is worker-threaded with atomic temporary file replacement and explicit cancel/error handlers. Hidden endpoint/model API TextInputs are collapsed, disabled and transparent; soft-input mode is pan and focused settings fields scroll into view. Tests cover SAF success/cancel/wrong extension/missing display name/copy failure and hidden-input readiness. First test run was 627 passed / 1 stale source assertion failed; it was corrected in d9a667b800b41d1c9a781b29f642a4c90aeed507. Recheck [CI run 38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704), queued at note time. Do not claim the UI changes work on-device until manually tested.
