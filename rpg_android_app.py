@@ -2706,43 +2706,79 @@ class RPGEngineApp(App):
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
     def import_model(self):
-        if self._model_import_in_progress: return
+        if self._model_import_in_progress or self._model_activation_in_progress:
+            self.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
+            return
         try:
             from rpg_android_file_picker import open_model_document
         except ImportError:
-            self._desktop_model_picker(); return
+            self._desktop_model_picker()
+            return
         self._model_import_in_progress = True
+        self.notify("GGUF dosyası seçiliyor…")
         try:
-            launched = open_model_document(self._on_model_import)
+            launched = open_model_document(
+                self._on_model_import,
+                on_error=self._on_model_import_error,
+                on_cancel=self._on_model_import_cancel,
+            )
         except Exception as exc:
-            self._model_import_in_progress = False; self.notify(str(exc)); return
+            self._model_import_in_progress = False
+            self.notify(f"Dosya seçicisi açılamadı: {type(exc).__name__}")
+            return
         if not launched:
-            self._model_import_in_progress = False; self._desktop_model_picker()
+            self._model_import_in_progress = False
+            self._desktop_model_picker()
 
     def _desktop_model_picker(self):
         chooser = FileChooserListView(filters=["*.gguf"], path=str(Path.home()))
-        box = BoxLayout(orientation="vertical"); box.add_widget(chooser)
+        box = BoxLayout(orientation="vertical")
+        box.add_widget(chooser)
         popup = Popup(title="GGUF model seç", content=box, size_hint=(0.96, 0.88), background_color=SURFACE)
         actions = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
         actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+
         def choose(*_):
-            if not chooser.selection: return
-            popup.dismiss(); self._activate_local_model(chooser.selection[0], cleanup_source=False)
+            if not chooser.selection:
+                return
+            path = chooser.selection[0]
+            popup.dismiss()
+            self._install_imported_model(path, cleanup_source=False)
+
         actions.add_widget(AccentButton(text="Modeli seç", on_release=choose))
-        box.add_widget(actions); popup.open()
+        box.add_widget(actions)
+        popup.open()
 
     def _on_model_import(self, path):
+        # The picker copies the SAF stream on a worker. Only manipulate Kivy
+        # widgets and launch the install stage from the main thread.
         Clock.schedule_once(lambda *_: self._finish_model_import(path), 0)
 
-    def _finish_model_import(self, path):
-        self._model_import_in_progress = False
-        self._activate_local_model(path, cleanup_source=True)
+    def _on_model_import_error(self, message):
+        Clock.schedule_once(lambda *_: self._finish_model_import_error(message), 0)
 
-    def _activate_local_model(self, path, *, cleanup_source=False):
+    def _on_model_import_cancel(self):
+        Clock.schedule_once(lambda *_: self._finish_model_import_cancel(), 0)
+
+    def _finish_model_import_error(self, message):
+        self._model_import_in_progress = False
+        self.notify(f"GGUF içe aktarma başarısız: {message}")
+
+    def _finish_model_import_cancel(self):
+        self._model_import_in_progress = False
+        self.notify("GGUF içe aktarma iptal edildi.")
+
+    def _finish_model_import(self, path):
+        # Keep the import flag set until validation and the atomic install finish.
+        self._install_imported_model(path, cleanup_source=True)
+
+    def _install_imported_model(self, path, *, cleanup_source=False):
         if self._model_activation_in_progress:
+            self._model_import_in_progress = False
+            self.notify("Başka bir model işlemi devam ediyor. Yeniden dene.")
             return
-        self._model_activation_in_progress = True
-        self.notify("Local model içe aktarılıyor…")
+        self._model_import_in_progress = True
+        self.notify("GGUF dosyası doğrulanıyor ve içe aktarılıyor…")
 
         def worker():
             try:
@@ -2754,7 +2790,7 @@ class RPGEngineApp(App):
                 message = f"Local model içe aktarılamadı: {exc}"
 
             def finish(*_):
-                self._model_activation_in_progress = False
+                self._model_import_in_progress = False
                 self.notify(message)
                 self.ai.refresh()
 
