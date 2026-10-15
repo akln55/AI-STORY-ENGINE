@@ -359,7 +359,7 @@ def test_gguf_import_picker_runs_file_copy_off_ui_thread_and_handles_completion(
     assert "def _finish_model_import_error(self, message):" in import_flow
     assert "def _finish_model_import_cancel(self):" in import_flow
     assert "def _install_imported_model(self, path, *, cleanup_source=False):" in import_flow
-    assert "GGUF dosyası doğrulanıyor ve içe aktarılıyor" in import_flow
+    assert "Dosya kopyalandı. Model biçimi ve bütünlük kontrolü yapılıyor" in import_flow
 
 
 def test_hidden_api_text_inputs_cannot_capture_taps_and_focused_inputs_scroll_into_view():
