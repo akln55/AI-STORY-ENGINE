@@ -437,3 +437,20 @@ Bu kapı, B–F kapsamındaki kod ve dokümantasyon değişiklikleri tamamlandı
 
 - `tools/release_verify.py` now uses bounded, platform-independent ZIP extraction instead of `extractall` after a POSIX-only check. Regression tests cover path traversal, symlinks, duplicate paths and expanded-size limits.
 - Source/CI evidence: commit `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`, run [38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384), 610 tests passed and all configured source gates passed.
+
+
+## 2026-10-15 — User-tested Android AI/runtime blocker subplan
+
+The user installed the latest Android debug APK and tested it on-device. A new focused, **not-yet-implemented** subplan has priority before resuming the pre-existing campaign: [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md).
+
+Current observed acceptance blockers:
+
+- [ ] Local GGUF activation fails while launching `llama-server` with Android `[Errno 13] Permission denied` under `/data/data/org.rpgengine/files/native_runtime/…`.
+- [ ] Gameplay reports `(no AI adapter configured)` after that failed activation.
+- [ ] Choosing a GGUF through import leaves the UI black/stuck; cause still unconfirmed.
+- [ ] Chat composer, API text fields and advanced settings have invisible/occluded text and touch/focus overlap; touching a button can unexpectedly open the keyboard.
+- [ ] Fixing local runtime must include actual model generation on an ARM64 Android device, not only source tests or successful APK packaging.
+
+The runtime source already copies the packaged binary and calls `chmod(0o700)`. Therefore do not treat another chmod call as a proven fix. Diagnose the real Android `EACCES` cause first. Work in this order: P0 native runtime + real inference; P1 GGUF import/model activation UX; P2 composer/API/advanced-field rendering, touch regions and keyboard behavior; P3 full tests, fresh APK/provenance and device acceptance.
+
+This subplan is an ordered detour for the currently blocking, user-verified Android issues. Once its acceptance criteria pass, return here and continue previously open master-campaign tasks without deleting or reopening historical completed tasks. No application code or runtime behavior is changed by this planning update.

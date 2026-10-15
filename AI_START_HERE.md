@@ -260,3 +260,15 @@ The last verified source gate before this plan was written: [run 38625436847](ht
 - Hugging Face range/resume/hash checks and tests exist; app/process lifecycle behavior still needs device acceptance.
 - Still open: validate the actual user-provided scenario archive using the real validator/import/play/save/load flow; fresh APK build plus SHA/provenance; physical-device workflow. Do not mark those items complete based on source tests.
 - The 2026-10-14 “not yet implemented” backlog is historical context. Source presence must be checked before repeating those claims; device/release gates remain open until evidence is recorded.
+
+
+## 2026-10-15 — Latest user-tested Android blockers (plan only)
+
+The user has installed and exercised the Android APK on a physical phone. These are now direct user-reported runtime observations, not merely source-review concerns. The prioritized response plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md); it takes priority before resuming the older open items in `docs/DEVELOPMENT_PLAN.md`.
+
+- Local GGUF activation reports `llama-server` launch `[Errno 13] Permission denied` in app-private `native_runtime`; the exact Android cause is unconfirmed. Source already calls `chmod(0o700)`, so diagnose rather than blindly repeat that change.
+- After failed activation, gameplay reports `(no AI adapter configured)`.
+- GGUF file selection/import leaves a black/stuck screen.
+- Chat/API/advanced-setting TextInput values are not visible before sending, and touch/focus regions appear to overlap so a button sometimes opens the keyboard.
+
+**Current work status:** documentation/planning only. No source fix or new APK has been produced for these reports. Complete P0 local runtime plus real inference first, P1 GGUF import, P2 text fields/touch/keyboard, and P3 full CI/build/device acceptance before returning to the previous master backlog. Keep build verification separate from physical-device verification.
