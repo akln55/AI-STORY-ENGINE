@@ -32,6 +32,8 @@ from engine import __version__
 from engine.app.controller import AppController
 from engine.ai.model_manager import ModelSpec, check_huggingface_connection
 from engine.ai.connectivity import APIConnectionError, check_api_connection
+from engine.ai.gemini_adapter import GeminiAdapter
+from engine.ai.openai_compatible_adapter import OpenAICompatibleAdapter
 
 
 # Semantic dark-theme tokens: one source of truth for surfaces, text and actions.
@@ -2126,6 +2128,27 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
+    def _friendly_api_error(self, exc):
+        """Translate API failures into actionable UI text without exposing secrets."""
+        detail = str(exc).lower()
+        if "401" in detail or "unauthorized" in detail or ("api key" in detail and "invalid" in detail):
+            return "API anahtarı geçersiz veya bu sağlayıcı tarafından kabul edilmedi."
+        if "403" in detail or "permission" in detail or "forbidden" in detail:
+            return "Sağlayıcı erişimi reddetti. API planını ve model erişim iznini kontrol et."
+        if "404" in detail or "not found" in detail:
+            return "Model veya endpoint bulunamadı. Sağlayıcının model kimliğini ve endpoint adresini kontrol et."
+        if "429" in detail or "rate limit" in detail or "quota" in detail:
+            return "Sağlayıcı kota veya istek sınırına ulaştı. Hesap kotasını kontrol et."
+        if "timed out" in detail or "timeout" in detail:
+            return "Gerçek AI isteği zaman aşımına uğradı. Ağı ve model sağlayıcısını kontrol et."
+        if "invalid structured response" in detail or "not valid json" in detail or "json" in type(exc).__name__.lower():
+            return "API yanıt verdi ancak RPG Engine için gereken JSON biçimini üretmedi. Bu model/endpoint uyumlu olmayabilir."
+        if "response_format" in detail:
+            return "Sağlayıcı beklenen yanıt biçimini desteklemiyor. OpenAI-compatible endpoint ayarını kontrol et."
+        if "tls" in detail or "ssl" in detail or "certificate" in detail:
+            return "Güvenli bağlantı kurulamadı. Cihaz tarihini ve ağ bağlantısını kontrol et."
+        return "API bağlantısı kuruldu ancak gerçek AI üretimi doğrulanamadı. Model kimliğini, erişim yetkisini ve endpoint biçimini kontrol et."
+
     def connect_api(self):
         api_key = self.api_key.text.strip()
         model_name = self.api_model.text.strip()
@@ -2142,8 +2165,7 @@ class AIScreen(BaseScreen):
         # Do not replace a working provider until the new credentials and
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
-        self.api_key.text = ""
-        self.api_status.text = "Bağlantı kontrol ediliyor…"
+        self.api_status.text = "Bağlantı ve gerçek AI üretimi kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
         self.api_provider.disabled = True
@@ -2159,14 +2181,23 @@ class AIScreen(BaseScreen):
                     api_key=api_key,
                     timeout=12.0,
                 )
-                message = result.message
                 model_ids = result.model_ids
+                if provider == "Gemini":
+                    probe_adapter = GeminiAdapter(api_key, model=model_name)
+                else:
+                    probe_adapter = OpenAICompatibleAdapter(endpoint, api_key, model_name)
+                probe = probe_adapter.generate(
+                    "PLAYER ACTION: look. Return exactly one valid JSON object matching the RPG structured response contract. Keep narrative to one short sentence; use empty arrays when no state changes are needed."
+                )
+                if not isinstance(getattr(probe, "narrative", None), str) or not probe.narrative.strip():
+                    raise RuntimeError("provider returned no valid RPG narrative")
+                message = result.message + " Gerçek AI üretimi de başarılı."
                 success = True
             except APIConnectionError as exc:
                 message = str(exc)
                 success = False
-            except Exception:
-                message = "Bağlantı kontrolü başarısız oldu. Endpoint ve ağ bağlantısını kontrol et."
+            except Exception as exc:
+                message = self._friendly_api_error(exc)
                 success = False
 
             def finish(*_):
@@ -2181,9 +2212,11 @@ class AIScreen(BaseScreen):
                         else:
                             self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
                         self.provider.text = self.app_ref.controller.provider_name
+                        # Drop the visible key only after list + true inference both work.
+                        self.api_key.text = ""
                     except Exception as exc:
                         apply_success = False
-                        final_message = f"Ayarlar uygulanamadı: {exc}"
+                        final_message = self._friendly_api_error(exc)
                 self.api_status.text = final_message
                 self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
