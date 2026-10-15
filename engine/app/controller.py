@@ -303,6 +303,7 @@ class AppController:
             self.local_runtime = runtime
             self.session.adapter = LlamaCppProcessAdapter(LlamaCppProcessConfig(
                 server_url=base_url,
+                timeout=120.0,
                 max_tokens=max_tokens,
                 temperature=temperature,
             ))
