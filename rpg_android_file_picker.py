@@ -107,6 +107,11 @@ def _copy_uri_to_cache(resolver, uri, name: str, subdir: str = "imports", max_by
     except Exception:
         temporary.unlink(missing_ok=True)
         raise
+    if on_progress is not None:
+        try:
+            on_progress(written, written)
+        except Exception:
+            logging.getLogger(__name__).debug("GGUF progress callback failed", exc_info=True)
     return target
 
 
