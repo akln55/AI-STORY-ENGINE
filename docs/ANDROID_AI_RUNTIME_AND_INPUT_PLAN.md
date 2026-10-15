@@ -120,3 +120,12 @@ Her uygulama paketinde:
 - [ ] Composer/API/advanced settings input çizimi, hitbox ve klavye davranışı düzeltildi ve cihazda doğrulandı.
 - [ ] Full source CI, native build, APK provenance ve yeni artifact kapıları geçildi.
 - [ ] Bu alt plan bittikten sonra ana geliştirme planındaki sıradaki iş yeniden seçildi.
+
+
+## 2026-10-15 — Implementation progress (supersedes the initial plan-only status above)
+
+**Session 1 / P0 runtime:** PR #4 contains the native-library execution fix. Source CI run [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android build/static APK provenance run [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed. Artifact id: 11956422925. This does not close the physical-device gate: model activation and one real AI generation still need testing on an ARM64 Android device.
+
+**Session 2 / P1 GGUF import + P2 text inputs:** implementation is in [PR #5](https://github.com/akln55/AI-STORY-ENGINE/pull/5), stacked on the session-1 branch. SAF copying now runs on a worker, writes a unique temporary file before atomic replacement, and reports cancellation/errors so the busy state can reset. The hidden API endpoint/model TextInputs are now themselves collapsed and disabled; Android soft input uses pan, and focused settings inputs are scrolled into view. Mocked SAF and input-readiness regressions were added.
+
+The first session-2 CI run reported 627 passed / 1 failed; the failing test was a stale assertion for the prior desktop-import method name. The assertion was updated in commit d9a667b800b41d1c9a781b29f642a4c90aeed507. Retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued when this note was written. Do not mark P1/P2 or physical-device acceptance complete until latest CI and device checks pass.
