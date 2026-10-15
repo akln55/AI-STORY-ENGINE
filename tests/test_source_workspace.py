@@ -185,6 +185,9 @@ def test_batch_checkpoint_rejects_forged_indices_and_stale_failures(tmp_path):
     forged = replace(batch, chunk_index=batch.chunk_count)
     with pytest.raises(ScenarioError, match="chunk index"):
         manager.complete_batch(forged, _valid_extraction())
+    adulterated = replace(batch, content="not the source content")
+    with pytest.raises(ScenarioError, match="stored source chunk"):
+        manager.complete_batch(adulterated, _valid_extraction())
     assert manager.status(wid)[0].chunks_completed == 0
     assert manager.read_batch_results(wid) == ()
 
