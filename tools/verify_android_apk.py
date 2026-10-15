@@ -20,7 +20,7 @@ try:
     )
 except ModuleNotFoundError:  # Direct execution as: python tools/verify_android_apk.py
     from android_apk_contents import (
-        NATIVE_BINARY_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
+        NATIVE_BINARY_PATH, NATIVE_LIBRARY_APK_PATH, VERIFIER_SCRIPTS, find_forbidden_imports,
         load_apk_private_files,
     )
 
