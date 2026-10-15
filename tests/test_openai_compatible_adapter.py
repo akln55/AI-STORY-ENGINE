@@ -72,7 +72,7 @@ def test_adapter_retries_without_json_mode_when_provider_rejects_it():
     from unittest.mock import patch
     from urllib.error import HTTPError
 
-    expected = "{\\\"narrative\\\":\\\"Works\\\",\\\"state_changes\\\":[],\\\"memory_updates\\\":[],\\\"npc_changes\\\":[],\\\"events_triggered\\\":[],\\\"available_actions\\\":[]}"
+    expected = '{"narrative":"Works","state_changes":[],"memory_updates":[],"npc_changes":[],"events_triggered":[],"available_actions":[]}'
     calls = []
 
     class Response:
