@@ -40,6 +40,27 @@ def test_packaged_runtime_path_is_arm64_native_library():
     assert path.as_posix().endswith("android_native/arm64-v8a/libllama-server.so")
 
 
+def test_packaged_runtime_resolves_android_native_library_dir(monkeypatch):
+    import sys
+    import types
+
+    class FakeActivity:
+        def getApplicationInfo(self):
+            return types.SimpleNamespace(nativeLibraryDir="/data/app/example/lib/arm64")
+
+    fake_kivy = types.ModuleType("kivy")
+    fake_kivy.__path__ = []
+    fake_utils = types.ModuleType("kivy.utils")
+    fake_utils.platform = "android"
+    fake_jnius = types.ModuleType("jnius")
+    fake_jnius.autoclass = lambda name: types.SimpleNamespace(mActivity=FakeActivity())
+    monkeypatch.setitem(sys.modules, "kivy", fake_kivy)
+    monkeypatch.setitem(sys.modules, "kivy.utils", fake_utils)
+    monkeypatch.setitem(sys.modules, "jnius", fake_jnius)
+
+    assert packaged_llama_server_path() == Path("/data/app/example/lib/arm64/libllama-server.so")
+
+
 def test_runtime_requires_loopback_host():
     config = NativeLlamaRuntimeConfig("runtime.so", "runtime", "model.gguf", host="0.0.0.0")
     _assert_raises(NativeLlamaRuntimeConfigError, config.validate)
