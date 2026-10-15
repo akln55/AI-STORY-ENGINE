@@ -2193,7 +2193,7 @@ class AIScreen(BaseScreen):
                 else:
                     probe_adapter = OpenAICompatibleAdapter(endpoint, api_key, model_name)
                 probe = probe_adapter.generate(
-                    "PLAYER ACTION: look. Return exactly one JSON object shaped like {"narrative":"A short scene.","state_changes":[],"memory_updates":[],"npc_changes":[],"events_triggered":[],"available_actions":[]}. Keep narrative to one short sentence. Do not use Markdown."
+                    'PLAYER ACTION: look. Return exactly one JSON object shaped like {"narrative":"A short scene.","state_changes":[],"memory_updates":[],"npc_changes":[],"events_triggered":[],"available_actions":[]}. Keep narrative to one short sentence. Do not use Markdown.'
                 )
                 if not isinstance(getattr(probe, "narrative", None), str) or not probe.narrative.strip():
                     raise RuntimeError("provider returned no valid RPG narrative")
