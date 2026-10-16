@@ -1,7 +1,7 @@
 # Android AI Runtime, GGUF Import ve Yazı Alanları — Öncelikli Plan
 
 **Tarih:** 2026-10-15  
-**Durum:** Plan kaydedildi; uygulama kodu henüz değiştirilmedi.  
+**Durum:** PR #4–#6'da kaynak düzeltmeleri uygulanıyor; PR #6'nın son HEAD'inde kaynak testleri geçti, native ARM64 sunucu derlemesi başarılı, Android APK/provenance adımı hâlâ bekleniyor. Fiziksel cihaz kabulü yapılmadı.  
 **Repo:** `akln55/AI-STORY-ENGINE`  
 **Aktif hedef listesi:** [`docs/PROJECT_GOALS.md`](PROJECT_GOALS.md). Eski geniş plan yalnızca [arşivde](./_archive/legacy-2026-10-16/DEVELOPMENT_PLAN.md) tarihî bağlam olarak korunur.  
 **Ürün sürümü:** `v1.1.4`
@@ -29,7 +29,7 @@ You can't do that.
 
 Bu iki mesaj, model etkinleştirme / yerel runtime başlangıç zincirinin tamamlanmadığını gösteriyor. İlk hata doğrudan `llama-server` çalıştırılırken `Permission denied`; ikinci mesajda oturumun etkin bir AI adapter'ı yok. **Android'in bu dosyayı neden çalıştırmayı reddettiği henüz kanıtlanmış değil.**
 
-Kaynakta `engine/ai/llama_native_runtime.py` içindeki `install_runtime_binary()`, dosyayı uygulamanın özel `native_runtime` dizinine kopyalıyor ve `os.chmod(..., 0o700)` çağırıyor. Bu nedenle yalnızca chmod satırını eklemek/tekrarlamak kök neden çözümü olarak kabul edilmemeli. Dosya modu, dizin erişimi, Android çalıştırma kısıtları ve paketlenmiş ikili dosyanın gerçek konumu cihazda/derleme çıktısında teşhis edilmeli.
+Bu bölümdeki `install_runtime_binary()` kopyalama ve chmod açıklaması, 2026-10-15 tarihli eski kaynak durumunu kaydeden tarihsel nottur; **güncel kaynak kodun açıklaması değildir**. PR #4–#6 kapsamında native sunucu `android_native/arm64-v8a/libllama-server.so` adıyla APK'nın paket yönetimli native kütüphane dizinine alınır, çalışma anında `ApplicationInfo.nativeLibraryDir` üzerinden çözülür ve runtime ELF64/ET_DYN/AArch64/yürütülebilirlik kontrollerinden geçer. İkili dosya yazılabilir `native_runtime` dizinine kopyalanmaz ve orada chmod uygulanmaz. CI paketleme/doğrulama sonucu fiziksel Android'de gerçek inference yapıldığı anlamına gelmez.
 
 ### B. GGUF içe aktarma / etkinleştirme
 
@@ -49,8 +49,8 @@ Kaynakta `engine/ai/llama_native_runtime.py` içindeki `install_runtime_binary()
 
 ### P0 — Yerel runtime başlatma hatasının kök nedenini bul ve düzelt
 
-- [ ] Mevcut `llama_native_runtime.py`, controller'daki model etkinleştirme akışı, APK paketleme/staging doğrulayıcısı ve native build adımlarını birlikte incele.
-- [ ] APK'nın gerçek içine `android_native/arm64-v8a/llama-server.bin` eklendiğini, ARM64 ELF olarak doğrulandığını ve kurulumda aynı dosyanın app-private dizine eksiksiz kopyalandığını kanıtla.
+- [x] `llama_native_runtime.py`, controller'daki model etkinleştirme akışı, APK paketleme/staging doğrulayıcısı ve native build adımları PR #4–#6 kapsamında birlikte incelendi; ilgili regression testleri eklendi.
+- [x] Güncel paketleme sözleşmesi `android_native/arm64-v8a/libllama-server.so` kullanır; runtime bu dosyayı `nativeLibraryDir` üzerinden çözer. Source/staging/APK doğrulayıcıları ELF64/AArch64/PIE ve paket içeriğini kontrol eder; bu build'in tam APK/provenance sonucu ayrı CI kaydıyla doğrulanır.
 - [ ] Cihazdaki runtime ikilisi için dosya boyutu, ELF başlığı/mimari, izin bitleri, parent-directory erişimi, `os.access(..., X_OK)`, kopyalama/rename sonucu ve subprocess errno'sunu kontrollü tanılama kayıtlarına ekle. Kullanıcı verisi, model içeriği veya API anahtarları loglanmamalı.
 - [ ] Android'in bu yolda executable çalıştırmayı reddedip reddetmediğini ayır; izin biti doğru olsa bile `EACCES` olasılığını araştır. Paketleme/yürütme yaklaşımı değiştirilirse Android'in desteklediği ve CI/cihaz testinde kanıtlanmış bir yol seç; yalnızca hatayı gizleme veya güvenlik denetimlerini kapatma.
 - [ ] Başlatma hatalarını kullanıcıya anlaşılır ve eyleme dönük mesajla sun; dosya bulunamadı, izin/çalıştırma reddi, model geçersiz, süreç erken kapandı ve health-check timeout'u ayırt edilebilmeli.
@@ -62,7 +62,7 @@ Kaynakta `engine/ai/llama_native_runtime.py` içindeki `install_runtime_binary()
 
 ### P1 — GGUF içe aktarma ve indirilmiş model etkinleştirme akışını sağlamlaştır
 
-- [ ] `rpg_android_file_picker.py` → callback → model kopyalama/kurulum/doğrulama → UI sonuç durumunu adım adım izle.
+- [x] `rpg_android_file_picker.py` → callback → model staging/kopyalama → doğrulama/kurulum → UI sonuç durumu source-level olarak denetlendi; worker, atomik kopyalama, ilerleme/hata/iptal callback'leri ve regression testleri mevcut. Fiziksel Android'de kabul testi ayrıca gerekli.
 - [ ] Dosya seçildikten sonra siyah ekran yaratan istisna/ekran geçişi/UI-thread problemini yakala; kullanıcıya ilerleme, başarı veya hata göster. Hata yutulup boş/siyah ekran bırakılmamalı.
 - [ ] Büyük dosya kopyalama ve SHA/başlık doğrulamasının UI thread'ini bloke edip etmediğini kontrol et; ağır işler gerekiyorsa worker'da çalıştır ve UI güncellemelerini Kivy ana thread'ine planla.
 - [ ] İçe aktarma, katalog indirme, yarım indirmeyi devam ettirme ve model etkinleştirme hatalarını ayrı akışlar olarak test et.
@@ -73,7 +73,7 @@ Kaynakta `engine/ai/llama_native_runtime.py` içindeki `install_runtime_binary()
 
 ### P2 — Sohbet composer ve tüm giriş alanları
 
-- [ ] `rpg_android_app.py` içindeki oyun composer'ını, `PillInput`/TextInput uygulamasını, API formunu ve gelişmiş ayarlar kontrollerini gerçek widget sınırlarıyla incele.
+- [x] `rpg_android_app.py` içindeki oyun composer'ı, `PillInput`/TextInput, API formu ve gelişmiş ayarlar source-level olarak incelendi; görünürlük/hitbox/focus düzeltmeleri ve readiness regression testleri PR #5–#6'da eklendi. Fiziksel cihaz kabul testi ayrıca gerekli.
 - [ ] Metin, hint ve cursor çiziminin arka planda kalma nedenini bul: canvas sırası, widget parent/overlay, boyut/konum veya kapsayıcı yerleşimini kanıtla; sadece renk değiştirerek çözülmüş sayma.
 - [ ] Giriş alanları ile butonların `pos/size` çakışmalarını, ScrollView içerik yüksekliği ve küçük ekran/keyboard resize davranışını denetle.
 - [ ] Klavye açılınca odaklı TextInput görünür kalmalı; ekran scroll/resize olsa bile yazılan metin görünür ve gönderme kontrolü erişilebilir olmalı.
@@ -118,5 +118,6 @@ Her uygulama paketinde:
 - [ ] Yerel model etkinleştirme ve gerçek generation fiziksel cihazda doğrulandı.
 - [ ] GGUF import siyah ekran hatası düzeltildi ve cihazda doğrulandı.
 - [ ] Composer/API/advanced settings input çizimi, hitbox ve klavye davranışı düzeltildi ve cihazda doğrulandı.
-- [ ] Full source CI, native build, APK provenance ve yeni artifact kapıları geçildi.
+- [x] Exact PR #6 HEAD'inde kaynak testleri (644 test), Python `compileall`, Android readiness contract, mutation smoke (3/3) ve native llama.cpp ARM64 derlemesi geçti.
+- [ ] Aynı HEAD'in Android APK build, metadata/provenance doğrulaması ve artifact upload adımlarının son CI sonucu başarılı olarak teyit edilsin.
 - [ ] Bu alt plan bittikten sonra ana geliştirme planındaki sıradaki iş yeniden seçildi.
