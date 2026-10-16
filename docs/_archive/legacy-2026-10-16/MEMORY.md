@@ -176,7 +176,7 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 
 ## 2026-10-15 — New device-tested blocker, saved priority and handoff
 
-The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
+The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](../../ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
 
 Evidence from the user's screenshots/messages:
 - Local runtime start fails with `[Errno 13] Permission denied` executing `/data/data/org.rpgengine/files/native_runtime/…`.
