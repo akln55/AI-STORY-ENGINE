@@ -95,7 +95,7 @@ Documented but not currently part of test CI:
 
 - [Project atlas](project_atlas_map.md)
 - [Runtime flow map](runtime_flow_map.md)
-- [Test-system audit](TEST_SYSTEM_AUDIT_2026-10-12.md)
+- [Test-system audit](_archive/legacy-2026-10-16/TEST_SYSTEM_AUDIT_2026-10-12.md)
 - [Testing guide](TESTING.md)
 - [Android APK smoke guide](ANDROID_APK_SMOKE.md)
 - [App readiness checklist](APP_READINESS_CHECKLIST.md)
