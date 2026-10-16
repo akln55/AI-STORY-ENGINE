@@ -108,14 +108,14 @@ Primary user surface: Android app. Developer surfaces: Python engine/tests/tools
 
 - [Runtime flow map](runtime_flow_map.md)
 - [Test map](test_map.md)
-- [Test-system audit](TEST_SYSTEM_AUDIT_2026-10-12.md)
+- [Test-system audit](_archive/legacy-2026-10-16/TEST_SYSTEM_AUDIT_2026-10-12.md)
 - [Architecture](ARCHITECTURE.md)
 - [AI security and authority specification](AI_SECURITY_SPEC.md)
 - [Testing and verification](TESTING.md)
 - [Android build](ANDROID_BUILD.md)
 - [Android APK smoke](ANDROID_APK_SMOKE.md)
 - [App readiness checklist](APP_READINESS_CHECKLIST.md)
-- [Risks](RISKS.md)
+- [Risks](_archive/legacy-2026-10-16/RISKS.md)
 
 ## Unknowns that affect the next audit
 

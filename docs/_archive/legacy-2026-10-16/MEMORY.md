@@ -1,3 +1,7 @@
+> **ARCHIVED — 2026-10-16.** This is preserved for historical recovery only. It is not a current source of instructions or status. Consult `docs/_archive/README.md` and follow `AI_RULES.md` first.
+
+---
+
 # RPG Engine — Durable Memory
 
 > **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
@@ -172,7 +176,7 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 
 ## 2026-10-15 — New device-tested blocker, saved priority and handoff
 
-The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
+The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](../../ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
 
 Evidence from the user's screenshots/messages:
 - Local runtime start fails with `[Errno 13] Permission denied` executing `/data/data/org.rpgengine/files/native_runtime/…`.
@@ -181,10 +185,3 @@ Evidence from the user's screenshots/messages:
 - In chat composer and API/advanced settings, entered text is hidden/occluded; tapping a button sometimes opens the keyboard unexpectedly.
 
 Source `engine/ai/llama_native_runtime.py` already copies the packaged ELF binary into app-private storage and calls `os.chmod(..., 0o700)`. The actual Android EACCES cause is not yet known; diagnose first rather than assuming the execute bit alone is missing. Required order: (P0) local runtime and true inference, (P1) GGUF import/model activation, (P2) input drawing/hitboxes/focus/keyboard, (P3) full CI, new APK and physical-device acceptance. Current change is documentation only; no implementation is claimed.
-
-
-## 2026-10-15 — Current Android implementation memory (supersedes planning-only note above)
-
-P0 native runtime fix is in PR #4 and passed source CI + Android APK static/provenance checks (runs [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385), [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501)); artifact id 11956422925. Root cause was the executable being copied to writable app-private storage; new packaging uses Android nativeLibraryDir. A physical-device model activation and one real AI generation are not yet verified.
-
-Session 2 P1/P2 changes are in PR #5. GGUF SAF copy is worker-threaded with atomic temporary file replacement and explicit cancel/error handlers. Hidden endpoint/model API TextInputs are collapsed, disabled and transparent; soft-input mode is pan and focused settings fields scroll into view. Tests cover SAF success/cancel/wrong extension/missing display name/copy failure and hidden-input readiness. First test run was 627 passed / 1 stale source assertion failed; it was corrected in d9a667b800b41d1c9a781b29f642a4c90aeed507. Recheck [CI run 38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704), queued at note time. Do not claim the UI changes work on-device until manually tested.

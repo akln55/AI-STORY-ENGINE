@@ -1,95 +1,54 @@
-# RPG Engine
+# AI-STORY-ENGINE
 
-> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+AI-STORY-ENGINE is an Android-first, local-first AI-assisted text RPG/scenario engine. Its goal is to let a player import a structured scenario, play, persist progress, and use local or remote AI providers without handing game-state authority to the model.
 
+> **Architecture invariant:** the deterministic engine owns authoritative `GameState`. AI is a narrator and structured-proposal provider. Engine validation and security rules decide which effects, if any, are applied.
 
-## Current state
-
-- **Product release:** `v1.1.4`
-- **Current handoff:** [`AI_START_HERE.md`](AI_START_HERE.md)
-- **Project history:** [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md)
-- **Latest green networking baseline:** [CI run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305), **538 passed**; compileall, Android readiness, and mutation smoke **3/3 detected**
-- **Current source CI:** [run 38439396555](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38439396555) checks the follow-up to a stale UI height assertion; confirm its result before claiming the latest code is green.
-- **AI connectivity investigation:** see [AI networking status](docs/AI_NETWORKING_STATUS.md). Physical mobile-data and provider-generation behavior are not yet verified.
-- **Android APK status:** no APK build was started for the current networking task. For release packaging status, use the [Android build workflow](https://github.com/akln55/AI-STORY-ENGINE/actions/workflows/android-build.yml).
-- **Physical Android verification:** not yet complete.
-
-Read `AI_START_HERE.md` first. It describes current state only. Historical milestones and retired assumptions belong in `docs/PROJECT_HISTORY.md`.
-
-## Product target
-
-RPG Engine is a deterministic, local-first text RPG for Android—not a prose-only chatbot. The target is a standalone APK that can manage scenarios, start campaigns, play, save/load, and use local or cloud AI without requiring end users to install Termux or Python.
-
-Local AI is designed around app-private GGUF storage and a bundled Android-native llama.cpp runtime. Gemini, OpenAI, and OpenAI-compatible API endpoints are available as cloud-provider paths. Actual local inference still requires physical-device verification. Google Colab is fallback/debug tooling, not the primary release path.
-
-## Architecture contract
-
-The deterministic engine owns authoritative state. AI receives bounded context and returns proposals; the engine validates and applies permitted effects atomically.
+## How a turn should work
 
 ```text
 Player action
-  -> parser and deterministic rules
-  -> authoritative GameState
-  -> bounded memory/scenario/NPC context
-  -> AI proposal
-  -> validation/security gate
-  -> atomic state update
+  -> parsing and deterministic rules
+  -> authoritative GameState and bounded context
+  -> AI adapter
+  -> structured proposal
+  -> schema, security, and gameplay validation
+  -> accepted effects only
   -> event/quest/memory updates
   -> persistence
 ```
 
-AI never receives direct authority to mutate GameState, saves, databases, scenario canon, or arbitrary files.
+AI narration alone must not mutate game state or complete objectives. Scenario canon must remain separate from mutable campaign state. Treat user, scenario, NPC, memory, and retrieved text as data, never as privileged system instructions.
 
-## Current application work
+## Repository areas
 
-- Dark mobile UI with separate player/narration bubbles and readable role labels.
-- AI settings for Local GGUF, Gemini, OpenAI, and OpenAI-compatible endpoints.
-- Hugging Face catalog search plus a connection diagnostic that does not download a model.
-- API connectivity/model discovery controls and provider-aware endpoint/model defaults.
-- Verified HTTPS transport shared by remote AI calls, plus a separate actual-generation test in AI settings.
-- Gameplay errors are presented separately from story narration; raw exception text is not shown in the chat.
-- Text reveal is presentation-only and must not control persistence semantics.
+- `rpg_android_app.py` — Android/Kivy UI and application integration.
+- `engine/` — gameplay state/rules, AI providers and validation, scenarios, memory, and persistence.
+- `tests/` — automated verification.
+- `tools/` — developer and validation utilities.
+- `scenarios/` — scenario packages and demo data.
+- `android/`, `android_native/` — Android packaging and native runtime support.
+- `.github/workflows/` — automated checks and build workflows.
+- `docs/` — workflow, technical contracts, project state, and navigation aids.
 
-## Verification boundaries
+## Start here
 
-The latest fully green networking baseline is [run 38345698305](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38345698305) with **538 tests** plus compileall, Android readiness, and mutation smoke passing. A subsequent UI assertion was updated; the latest run is linked above. Source CI is not proof of mobile-data connectivity on a physical phone.
+AI sessions must follow this order:
 
-Release gates remain separate:
+1. [AI rules](AI_RULES.md)
+2. [AI entrypoint and repository map](AI_START_HERE.md)
+3. [Current session handoff](AI_SESSION_HANDOFF.md), after verifying its relevance
+4. [Project profile](docs/AI_STORY_ENGINE_PROJECT_PROFILE.md)
+5. [Active goals](docs/PROJECT_GOALS.md) and [workflow](docs/AI_WORKFLOW.md)
+6. [Consolidated technical reference](docs/PROJECT_TECHNICAL_REFERENCE.md)
+7. The specialist specifications needed for the task
 
-1. Source tests and static readiness checks.
-2. Native llama.cpp Android cross-build.
-3. APK packaging and package/hash/provenance verification.
-4. ARM64 device startup/crash smoke.
-5. Gameplay, save/load, SAF import, and local-GGUF inference smoke.
+The [project atlas](docs/project_atlas_map.md), [runtime flow map](docs/runtime_flow_map.md), and [test map](docs/test_map.md) help navigate the repository. Verify their paths and claims against the live source; they are not proof that a capability works.
 
-## Documentation index
+Legacy overlapping plans and dated status snapshots are kept under [the archive](docs/_archive/README.md) for historical recovery. They are not current instructions or acceptance evidence.
 
-| File | Purpose |
-|---|---|
-| `AI_START_HERE.md` | Canonical current handoff and next gates |
-| `MEMORY.md` | Durable project constraints and workflow decisions |
-| `HANDOFF.md` | Compact continuation handoff |
-| `docs/PROJECT_HISTORY.md` | Chronological milestones, failures, and lessons |
-| `docs/CONSTITUTION.md` | Binding architecture/security rules |
-| `docs/ARCHITECTURE.md` | Engine architecture and gameplay loop |
-| `docs/DATA_MODELS.md` | Data contracts |
-| `docs/SCENARIO_DATA_FORMAT.md` | Scenario pack format |
-| `docs/AI_SECURITY_SPEC.md` | AI security boundary |
-| `docs/AI_EXECUTION_POLICY.md` | AI transaction policy |
-| `docs/TESTING.md` | Test and release verification contract |
-| `docs/ANDROID_BUILD.md` | Reproducible Android build contract |
-| `docs/ANDROID_APK_SMOKE.md` | Static APK and real-device startup gates |
-| `docs/AI_NETWORKING_STATUS.md` | AI connectivity implementation, evidence, and remaining device checks |
+## Verification discipline
 
-Technical specifications remain separate from current-state summaries. When documents disagree with implementation, current code, tests, configuration, and observed CI evidence take precedence.
+Current commands must be confirmed in [Testing](docs/TESTING.md), current CI workflows, and the source tree. Never report a test, CI run, APK, installation, or device test unless it actually ran and its result is visible. Source tests, CI, APK production, installation, and physical Android acceptance prove different things.
 
-## Current user-reported blockers (2026-10-14)
-
-The following are still open despite the earlier successful source checks and baseline APK build:
-
-- Chat text-entry/composer layout remains broken.
-- API settings still ask for unnecessary fields; make them provider-aware and minimal.
-- Settings UI and icons/symbols remain visibly inconsistent.
-- Scenario import fails with `characters.json:npc_kim_minjae.goals entries must be objects`; inspect the imported package and fix the producer/consumer schema with regression tests.
-
-The successful [Android build run 38455404595](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38455404595) produced artifact `rpg-engine-v1.1.4-android-debug` from commit `ad611254d90578e375b53f7445d1e7f1d4d243ae`. It predates the fixes above and does not prove physical-device behavior.
+No Android build may be started, stopped, or retriggered without explicit authorization from Mareşal (the user). See [AI_RULES.md](AI_RULES.md) for the role hierarchy, review, merge, security, and handoff rules.
