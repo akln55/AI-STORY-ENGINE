@@ -17,10 +17,10 @@
 | Archived file | Reason |
 |---|---|
 | `HANDOFF.md` | Duplicate and dated session handoff; canonical start guidance now lives in `AI_START_HERE.md` and `AI_SESSION_HANDOFF.md`. |
-| `MEMORY.md` | Mixed long-running notes and stale task status; current rules/goals/log/profile have separate roles. Preserved intact for historical retrieval. |
+| `MEMORY.md` | Mixed long-running notes and stale task status; current rules/goals/log/profile have separate roles. Historical content retained; archive banner and affected relative links were adjusted. |
 | `AI_EXECUTION_POLICY.md` | Overlaps the binding `AI_RULES.md` and `docs/AI_WORKFLOW.md`. |
 | `CONSTITUTION.md` | Contains old architecture/scope decisions that may conflict with the current hybrid-provider direction; preserved pending any explicit reconciliation. |
-| `DEVELOPMENT_PLAN.md` | Large historical master plan with stale completion states and duplicated tasks; preserved intact. |
+| `DEVELOPMENT_PLAN.md` | Large historical master plan with stale completion states and duplicated tasks. Historical content retained; archive banner and affected relative links were adjusted. |
 | `ENGINE_COMPLETION.md` | Versioned completion/status snapshot; not a reliable current-state source. |
 | `GITHUB_TRANSFER_PLAN.md` | One-time migration plan rather than ongoing operating guidance. |
 | `PLAYABLE_MVP.md`, `PROTOTYPE_MVP.md` | Older, overlapping MVP plans whose current status is not authoritative. |
