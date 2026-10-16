@@ -391,6 +391,7 @@ def test_api_connect_checks_a_real_structured_generation_before_applying_provide
     app = (ROOT / "rpg_android_app.py").read_text()
     ai = app[app.index("class AIScreen(BaseScreen):"):app.index("class SettingsScreen(BaseScreen):")]
     connect = ai[ai.index("    def connect_api(self):"):ai.index("    def test_api_generation(self):")]
+    assert "self.api_generation_test_button.disabled = True" in connect
     assert "probe_adapter.generate(" in connect
     assert "Gerçek AI üretimi de başarılı." in connect
     assert 'self.api_key.text = ""' in connect
