@@ -229,14 +229,14 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     assert "self._update_api_panel_height()" in ai
 
 
-def test_selecting_discovered_api_model_updates_live_adapter():
+def test_selecting_discovered_api_model_keeps_it_pending_until_retest():
     source = (ROOT / "rpg_android_app.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
     callback = ai[ai.index("    def _choose_api_model"):ai.index("    def refresh(self):")]
-    assert 'adapter = getattr(self.app_ref.controller.session, "adapter", None)' in callback
-    assert 'adapter.model = selected' in callback
-    assert 'f"Model seçildi: {selected}"' in callback
-    assert 'getattr(self, "_api_probe_succeeded", False) and adapter is not None' in callback
+    assert "self.api_model.text = selected" in callback
+    assert "self._api_probe_succeeded = False" in callback
+    assert "adapter.model = selected" not in callback
+    assert "Ayarları yeniden test ederek uygula." in callback
 
 
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
