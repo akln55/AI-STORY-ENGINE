@@ -371,6 +371,10 @@ def test_gguf_import_picker_runs_file_copy_off_ui_thread_and_handles_completion(
     assert "def _finish_model_import_error(self, message):" in import_flow
     assert "def _finish_model_import_cancel(self):" in import_flow
     assert "def _install_imported_model(self, path, *, cleanup_source=False):" in import_flow
+    install = import_flow[import_flow.index("    def _install_imported_model(self, path, *, cleanup_source=False):"):]
+    guard = install[:install.index("        self._model_import_in_progress = True")]
+    assert "self._close_model_import_status()" in guard
+    assert "self.ai.refresh()" in guard
     assert "Dosya kopyalandı. Model biçimi ve bütünlük kontrolü yapılıyor" in import_flow
 
 
