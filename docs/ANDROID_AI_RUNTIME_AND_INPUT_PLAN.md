@@ -3,7 +3,7 @@
 **Tarih:** 2026-10-15  
 **Durum:** Plan kaydedildi; uygulama kodu henüz değiştirilmedi.  
 **Repo:** `akln55/AI-STORY-ENGINE`  
-**Ana plan:** [`docs/DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)  
+**Aktif hedef listesi:** [`docs/PROJECT_GOALS.md`](PROJECT_GOALS.md). Eski geniş plan yalnızca [arşivde](./_archive/legacy-2026-10-16/DEVELOPMENT_PLAN.md) tarihî bağlam olarak korunur.  
 **Ürün sürümü:** `v1.1.4`
 
 > Bu, mevcut ana geliştirme kampanyasını silen veya onun yerine geçen yeni bir master plan değildir. Kullanıcının telefonda test ettiği APK'nın engelleyici AI/runtime ve giriş alanı sorunlarını önce çözen, ardından daha önce kaldığımız master plan görevlerine dönmek için kullanılan öncelikli alt plandır. Aşağıdaki kutular yalnızca gerçek test kanıtı görüldüğünde işaretlenebilir.
@@ -100,13 +100,13 @@ Kaynakta `engine/ai/llama_native_runtime.py` içindeki `install_runtime_binary()
 4. API tarafında “Bağlantı başarılı” model listesi/endpoint erişimini gösterebilir; tek başına gerçek AI generation kanıtı değildir. API akışı P0 yerel AI sorununu örtmek için kullanılmamalı.
 5. Kaynakta var, unit test'ten geçti, CI'dan geçti, APK'da mevcut ve fiziksel Android'de çalıştı durumlarını ayrı raporla.
 6. API anahtarları, model dosyaları, kullanıcı kayıtları, APK'lar veya yerel build çıktıları Git'e eklenmemeli.
-7. Bu plan bittikten sonra bu dosya silinmeyecek. [Ana geliştirme planında](DEVELOPMENT_PLAN.md) daha önce açık kalan ve bu alt planın kapsamına girmeyen görevler sıradaki öncelikli işe geri alınacak; tarihî/önceden tamamlanan kutular silinmeyecek veya yeniden açılmayacak.
+7. Bu plan tamamlandıktan sonra dosya uzman referansı olarak kalır. Bu plan dışındaki aktif işlerin sırasını `docs/PROJECT_GOALS.md` belirler. `docs/_archive/legacy-2026-10-16/DEVELOPMENT_PLAN.md` tarihî kayıttır; eski görev listesi aktif roadmap sayılmaz.
 
 ## 4. Çalışma sonu kalıcı kayıt gereksinimi
 
 Her uygulama paketinde:
 - Tamamlanan alt kutulara commit/test/CI/cihaz kanıtı ekle.
-- `AI_START_HERE.md`, `HANDOFF.md`, `MEMORY.md`, bu plan ve ana `docs/DEVELOPMENT_PLAN.md` dosyalarında durumu senkronize et.
+- `AI_RULES.md`, `AI_START_HERE.md`, `AI_SESSION_HANDOFF.md`, `docs/PROJECT_GOALS.md`, `docs/PROJECT_LOG.md` ve bu uzman plandaki etkilenen bölümlerde durumu senkronize et. Arşivlenmiş belgeleri güncel durum taklidi yapmak için düzenleme.
 - Bir oturum ortada kesilirse bir sonraki oturum önce bu dosyayı ve ilgili kaynak/testleri okusun.
 - Açık kabul kriterlerini otomatik olarak tamamlandı işaretleme.
 
@@ -120,12 +120,3 @@ Her uygulama paketinde:
 - [ ] Composer/API/advanced settings input çizimi, hitbox ve klavye davranışı düzeltildi ve cihazda doğrulandı.
 - [ ] Full source CI, native build, APK provenance ve yeni artifact kapıları geçildi.
 - [ ] Bu alt plan bittikten sonra ana geliştirme planındaki sıradaki iş yeniden seçildi.
-
-
-## 2026-10-15 — Implementation progress (supersedes the initial plan-only status above)
-
-**Session 1 / P0 runtime:** PR #4 contains the native-library execution fix. Source CI run [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android build/static APK provenance run [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed. Artifact id: 11956422925. This does not close the physical-device gate: model activation and one real AI generation still need testing on an ARM64 Android device.
-
-**Session 2 / P1 GGUF import + P2 text inputs:** implementation is in [PR #5](https://github.com/akln55/AI-STORY-ENGINE/pull/5), stacked on the session-1 branch. SAF copying now runs on a worker, writes a unique temporary file before atomic replacement, and reports cancellation/errors so the busy state can reset. The hidden API endpoint/model TextInputs are now themselves collapsed and disabled; Android soft input uses pan, and focused settings inputs are scrolled into view. Mocked SAF and input-readiness regressions were added.
-
-The first session-2 CI run reported 627 passed / 1 failed; the failing test was a stale assertion for the prior desktop-import method name. The assertion was updated in commit d9a667b800b41d1c9a781b29f642a4c90aeed507. Retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued when this note was written. Do not mark P1/P2 or physical-device acceptance complete until latest CI and device checks pass.

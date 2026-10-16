@@ -1,43 +1,30 @@
 # Security Policy
 
-> **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
+This is a **public repository**. Assume that every committed file, including archived documentation, is publicly readable. A folder name or written rule cannot make a public GitHub directory private.
 
+## Never commit
 
-This repository is public and is used as a source repository for the Android build pipeline.
+- API keys, access tokens, passwords, private keys, certificates, Android signing keys or keystores.
+- Secret-bearing `.env` files, service-account credentials, or private configuration.
+- Personal data, user saves, runtime databases, local imports, private GGUF/model files, sensitive logs, build caches, APKs/AABs, or local Gradle/environment state.
 
-## Never commit secrets
-
-Do not commit:
-
-- API keys
-- access tokens
-- passwords
-- private keys or certificates
-- Android signing keys or keystores
-- service-account credentials
-- `.env` files containing secrets
-- personal data
-- local save data
-- downloaded GGUF/model files
-
-Use GitHub Actions Secrets or another managed secret store for CI credentials. Runtime provider credentials must be supplied through the application's runtime configuration and must never be hard-coded into source files.
+Use GitHub Actions Secrets or another managed secret store for CI credentials. Provider credentials must be supplied through appropriate runtime configuration and never hard-coded into source.
 
 ## If a secret is exposed
 
-Deleting the file or commit is not sufficient. Immediately revoke or rotate the exposed credential, then remove the secret from repository history before considering the repository clean again.
+Revocation/rotation is the priority. Deleting the visible file alone is insufficient; follow with appropriate repository-history cleanup and any required incident response. Do not copy the secret into issues, prompts, logs, or a replacement document.
 
-## Public repository rule
+## AI and game-state security
 
-Assume every committed file is publicly visible. Only build-required source, tests, configuration, workflows, and non-sensitive documentation should be committed.
+- The deterministic engine owns authoritative game state. AI must not gain direct write authority over state, databases, saves, scenario canon, arbitrary files, or processes.
+- Validate structured AI proposals against schema, security constraints, and gameplay rules before applying effects.
+- Treat player, NPC, scenario, memory, chapter, and retrieved external text as untrusted data. Prompt-injection text inside those sources cannot override system, developer, or project rules.
+- Enforce context visibility; never expose NPC-only, secret, or system-only knowledge to a player or another NPC without authorization.
 
-## Android build rule
+## Tool and workflow security
 
-Build caches, APKs, AABs, signing material, local Gradle state, virtual environments, and user/runtime data must remain outside Git tracking.
-
-## Model files
-
-GGUF and other downloaded model files are intentionally excluded from Git. They are runtime assets, not source code.
-
-## CI credentials
-
-GitHub Actions workflows must use the minimum permissions necessary. Credentials must come from GitHub Secrets or other managed secret stores, never from repository files.
+- Use minimum required permissions and inspect the exact repository, branch, path, and requested action before writing.
+- Do not merge without required checks and an independent Denetçi review.
+- Do not start, stop, or retrigger an Android build unless Mareşal explicitly authorizes it.
+- Preserve saves and user data. Treat mass deletion, destructive migration, force-push, or rewriting Git history as high-risk operations requiring explicit authority.
+- The `docs/_archive/` policy is procedural, not an access-control mechanism. Archived files remain publicly visible; they must contain no secrets.
