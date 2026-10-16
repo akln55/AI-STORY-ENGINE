@@ -1497,6 +1497,7 @@ class AIScreen(BaseScreen):
             text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
         )
         self.api_model.bind(focus=self._input_focus_changed)
+        self.api_model.bind(text=self._api_model_text_changed)
         self.api_key = PillInput(
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
@@ -1707,6 +1708,13 @@ class AIScreen(BaseScreen):
         if not filtered and all_models:
             self.api_status.text = "Filtreyle eşleşen model yok. Filtreyi kısalt veya model adını elle gir."
             self.api_status.color = MUTED
+
+    def _api_model_text_changed(self, _widget, _value):
+        """Invalidate the previous successful probe whenever the pending model is edited."""
+        self._api_probe_succeeded = False
+        button = getattr(self, "api_generation_test_button", None)
+        if button is not None:
+            button.disabled = True
 
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
