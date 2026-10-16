@@ -445,7 +445,7 @@ Bu kapı, B–F kapsamındaki kod ve dokümantasyon değişiklikleri tamamlandı
 
 ## 2026-10-15 — User-tested Android AI/runtime blocker subplan
 
-The user installed the latest Android debug APK and tested it on-device. A new focused, **not-yet-implemented** subplan has priority before resuming the pre-existing campaign: [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md).
+The user installed the latest Android debug APK and tested it on-device. A new focused, **not-yet-implemented** subplan has priority before resuming the pre-existing campaign: [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](../../ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md).
 
 Current observed acceptance blockers:
 
