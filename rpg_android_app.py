@@ -2675,12 +2675,17 @@ class RPGEngineApp(App):
         return self._gameplay_initialized
 
     def _record_gameplay_error(self, stage, exc):
+        """Record useful locations without persisting provider bodies or exception secrets."""
         try:
             target = self._diagnostic_dir() / "gameplay_error.log"
             import traceback
+            frames = traceback.extract_tb(exc.__traceback__)
+            stack = "\n".join(
+                f"{Path(frame.filename).name}:{frame.lineno} in {frame.name}"
+                for frame in frames[-12:]
+            )
             target.write_text(
-                f"stage={stage}\nerror={type(exc).__name__}: {exc}\n\n"
-                + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+                f"stage={stage}\nerror_type={type(exc).__name__}\nstack:\n{stack}\n",
                 encoding="utf-8",
             )
         except Exception:
