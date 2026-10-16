@@ -1594,6 +1594,7 @@ class AIScreen(BaseScreen):
             self.api_model.text = "gemini-2.5-flash"
             self.api_advanced_open = False
         self._last_api_provider = provider
+        self._invalidate_api_generation_test()
         self._api_probe_succeeded = False
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
@@ -1711,19 +1712,23 @@ class AIScreen(BaseScreen):
             self.api_status.text = "Filtreyle eşleşen model yok. Filtreyi kısalt veya model adını elle gir."
             self.api_status.color = MUTED
 
-    def _api_credentials_text_changed(self, _widget, _value):
-        """Invalidate a prior probe after editing the endpoint or API key."""
-        self._api_probe_succeeded = False
+    def _invalidate_api_generation_test(self):
+        """Invalidate outstanding generation results when API configuration becomes pending."""
+        self._api_generation_test_token = getattr(self, "_api_generation_test_token", 0) + 1
+        self._api_generation_test_running = False
         button = getattr(self, "api_generation_test_button", None)
         if button is not None:
             button.disabled = True
 
+    def _api_credentials_text_changed(self, _widget, _value):
+        """Invalidate a prior probe after editing the endpoint or API key."""
+        self._invalidate_api_generation_test()
+        self._api_probe_succeeded = False
+
     def _api_model_text_changed(self, _widget, _value):
         """Invalidate the previous successful probe whenever the pending model is edited."""
+        self._invalidate_api_generation_test()
         self._api_probe_succeeded = False
-        button = getattr(self, "api_generation_test_button", None)
-        if button is not None:
-            button.disabled = True
 
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
@@ -2188,6 +2193,7 @@ class AIScreen(BaseScreen):
         # Do not replace a working provider until the new credentials and
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
+        self._invalidate_api_generation_test()
         self._api_probe_succeeded = False
         self.api_generation_test_button.disabled = True
         self.api_status.text = "Bağlantı ve gerçek AI üretimi kontrol ediliyor…"
@@ -2274,12 +2280,19 @@ class AIScreen(BaseScreen):
         """Exercise the selected provider's real generation endpoint, not just model listing."""
         if getattr(self, "_api_generation_test_running", False):
             return
+        if not getattr(self, "_api_probe_succeeded", False):
+            self.api_generation_test_button.disabled = True
+            self.api_status.text = "Ayarları yeniden test ederek uygula."
+            self.api_status.color = MUTED
+            return
         adapter = getattr(self.app_ref.controller.session, "adapter", None)
         if adapter is None or not hasattr(adapter, "generate"):
             self.api_status.text = "Etkin bir AI sağlayıcısı bulunamadı."
             self.api_status.color = DANGER
             return
 
+        token = getattr(self, "_api_generation_test_token", 0) + 1
+        self._api_generation_test_token = token
         self._api_generation_test_running = True
         self.api_generation_test_button.disabled = True
         self.api_status.text = "Gerçek AI isteği gönderiliyor…"
@@ -2305,7 +2318,12 @@ class AIScreen(BaseScreen):
                 success = False
 
             def finish(*_):
+                if token != getattr(self, "_api_generation_test_token", 0):
+                    return
                 self._api_generation_test_running = False
+                if not getattr(self, "_api_probe_succeeded", False):
+                    self.api_generation_test_button.disabled = True
+                    return
                 self.api_generation_test_button.disabled = False
                 self.api_status.text = message
                 self.api_status.color = ACCENT if success else DANGER
