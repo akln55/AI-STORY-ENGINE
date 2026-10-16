@@ -316,3 +316,27 @@ def test_settings_exposes_safe_partial_model_resume_with_saved_revision():
     assert "def list_partial_model_downloads(" in manager
     assert "_download_fingerprint(spec) != fingerprint" in manager
     assert "list_partial_model_downloads(default_model_storage_dir())" in controller
+
+
+
+def test_android_llama_server_is_packaged_in_native_library_directory():
+    spec = (ROOT / "buildozer.spec").read_text()
+    runtime = (ROOT / "engine/ai/llama_native_runtime.py").read_text()
+    native_build = (ROOT / "tools/build_llama_server_android.sh").read_text()
+    apk_verifier = (ROOT / "tools/verify_android_apk.py").read_text()
+
+    assert "android.add_libs_arm64_v8a = android_native/arm64-v8a/libllama-server.so" in spec
+    assert "NATIVE_SERVER_FILENAME = \"libllama-server.so\"" in runtime
+    assert "nativeLibraryDir" in runtime
+    assert "install_runtime_binary" not in runtime
+    assert "android_native/arm64-v8a/libllama-server.so" in native_build
+    assert "NATIVE_LIBRARY_APK_PATH" in apk_verifier
+    apk_contents = (ROOT / "tools/android_apk_contents.py").read_text()
+    assert "NATIVE_LIBRARY_APK_PATH = " + chr(34) + "lib/arm64-v8a/libllama-server.so" + chr(34) in apk_contents
+
+
+def test_android_build_verifies_native_pie_and_starts_on_pull_request():
+    workflow = (ROOT / ".github/workflows/android-build.yml").read_text()
+    assert "pull_request:" in workflow
+    assert "Type:.*DYN" in workflow
+    assert "android_native/arm64-v8a/libllama-server.so" in workflow

@@ -2,6 +2,20 @@ name: Android build
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/android-build.yml"
+      - "buildozer.spec"
+      - "android_native/**"
+      - "engine/ai/llama_native_runtime.py"
+      - "engine/app/controller.py"
+      - "tools/build_llama_server_android.sh"
+      - "tools/android_apk_contents.py"
+      - "tools/verify_android_apk.py"
+      - "tools/verify_android_staging.py"
+      - "tests/test_llama_native_runtime.py"
+      - "tests/test_android_apk_verifier.py"
+      - "tests/test_android_app_readiness.py"
 
 permissions:
   contents: read
@@ -84,13 +98,14 @@ jobs:
           set -euo pipefail
           chmod +x tools/build_llama_server_android.sh
           ./tools/build_llama_server_android.sh
-          test -s android_native/arm64-v8a/llama-server.bin
-          file android_native/arm64-v8a/llama-server.bin
-          readelf -h android_native/arm64-v8a/llama-server.bin | tee .ci/native-elf.txt
+          test -s android_native/arm64-v8a/libllama-server.so
+          file android_native/arm64-v8a/libllama-server.so
+          readelf -h android_native/arm64-v8a/libllama-server.so | tee .ci/native-elf.txt
           grep -q 'Class:.*ELF64' .ci/native-elf.txt
+          grep -q 'Type:.*DYN' .ci/native-elf.txt
           grep -q 'Machine:.*AArch64' .ci/native-elf.txt
-          grep -q '^llama.cpp tag=v0.6.0 commit=d81235049384534c167caea52b85a694f6103d14$' android_native/arm64-v8a/llama-server.bin.build-info
-          sha256sum android_native/arm64-v8a/llama-server.bin | tee .ci/native-sha256.txt
+          grep -q '^llama.cpp tag=v0.6.0 commit=d81235049384534c167caea52b85a694f6103d14$' android_native/arm64-v8a/libllama-server.so.build-info
+          sha256sum android_native/arm64-v8a/libllama-server.so | tee .ci/native-sha256.txt
 
       - name: Build Android debug APK
         shell: bash
