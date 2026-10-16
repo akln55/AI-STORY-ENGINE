@@ -13,27 +13,11 @@ This is the authoritative **active goal list**, not a feature wish list. Work on
 
 ## Active goals — priority order
 
-### G0 — Consolidate project documentation and remove ambiguity
-**Status:** Documentation branch prepared; independent review and merge pending  
-**Purpose:** Keep one obvious instruction hierarchy, preserve genuinely useful specialist contracts, and move old overlapping plans/status notes out of the active documentation surface without destroying history.
-
-Acceptance:
-- [x] Inventory Markdown files and classify current instructions, specialist contracts, navigation aids, historical records, and scenario data.
-- [x] Maintain a short `AI_START_HERE.md` and put binding role/emoji/archive rules in `AI_RULES.md`.
-- [x] Maintain one active goal list (`docs/PROJECT_GOALS.md`) and one concise verified project log (`docs/PROJECT_LOG.md`).
-- [x] Preserve historical files while moving 15 overlapping or stale documents to `docs/_archive/legacy-2026-10-16/`; no source history was rewritten.
-- [x] Explain the archive's procedural Komutan-only decision rule and disclose that GitHub does not enforce private folders inside a public repository.
-- [x] Keep active specialist specs, current project maps, scenario/lore Markdown, and application data out of the cleanup set.
-- [x] No application code was changed and no build was triggered.
-- [ ] Obtain independent Denetçi review of the documentation diff; merge only after the review and required checks are PASS.
-
 ### G1 — Resolve Android local-AI activation and input blockers
-**Status:** Open; symptoms must be re-verified  
+**Status:** Implementation is in PR #6; latest source CI passed, Android APK/provenance build pending. Physical-device acceptance remains unverified.  
 **Reported symptoms (2026-10-15):**
-- Local `llama-server` launch in app-private `native_runtime` fails with `[Errno 13] Permission denied`; root cause not confirmed.
-- Gameplay can report `(no AI adapter configured)` after activation fails.
-- GGUF selection/import may lead to a black screen or activation error.
-- Chat composer and API settings have text visibility, keyboard, focus, or hitbox problems.
+- Historical user-reported symptoms (2026-10-15): local `llama-server` failed with `[Errno 13] Permission denied` from writable app-private storage; failed activation could leave gameplay without an AI adapter; GGUF import/activation and mobile text input/focus also had problems.
+- PRs #4–#6 now contain source-level fixes for native-library packaging, GGUF import flow, API inference, and input/focus handling. This is source/CI evidence, not proof that each symptom is fixed on a physical phone.
 
 Acceptance:
 - [ ] Reproduce each applicable symptom on the current source/build and capture the actual error path.
