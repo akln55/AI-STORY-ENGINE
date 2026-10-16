@@ -60,7 +60,7 @@ Scenario.rpgscenario.zip
 ## 5. Android, native runtime ve build
 - Kaydedilmiş teknoloji zinciri: Python 3.11, Kivy, Buildozer + python-for-android; Buildozer 1.6.0, Kivy 2.3.1 ve pinned p4a/NDK değerleri build dokümanında listelenmiştir; güncel CI config'i doğrula.
 - Tercih edilen build ortamı Linux/Ubuntu 24.04 GitHub Actions; Google Colab fallback/debug ortamıdır. Build Android telefonda çalıştırılıyor varsayımı yapılmaz.
-- Android workflow `workflow_dispatch` kullanır; test workflow `pull_request` ve main push'ta çalışır.
+- Android build workflow `workflow_dispatch` ve Android/native kaynaklarla ilgili dosya yollarına filtrelenmiş `pull_request` tetikleyicilerini kullanır. Test suite ayrı bir workflow'dur; her görevde gerçek tetikleyiciler `.github/workflows/` altındaki güncel dosyalardan doğrulanır, `main` push davranışı varsayılmaz.
 - Android build zinciri: source pytest → native ARM64 llama.cpp server cross-build → ELF64/AArch64 ve binary provenance → Buildozer APK → package metadata + SHA-256 → CI artifact/provenance.
 - Android'de local model dosyaları GGUF'tur; model manager belgelerinde güvenli destination, atomik `.part` aktarım ve SHA-256 doğrulama/limitlerden söz edilir. Gerçek kısıtları current code'dan doğrula.
 - Android Storage Access Framework (SAF) ile scenario/GGUF importları uygulama-private storage'a alınmalıdır.
