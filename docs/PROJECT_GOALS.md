@@ -18,13 +18,13 @@ This is the authoritative **active goal list**, not a feature wish list. Work on
 **Purpose:** Establish a small, reliable set of canonical AI instructions before deciding what to do with legacy Markdown files.
 
 Acceptance:
-- [ ] `AI_START_HERE.md` is a short entrypoint and documentation map.
-- [ ] `docs/AI_WORKFLOW.md` defines tool discovery, planning, implementation, testing, build authorization, and documentation rules.
-- [ ] `docs/PROJECT_GOALS.md` is the single active goal list.
-- [ ] `docs/PROJECT_LOG.md` is the concise chronological record.
+- [x] `AI_START_HERE.md` is a short entrypoint and documentation map.
+- [x] `docs/AI_WORKFLOW.md` defines tool discovery, planning, implementation, testing, build authorization, and documentation rules.
+- [x] `docs/PROJECT_GOALS.md` is the single active goal list.
+- [x] `docs/PROJECT_LOG.md` is the concise chronological record.
 - [ ] Existing Markdown files are inventoried and classified as keep, merge, archive, or propose-for-deletion.
 - [ ] No legacy Markdown file is deleted before the user approves a path-by-path deletion proposal.
-- [ ] No app code is changed and no build is triggered as part of this goal.
+- [x] No app code is changed and no build is triggered as part of this goal.
 
 ### G1 — Resolve Android local-AI activation and input blockers
 **Status:** Open; symptoms must be re-verified  
