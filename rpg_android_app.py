@@ -2963,7 +2963,9 @@ class RPGEngineApp(App):
     def _install_imported_model(self, path, *, cleanup_source=False):
         if self._model_activation_in_progress:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self.notify("Başka bir model işlemi devam ediyor. Yeniden dene.")
+            self.ai.refresh()
             return
         self._model_import_in_progress = True
         self._show_model_import_status("GGUF dosyası doğrulanıyor; bu sırada sohbet kapatılmayacak…")
