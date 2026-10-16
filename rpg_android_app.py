@@ -1711,16 +1711,16 @@ class AIScreen(BaseScreen):
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
             return
+        # A successful probe belongs to the exact provider/endpoint/key/model
+        # combination that was tested. Choosing a different model invalidates
+        # that result; never mutate the live adapter until connect_api has run
+        # a genuine structured generation against this pending selection.
         self.api_model.text = selected
-        adapter = getattr(self.app_ref.controller.session, "adapter", None)
-        if getattr(self, "_api_probe_succeeded", False) and adapter is not None and hasattr(adapter, "model"):
-            adapter.model = selected
+        self._api_probe_succeeded = False
         self.api_status.text = (
             f"Model seçildi: {selected}. Ayarları yeniden test ederek uygula."
-            if not getattr(self, "_api_probe_succeeded", False)
-            else f"Model seçildi: {selected}"
         )
-        self.api_status.color = ACCENT if getattr(self, "_api_probe_succeeded", False) else MUTED
+        self.api_status.color = MUTED
 
     def refresh(self):
         self.provider.text = self.app_ref.controller.provider_name
