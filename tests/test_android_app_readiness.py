@@ -235,6 +235,7 @@ def test_selecting_discovered_api_model_keeps_it_pending_until_retest():
     callback = ai[ai.index("    def _choose_api_model"):ai.index("    def refresh(self):")]
     assert "self.api_model.text = selected" in callback
     assert "self._api_probe_succeeded = False" in callback
+    assert "self.api_generation_test_button.disabled = True" in callback
     assert "adapter.model = selected" not in callback
     assert "Ayarları yeniden test ederek uygula." in callback
 
