@@ -418,6 +418,15 @@ def test_chat_surface_reports_useful_ai_failure_instead_of_generic_error():
     assert "daha küçük" in worker.lower()
 
 
+def test_gameplay_diagnostics_do_not_persist_raw_provider_error_bodies():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    diagnostic = app[app.index("    def _record_gameplay_error(self, stage, exc):"):app.index("    def save(self):")]
+    assert "traceback.extract_tb(exc.__traceback__)" in diagnostic
+    assert "error_type={type(exc).__name__}" in diagnostic
+    assert "traceback.format_exception" not in diagnostic
+    assert "{exc}" not in diagnostic
+
+
 def test_android_application_source_compiles_without_importing_kivy():
     source_path = ROOT / "rpg_android_app.py"
     source = source_path.read_text(encoding="utf-8")
