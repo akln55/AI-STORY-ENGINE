@@ -446,6 +446,21 @@ def test_chat_surface_reports_useful_ai_failure_instead_of_generic_error():
     assert "daha küçük" in worker.lower()
 
 
+def test_in_flight_api_generation_result_is_invalidated_by_config_changes():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    invalidator = ai[ai.index("    def _invalidate_api_generation_test"):ai.index("    def _api_credentials_text_changed")]
+    credential_handler = ai[ai.index("    def _api_credentials_text_changed"):ai.index("    def _api_model_text_changed")]
+    connect = ai[ai.index("    def connect_api(self):"):ai.index("    def test_api_generation(self):")]
+    generation = ai[ai.index("    def test_api_generation(self):"):]
+    assert "self._api_generation_test_token = getattr(self, \"_api_generation_test_token\", 0) + 1" in invalidator
+    assert "self._api_generation_test_running = False" in invalidator
+    assert "self._invalidate_api_generation_test()" in credential_handler
+    assert "self._invalidate_api_generation_test()" in connect
+    assert 'if token != getattr(self, "_api_generation_test_token", 0):' in generation
+    assert "if not getattr(self, \"_api_probe_succeeded\", False):" in generation
+
+
 def test_gameplay_diagnostics_do_not_persist_raw_provider_error_bodies():
     app = (ROOT / "rpg_android_app.py").read_text()
     diagnostic = app[app.index("    def _record_gameplay_error(self, stage, exc):"):app.index("    def save(self):")]
