@@ -120,3 +120,24 @@ def test_adapter_does_not_retry_authentication_failures():
         else:
             raise AssertionError("expected authentication error")
     assert len(calls) == 1
+
+def test_adapter_reports_non_object_json_as_provider_error():
+    from unittest.mock import patch
+    from engine.ai.openai_compatible_adapter import OpenAICompatibleProviderError
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return b"[]"
+
+    adapter = OpenAICompatibleAdapter("https://api.example/v1", "test-key", "test-model")
+    with patch("engine.ai.openai_compatible_adapter.open_url", return_value=Response()):
+        try:
+            adapter.generate_text("do work")
+        except OpenAICompatibleProviderError as exc:
+            assert "invalid API response envelope" in str(exc)
+        else:
+            raise AssertionError("expected malformed response envelope error")
