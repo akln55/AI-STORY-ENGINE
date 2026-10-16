@@ -1491,6 +1491,7 @@ class AIScreen(BaseScreen):
             text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
         )
         self.api_endpoint.bind(focus=self._input_focus_changed)
+        self.api_endpoint.bind(text=self._api_credentials_text_changed)
         self._last_api_provider = "OpenAI"
         self.api_advanced_open = False
         self.api_model = PillInput(
@@ -1502,6 +1503,7 @@ class AIScreen(BaseScreen):
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
         self.api_key.bind(focus=self._input_focus_changed)
+        self.api_key.bind(text=self._api_credentials_text_changed)
         self.api_key_field = _field_group("API anahtarı", self.api_key)
         api.add_widget(self.api_key_field)
         self.api_advanced_button = SoftButton(
@@ -1708,6 +1710,13 @@ class AIScreen(BaseScreen):
         if not filtered and all_models:
             self.api_status.text = "Filtreyle eşleşen model yok. Filtreyi kısalt veya model adını elle gir."
             self.api_status.color = MUTED
+
+    def _api_credentials_text_changed(self, _widget, _value):
+        """Invalidate a prior probe after editing the endpoint or API key."""
+        self._api_probe_succeeded = False
+        button = getattr(self, "api_generation_test_button", None)
+        if button is not None:
+            button.disabled = True
 
     def _api_model_text_changed(self, _widget, _value):
         """Invalidate the previous successful probe whenever the pending model is edited."""
