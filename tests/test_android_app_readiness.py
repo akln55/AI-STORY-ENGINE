@@ -240,6 +240,16 @@ def test_selecting_discovered_api_model_keeps_it_pending_until_retest():
     assert "Ayarları yeniden test ederek uygula." in callback
 
 
+def test_manual_api_model_edit_invalidates_previous_probe():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    setup = ai[ai.index("self.api_model = PillInput"):ai.index("self.api_key = PillInput")]
+    handler = ai[ai.index("    def _api_model_text_changed"):ai.index("    def _choose_api_model")]
+    assert "self.api_model.bind(text=self._api_model_text_changed)" in setup
+    assert "self._api_probe_succeeded = False" in handler
+    assert "button.disabled = True" in handler
+
+
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
     source = (ROOT / "rpg_android_app.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
