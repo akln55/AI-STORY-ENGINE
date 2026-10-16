@@ -43,9 +43,11 @@ class NativeLlamaRuntimeConfig:
     model_path: Path | str
     host: str = "127.0.0.1"
     port: int = 8080
-    ctx_size: int = 4096
-    max_tokens: int = 512
-    threads: int | None = None
+    ctx_size: int = 2048
+    max_tokens: int = 192
+    threads: int | None = 4
+    batch_size: int = 256
+    ubatch_size: int = 128
     health_timeout: float = 45.0
 
     def validate(self) -> None:
@@ -57,6 +59,8 @@ class NativeLlamaRuntimeConfig:
             raise NativeLlamaRuntimeConfigError("ctx_size and max_tokens must be positive")
         if self.threads is not None and self.threads <= 0:
             raise NativeLlamaRuntimeConfigError("threads must be positive when set")
+        if self.batch_size <= 0 or self.ubatch_size <= 0 or self.ubatch_size > self.batch_size:
+            raise NativeLlamaRuntimeConfigError("batch sizes must be positive and ubatch_size cannot exceed batch_size")
         if self.health_timeout <= 0:
             raise NativeLlamaRuntimeConfigError("health_timeout must be positive")
 
@@ -179,6 +183,8 @@ class NativeLlamaServer:
             "--port", str(self.config.port),
             "--ctx-size", str(self.config.ctx_size),
             "--n-predict", str(self.config.max_tokens),
+            "--batch-size", str(self.config.batch_size),
+            "--ubatch-size", str(self.config.ubatch_size),
         ]
         if self.config.threads is not None:
             command.extend(["--threads", str(self.config.threads)])

@@ -32,6 +32,8 @@ from engine import __version__
 from engine.app.controller import AppController
 from engine.ai.model_manager import ModelSpec, check_huggingface_connection
 from engine.ai.connectivity import APIConnectionError, check_api_connection
+from engine.ai.gemini_adapter import GeminiAdapter
+from engine.ai.openai_compatible_adapter import OpenAICompatibleAdapter
 
 
 # Semantic dark-theme tokens: one source of truth for surfaces, text and actions.
@@ -186,6 +188,10 @@ class PillInput(TextInput):
         kwargs.setdefault("background_active", "")
         kwargs.setdefault("background_disabled_normal", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
+        kwargs.setdefault("foreground_color", TEXT)
+        kwargs.setdefault("hint_text_color", MUTED)
+        kwargs.setdefault("cursor_color", ACCENT)
+        kwargs.setdefault("selection_color", (0.12, 0.40, 0.22, 0.85))
         kwargs.setdefault("cursor_width", dp(2))
         super().__init__(**kwargs)
         with self.canvas.before:
@@ -351,7 +357,7 @@ class MessageBubble(RoundedPanel):
             size_hint_y=None,
             markup=False,
         )
-        self._label.bind(texture_size=self._sync_height)
+        self._label.bind(texture_size=self._sync_height, width=self._sync_height)
         self.add_widget(self._label)
         self.bind(width=lambda *_: self._sync_width())
         Clock.schedule_once(lambda *_: self._sync_width(), 0)
@@ -366,11 +372,15 @@ class MessageBubble(RoundedPanel):
         self._sync_width()
 
     def _sync_width(self):
+        # Explicit width and wrapping are more reliable during animated Kivy layout
+        # changes than relying on the Label texture before the bubble is measured.
         width = max(dp(40), self.width - dp(28))
+        self._label.width = width
         self._label.text_size = (width, None)
+        self._sync_height()
 
     def _sync_height(self, *_):
-        # Account for the role caption as well as the body and panel padding.
+        # Account for the role caption as well as body and panel padding.
         self._label.height = max(dp(24), self._label.texture_size[1])
         self.height = self._label.height + dp(34)
 
@@ -406,6 +416,8 @@ class GameplayScreen(BaseScreen):
         self.input = PillInput(
             hint_text="Ne yapmak istiyorsun?", size_hint_x=1, size_hint_y=1,
             multiline=True, padding=[dp(14), dp(8)], font_size=sp(15),
+            foreground_color=TEXT, hint_text_color=MUTED, cursor_color=ACCENT,
+            background_color=(0, 0, 0, 0),
             fill_color=(0.12, 0.12, 0.12, 1),
         )
         self.input.bind(text=self._resize_composer, width=self._resize_composer)
@@ -1479,16 +1491,19 @@ class AIScreen(BaseScreen):
             text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
         )
         self.api_endpoint.bind(focus=self._input_focus_changed)
+        self.api_endpoint.bind(text=self._api_credentials_text_changed)
         self._last_api_provider = "OpenAI"
         self.api_advanced_open = False
         self.api_model = PillInput(
             text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
         )
         self.api_model.bind(focus=self._input_focus_changed)
+        self.api_model.bind(text=self._api_model_text_changed)
         self.api_key = PillInput(
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
         self.api_key.bind(focus=self._input_focus_changed)
+        self.api_key.bind(text=self._api_credentials_text_changed)
         self.api_key_field = _field_group("API anahtarı", self.api_key)
         api.add_widget(self.api_key_field)
         self.api_advanced_button = SoftButton(
@@ -1579,6 +1594,8 @@ class AIScreen(BaseScreen):
             self.api_model.text = "gemini-2.5-flash"
             self.api_advanced_open = False
         self._last_api_provider = provider
+        self._invalidate_api_generation_test()
+        self._api_probe_succeeded = False
         self.api_endpoint.disabled = gemini
         self.api_endpoint.opacity = 0.4 if gemini else 1.0
         if gemini and self.api_model.text.strip() in {"", "gpt-4.1-mini", "gemini-3.6-flash"}:
@@ -1695,15 +1712,38 @@ class AIScreen(BaseScreen):
             self.api_status.text = "Filtreyle eşleşen model yok. Filtreyi kısalt veya model adını elle gir."
             self.api_status.color = MUTED
 
+    def _invalidate_api_generation_test(self):
+        """Invalidate outstanding generation results when API configuration becomes pending."""
+        self._api_generation_test_token = getattr(self, "_api_generation_test_token", 0) + 1
+        self._api_generation_test_running = False
+        button = getattr(self, "api_generation_test_button", None)
+        if button is not None:
+            button.disabled = True
+
+    def _api_credentials_text_changed(self, _widget, _value):
+        """Invalidate a prior probe after editing the endpoint or API key."""
+        self._invalidate_api_generation_test()
+        self._api_probe_succeeded = False
+
+    def _api_model_text_changed(self, _widget, _value):
+        """Invalidate the previous successful probe whenever the pending model is edited."""
+        self._invalidate_api_generation_test()
+        self._api_probe_succeeded = False
+
     def _choose_api_model(self, _spinner, selected):
         if not selected or selected not in self.api_models_picker.values:
             return
+        # A successful probe belongs to the exact provider/endpoint/key/model
+        # combination that was tested. Choosing a different model invalidates
+        # that result; never mutate the live adapter until connect_api has run
+        # a genuine structured generation against this pending selection.
         self.api_model.text = selected
-        adapter = getattr(self.app_ref.controller.session, "adapter", None)
-        if adapter is not None and hasattr(adapter, "model"):
-            adapter.model = selected
-            self.api_status.text = f"Model seçildi: {selected}"
-            self.api_status.color = ACCENT
+        self._api_probe_succeeded = False
+        self.api_generation_test_button.disabled = True
+        self.api_status.text = (
+            f"Model seçildi: {selected}. Ayarları yeniden test ederek uygula."
+        )
+        self.api_status.color = MUTED
 
     def refresh(self):
         self.provider.text = self.app_ref.controller.provider_name
@@ -2116,6 +2156,27 @@ class AIScreen(BaseScreen):
 
         Thread(target=worker, daemon=True).start()
 
+    def _friendly_api_error(self, exc):
+        """Translate API failures into actionable UI text without exposing secrets."""
+        detail = str(exc).lower()
+        if "401" in detail or "unauthorized" in detail or ("api key" in detail and "invalid" in detail):
+            return "API anahtarı geçersiz veya bu sağlayıcı tarafından kabul edilmedi."
+        if "403" in detail or "permission" in detail or "forbidden" in detail:
+            return "Sağlayıcı erişimi reddetti. API planını ve model erişim iznini kontrol et."
+        if "404" in detail or "not found" in detail:
+            return "Model veya endpoint bulunamadı. Sağlayıcının model kimliğini ve endpoint adresini kontrol et."
+        if "429" in detail or "rate limit" in detail or "quota" in detail:
+            return "Sağlayıcı kota veya istek sınırına ulaştı. Hesap kotasını kontrol et."
+        if "timed out" in detail or "timeout" in detail:
+            return "Gerçek AI isteği zaman aşımına uğradı. Ağı ve model sağlayıcısını kontrol et."
+        if "invalid structured response" in detail or "not valid json" in detail or "json" in type(exc).__name__.lower():
+            return "API yanıt verdi ancak RPG Engine için gereken JSON biçimini üretmedi. Bu model/endpoint uyumlu olmayabilir."
+        if "response_format" in detail:
+            return "Sağlayıcı beklenen yanıt biçimini desteklemiyor. OpenAI-compatible endpoint ayarını kontrol et."
+        if "tls" in detail or "ssl" in detail or "certificate" in detail:
+            return "Güvenli bağlantı kurulamadı. Cihaz tarihini ve ağ bağlantısını kontrol et."
+        return "API bağlantısı kuruldu ancak gerçek AI üretimi doğrulanamadı. Model kimliğini, erişim yetkisini ve endpoint biçimini kontrol et."
+
     def connect_api(self):
         api_key = self.api_key.text.strip()
         model_name = self.api_model.text.strip()
@@ -2132,11 +2193,16 @@ class AIScreen(BaseScreen):
         # Do not replace a working provider until the new credentials and
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
-        self.api_key.text = ""
-        self.api_status.text = "Bağlantı kontrol ediliyor…"
+        self._invalidate_api_generation_test()
+        self._api_probe_succeeded = False
+        self.api_generation_test_button.disabled = True
+        self.api_status.text = "Bağlantı ve gerçek AI üretimi kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
         self.api_provider.disabled = True
+        self.api_endpoint.disabled = True
+        self.api_model.disabled = True
+        self.api_key.disabled = True
         token = getattr(self, "_api_probe_token", 0) + 1
         self._api_probe_token = token
 
@@ -2149,14 +2215,23 @@ class AIScreen(BaseScreen):
                     api_key=api_key,
                     timeout=12.0,
                 )
-                message = result.message
                 model_ids = result.model_ids
+                if provider == "Gemini":
+                    probe_adapter = GeminiAdapter(api_key, model=model_name)
+                else:
+                    probe_adapter = OpenAICompatibleAdapter(endpoint, api_key, model_name)
+                probe = probe_adapter.generate(
+                    'PLAYER ACTION: look. Return exactly one JSON object shaped like {"narrative":"A short scene.","state_changes":[],"memory_updates":[],"npc_changes":[],"events_triggered":[],"available_actions":[]}. Keep narrative to one short sentence. Do not use Markdown.'
+                )
+                if not isinstance(getattr(probe, "narrative", None), str) or not probe.narrative.strip():
+                    raise RuntimeError("provider returned no valid RPG narrative")
+                message = result.message + " Gerçek AI üretimi de başarılı."
                 success = True
             except APIConnectionError as exc:
                 message = str(exc)
                 success = False
-            except Exception:
-                message = "Bağlantı kontrolü başarısız oldu. Endpoint ve ağ bağlantısını kontrol et."
+            except Exception as exc:
+                message = self._friendly_api_error(exc)
                 success = False
 
             def finish(*_):
@@ -2171,27 +2246,35 @@ class AIScreen(BaseScreen):
                         else:
                             self.app_ref.controller.set_openai_compatible(endpoint, api_key, model_name)
                         self.provider.text = self.app_ref.controller.provider_name
+                        # Drop the visible key only after list + true inference both work.
+                        self.api_key.text = ""
                     except Exception as exc:
                         apply_success = False
-                        final_message = f"Ayarlar uygulanamadı: {exc}"
+                        final_message = self._friendly_api_error(exc)
+                self._api_probe_succeeded = apply_success
                 self.api_status.text = final_message
                 self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
+                self.api_key.disabled = False
                 self.api_generation_test_button.disabled = not apply_success
-                if apply_success and model_ids:
+                if model_ids:
                     self._api_all_model_ids = tuple(model_ids)
                     self.api_model_filter.text = ""
                     self.api_models_picker.values = model_ids[:30]
                     self.api_models_picker.text = "Bulunan modelleri seç"
+                    if not apply_success:
+                        self.api_advanced_open = True
                 else:
                     self._api_all_model_ids = ()
                     self.api_model_filter.text = ""
                     self.api_models_picker.values = ()
                     self.api_models_picker.text = "Model listesi bulunamadı"
                 self._update_api_advanced_visibility()
-                if apply_success and model_ids:
+                if model_ids and apply_success:
                     self.api_status.text = final_message + " Model listesini filtreleyebilir veya adını elle yazabilirsin."
+                elif model_ids and not apply_success:
+                    self.api_status.text = final_message + " Model listesinden doğru kimliği seçip tekrar test et."
 
             Clock.schedule_once(finish, 0)
 
@@ -2201,12 +2284,19 @@ class AIScreen(BaseScreen):
         """Exercise the selected provider's real generation endpoint, not just model listing."""
         if getattr(self, "_api_generation_test_running", False):
             return
+        if not getattr(self, "_api_probe_succeeded", False):
+            self.api_generation_test_button.disabled = True
+            self.api_status.text = "Ayarları yeniden test ederek uygula."
+            self.api_status.color = MUTED
+            return
         adapter = getattr(self.app_ref.controller.session, "adapter", None)
         if adapter is None or not hasattr(adapter, "generate"):
             self.api_status.text = "Etkin bir AI sağlayıcısı bulunamadı."
             self.api_status.color = DANGER
             return
 
+        token = getattr(self, "_api_generation_test_token", 0) + 1
+        self._api_generation_test_token = token
         self._api_generation_test_running = True
         self.api_generation_test_button.disabled = True
         self.api_status.text = "Gerçek AI isteği gönderiliyor…"
@@ -2215,8 +2305,10 @@ class AIScreen(BaseScreen):
         def worker():
             try:
                 result = adapter.generate(
-                    "PLAYER ACTION: look. Return a valid response using the required "
-                    "structured RPG response schema. Keep the narrative to one short sentence."
+                    'PLAYER ACTION: look. Return exactly one JSON object shaped like '
+                    '{"narrative":"A short scene.","state_changes":[],"memory_updates":[],'
+                    '"npc_changes":[],"events_triggered":[],"available_actions":[]}. '
+                    'Keep narrative to one short sentence. Do not use Markdown.'
                 )
                 narrative = getattr(result, "narrative", "")
                 if not isinstance(narrative, str) or not narrative.strip():
@@ -2230,7 +2322,12 @@ class AIScreen(BaseScreen):
                 success = False
 
             def finish(*_):
+                if token != getattr(self, "_api_generation_test_token", 0):
+                    return
                 self._api_generation_test_running = False
+                if not getattr(self, "_api_probe_succeeded", False):
+                    self.api_generation_test_button.disabled = True
+                    return
                 self.api_generation_test_button.disabled = False
                 self.api_status.text = message
                 self.api_status.color = ACCENT if success else DANGER
@@ -2549,13 +2646,32 @@ class RPGEngineApp(App):
     def _append(self, text):
         self.game.append(text)
 
+    def _friendly_gameplay_error(self, exc):
+        """Give useful failure guidance without exposing secrets or raw provider bodies."""
+        detail = str(exc).lower()
+        if "401" in detail or "unauthorized" in detail:
+            return "AI isteği reddedildi: API anahtarı geçersiz veya kabul edilmedi. Ayarlar > Yapay zekâ bölümünü kontrol et."
+        if "403" in detail or "forbidden" in detail:
+            return "AI isteği reddedildi: bu model için erişim yetkin yok. Sağlayıcı planını ve model izinlerini kontrol et."
+        if "404" in detail or "not found" in detail:
+            return "AI modeli veya endpoint bulunamadı. Model kimliğini ve API endpoint adresini kontrol et."
+        if "429" in detail or "quota" in detail or "rate limit" in detail:
+            return "AI sağlayıcısının kotası dolmuş veya istek sınırına ulaşılmış. Hesap kotanı kontrol et."
+        if "timeout" in detail or "timed out" in detail:
+            return "AI yanıtı zamanında gelmedi. Daha küçük bir yerel model dene veya ağ bağlantısını kontrol et."
+        if "native llama" in detail or "llama-server" in detail or "memory" in detail or "allocation" in detail:
+            return "Yerel model çalışırken hata oluştu. Daha küçük/az bellek kullanan bir GGUF seçip yeniden etkinleştir."
+        if "invalid structured response" in detail or "json" in type(exc).__name__.lower():
+            return "AI yanıtı RPG Engine biçiminde değildi. Ayarlardaki gerçek AI üretim testini çalıştır veya uyumlu başka bir model seç."
+        return "AI yanıt üretemedi. Ayarlar > Yapay zekâ bölümünde gerçek AI üretim testini çalıştırıp modeli/endpointi doğrula."
+
     def _submit_worker(self, text):
         try:
             result = self.controller.submit(text)
             error = False
         except Exception as exc:
             # Keep provider details and credentials out of the visible chat.
-            result = "İstek tamamlanamadı. API ayarlarını ve bağlantını kontrol edip tekrar dene."
+            result = self._friendly_gameplay_error(exc)
             error = True
             self._record_gameplay_error("turn_submission", exc)
         Clock.schedule_once(lambda *_: self._finish_submit(result, error=error), 0)
@@ -2600,12 +2716,17 @@ class RPGEngineApp(App):
         return self._gameplay_initialized
 
     def _record_gameplay_error(self, stage, exc):
+        """Record useful locations without persisting provider bodies or exception secrets."""
         try:
             target = self._diagnostic_dir() / "gameplay_error.log"
             import traceback
+            frames = traceback.extract_tb(exc.__traceback__)
+            stack = "\n".join(
+                f"{Path(frame.filename).name}:{frame.lineno} in {frame.name}"
+                for frame in frames[-12:]
+            )
             target.write_text(
-                f"stage={stage}\nerror={type(exc).__name__}: {exc}\n\n"
-                + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+                f"stage={stage}\nerror_type={type(exc).__name__}\nstack:\n{stack}\n",
                 encoding="utf-8",
             )
         except Exception:
@@ -2754,6 +2875,47 @@ class RPGEngineApp(App):
         except Exception as exc:
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
+    def _show_model_import_status(self, message):
+        popup = getattr(self, "_model_import_popup", None)
+        if popup is not None:
+            label = getattr(self, "_model_import_status_label", None)
+            if label is not None:
+                label.text = str(message)
+            return
+        body = BoxLayout(orientation="vertical", padding=[dp(16), dp(14)], spacing=dp(10))
+        label = _aligned_label(
+            text=str(message), color=TEXT, font_size=sp(13), valign="middle",
+        )
+        body.add_widget(label)
+        self._model_import_status_label = label
+        self._model_import_popup = Popup(
+            title="GGUF içe aktarma", content=body, size_hint=(0.90, None),
+            height=dp(176), background_color=SURFACE, separator_color=ACCENT,
+            auto_dismiss=False,
+        )
+        self._model_import_popup.open()
+
+    def _update_model_import_progress(self, written, total=None):
+        if total is not None and total > 0 and written >= total:
+            message = "Dosya kopyalandı. GGUF başlığı ve bütünlük kontrolü yapılıyor…"
+        else:
+            copied_mib = written / (1024 * 1024)
+            message = (
+                f"GGUF dosyası kopyalanıyor… {copied_mib:.0f} MiB aktarıldı.\n\n"
+                "Büyük modellerde bu adım sürebilir; uygulama yanıt vermeye devam edecek."
+            )
+        self._show_model_import_status(message)
+
+    def _close_model_import_status(self):
+        popup = getattr(self, "_model_import_popup", None)
+        self._model_import_popup = None
+        self._model_import_status_label = None
+        if popup is not None:
+            try:
+                popup.dismiss()
+            except Exception:
+                pass
+
     def import_model(self):
         if self._model_import_in_progress or self._model_activation_in_progress:
             self.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
@@ -2764,19 +2926,24 @@ class RPGEngineApp(App):
             self._desktop_model_picker()
             return
         self._model_import_in_progress = True
-        self.notify("GGUF dosyası seçiliyor…")
+        self._show_model_import_status("Dosya seçicisi açılıyor…")
         try:
             launched = open_model_document(
                 self._on_model_import,
                 on_error=self._on_model_import_error,
                 on_cancel=self._on_model_import_cancel,
+                on_progress=lambda written, total: Clock.schedule_once(
+                    lambda *_: self._update_model_import_progress(written, total), 0
+                ),
             )
         except Exception as exc:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self.notify(f"Dosya seçicisi açılamadı: {type(exc).__name__}")
             return
         if not launched:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self._desktop_model_picker()
 
     def _desktop_model_picker(self):
@@ -2811,35 +2978,51 @@ class RPGEngineApp(App):
 
     def _finish_model_import_error(self, message):
         self._model_import_in_progress = False
+        self._close_model_import_status()
         self.notify(f"GGUF içe aktarma başarısız: {message}")
 
     def _finish_model_import_cancel(self):
         self._model_import_in_progress = False
+        self._close_model_import_status()
         self.notify("GGUF içe aktarma iptal edildi.")
 
     def _finish_model_import(self, path):
-        # Keep the import flag set until validation and the atomic install finish.
+        # Keep the progress surface and busy flag until validation/install finishes.
+        self._show_model_import_status("Dosya kopyalandı. Model biçimi ve bütünlük kontrolü yapılıyor…")
         self._install_imported_model(path, cleanup_source=True)
 
     def _install_imported_model(self, path, *, cleanup_source=False):
         if self._model_activation_in_progress:
             self._model_import_in_progress = False
+            self._close_model_import_status()
             self.notify("Başka bir model işlemi devam ediyor. Yeniden dene.")
+            self.ai.refresh()
             return
         self._model_import_in_progress = True
-        self.notify("GGUF dosyası doğrulanıyor ve içe aktarılıyor…")
+        self._show_model_import_status("GGUF dosyası doğrulanıyor; bu sırada sohbet kapatılmayacak…")
 
         def worker():
             try:
-                installed = self.controller.install_local_model(path)
+                installed = self.controller.install_local_model(path, move_source=cleanup_source)
                 if cleanup_source:
                     Path(path).unlink(missing_ok=True)
                 message = f"Local model içe aktarıldı: {installed.name}"
+                success = True
             except Exception as exc:
-                message = f"Local model içe aktarılamadı: {exc}"
+                detail = str(exc).lower()
+                if "gguf" in detail or "header" in detail or "format" in detail:
+                    message = "Dosya geçerli bir GGUF modeli değil veya indirme tamamlanmamış."
+                elif "larger" in detail or "size" in detail or "boyut" in detail:
+                    message = "Model boyutu izin verilen sınırı aşıyor."
+                elif isinstance(exc, OSError):
+                    message = "Model kopyalanamadı. Telefonda yeterli boş alan ve dosya erişimi olduğundan emin ol."
+                else:
+                    message = f"Model içe aktarılamadı ({type(exc).__name__}). Dosyanın tam indiğini kontrol et."
+                success = False
 
             def finish(*_):
                 self._model_import_in_progress = False
+                self._close_model_import_status()
                 self.notify(message)
                 self.ai.refresh()
 

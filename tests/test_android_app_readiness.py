@@ -97,7 +97,7 @@ def test_gameplay_failures_are_separate_from_story_and_do_not_expose_raw_errors(
     bubble = source[source.index("class MessageBubble"):source.index("class GameplayScreen")]
 
     assert "self._record_gameplay_error(\"turn_submission\", exc)" in worker
-    assert "API ayarlarını ve bağlantını kontrol edip tekrar dene." in worker
+    assert "self._friendly_gameplay_error(exc)" in worker
     assert "f\"[İşlem başarısız: {exc}]\"" not in worker
     assert 'self.game.append(result, role="error" if error else "npc")' in finish
     assert '"error": ("HATA", DANGER)' in bubble
@@ -229,13 +229,37 @@ def test_api_connection_test_exposes_discovered_models_for_selection():
     assert "self._update_api_panel_height()" in ai
 
 
-def test_selecting_discovered_api_model_updates_live_adapter():
+def test_selecting_discovered_api_model_keeps_it_pending_until_retest():
     source = (ROOT / "rpg_android_app.py").read_text()
     ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
     callback = ai[ai.index("    def _choose_api_model"):ai.index("    def refresh(self):")]
-    assert 'adapter = getattr(self.app_ref.controller.session, "adapter", None)' in callback
-    assert 'adapter.model = selected' in callback
-    assert 'self.api_status.text = f"Model seçildi: {selected}"' in callback
+    assert "self.api_model.text = selected" in callback
+    assert "self._api_probe_succeeded = False" in callback
+    assert "self.api_generation_test_button.disabled = True" in callback
+    assert "adapter.model = selected" not in callback
+    assert "Ayarları yeniden test ederek uygula." in callback
+
+
+def test_manual_api_model_edit_invalidates_previous_probe():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    setup = ai[ai.index("self.api_model = PillInput"):ai.index("self.api_key = PillInput")]
+    handler = ai[ai.index("    def _api_model_text_changed"):ai.index("    def _choose_api_model")]
+    assert "self.api_model.bind(text=self._api_model_text_changed)" in setup
+    assert "self._api_probe_succeeded = False" in handler
+    assert "self._invalidate_api_generation_test()" in handler
+
+
+def test_endpoint_and_api_key_edits_invalidate_previous_probe():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    endpoint_setup = ai[ai.index("self.api_endpoint = PillInput"):ai.index("self._last_api_provider")]
+    key_setup = ai[ai.index("self.api_key = PillInput"):ai.index("self.api_key_field")]
+    handler = ai[ai.index("    def _api_credentials_text_changed"):ai.index("    def _api_model_text_changed")]
+    assert "self.api_endpoint.bind(text=self._api_credentials_text_changed)" in endpoint_setup
+    assert "self.api_key.bind(text=self._api_credentials_text_changed)" in key_setup
+    assert "self._api_probe_succeeded = False" in handler
+    assert "self._invalidate_api_generation_test()" in handler
 
 
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
@@ -359,7 +383,11 @@ def test_gguf_import_picker_runs_file_copy_off_ui_thread_and_handles_completion(
     assert "def _finish_model_import_error(self, message):" in import_flow
     assert "def _finish_model_import_cancel(self):" in import_flow
     assert "def _install_imported_model(self, path, *, cleanup_source=False):" in import_flow
-    assert "GGUF dosyası doğrulanıyor ve içe aktarılıyor" in import_flow
+    install = import_flow[import_flow.index("    def _install_imported_model(self, path, *, cleanup_source=False):"):]
+    guard = install[:install.index("        self._model_import_in_progress = True")]
+    assert "self._close_model_import_status()" in guard
+    assert "self.ai.refresh()" in guard
+    assert "Dosya kopyalandı. Model biçimi ve bütünlük kontrolü yapılıyor" in import_flow
 
 
 def test_hidden_api_text_inputs_cannot_capture_taps_and_focused_inputs_scroll_into_view():
@@ -383,3 +411,71 @@ def test_hidden_api_text_inputs_cannot_capture_taps_and_focused_inputs_scroll_in
     gameplay = app[app.index("class GameplayScreen(BaseScreen):"):app.index("class RecentGamesScreen(BaseScreen):")]
     assert 'multiline=True' in gameplay
     assert "self.input.bind(text=self._resize_composer, width=self._resize_composer)" in gameplay
+
+
+def test_api_connect_checks_a_real_structured_generation_before_applying_provider():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    ai = app[app.index("class AIScreen(BaseScreen):"):app.index("class SettingsScreen(BaseScreen):")]
+    connect = ai[ai.index("    def connect_api(self):"):ai.index("    def test_api_generation(self):")]
+    assert "self.api_generation_test_button.disabled = True" in connect
+    assert "self.api_endpoint.disabled = True" in connect
+    assert "self.api_model.disabled = True" in connect
+    assert "self.api_key.disabled = True" in connect
+    assert "self.api_key.disabled = False" in connect
+    assert "probe_adapter.generate(" in connect
+    assert "Gerçek AI üretimi de başarılı." in connect
+    assert 'self.api_key.text = ""' in connect
+    assert "self._friendly_api_error(exc)" in connect
+
+
+def test_text_inputs_and_gguf_import_expose_visible_text_and_persistent_progress():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    picker = (ROOT / "rpg_android_file_picker.py").read_text()
+    pill = app[app.index("class PillInput(TextInput):"):app.index("class BodyLabel(Label):")]
+    assert 'kwargs.setdefault("foreground_color", TEXT)' in pill
+    assert 'kwargs.setdefault("hint_text_color", MUTED)' in pill
+    assert 'kwargs.setdefault("cursor_color", ACCENT)' in pill
+    assert "def _show_model_import_status(self, message)" in app
+    assert "def _update_model_import_progress(self, written, total=None)" in app
+    assert "on_progress=lambda written, total" in app
+    assert "on_progress: Callable[[int, int | None], None] | None = None" in picker
+    assert "on_progress(written, None)" in picker
+
+
+def test_chat_surface_reports_useful_ai_failure_instead_of_generic_error():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    worker = app[app.index("    def _friendly_gameplay_error(self, exc):"):app.index("    def _finish_submit(self, result, error=False):")]
+    assert "def _friendly_gameplay_error(self, exc)" in worker
+    assert "self._friendly_gameplay_error(exc)" in worker
+    assert "daha küçük" in worker.lower()
+
+
+def test_in_flight_api_generation_result_is_invalidated_by_config_changes():
+    source = (ROOT / "rpg_android_app.py").read_text()
+    ai = source[source.index("class AIScreen(BaseScreen):"):source.index("class SettingsScreen(BaseScreen):")]
+    invalidator = ai[ai.index("    def _invalidate_api_generation_test"):ai.index("    def _api_credentials_text_changed")]
+    credential_handler = ai[ai.index("    def _api_credentials_text_changed"):ai.index("    def _api_model_text_changed")]
+    connect = ai[ai.index("    def connect_api(self):"):ai.index("    def test_api_generation(self):")]
+    generation = ai[ai.index("    def test_api_generation(self):"):]
+    assert "self._api_generation_test_token = getattr(self, \"_api_generation_test_token\", 0) + 1" in invalidator
+    assert "self._api_generation_test_running = False" in invalidator
+    assert "button.disabled = True" in invalidator
+    assert "self._invalidate_api_generation_test()" in credential_handler
+    assert "self._invalidate_api_generation_test()" in connect
+    assert 'if token != getattr(self, "_api_generation_test_token", 0):' in generation
+    assert "if not getattr(self, \"_api_probe_succeeded\", False):" in generation
+
+
+def test_gameplay_diagnostics_do_not_persist_raw_provider_error_bodies():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    diagnostic = app[app.index("    def _record_gameplay_error(self, stage, exc):"):app.index("    def save(self):")]
+    assert "traceback.extract_tb(exc.__traceback__)" in diagnostic
+    assert "error_type={type(exc).__name__}" in diagnostic
+    assert "traceback.format_exception" not in diagnostic
+    assert "{exc}" not in diagnostic
+
+
+def test_android_application_source_compiles_without_importing_kivy():
+    source_path = ROOT / "rpg_android_app.py"
+    source = source_path.read_text(encoding="utf-8")
+    compile(source, str(source_path), "exec")
