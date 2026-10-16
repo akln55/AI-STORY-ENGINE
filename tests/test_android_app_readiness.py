@@ -247,7 +247,7 @@ def test_manual_api_model_edit_invalidates_previous_probe():
     handler = ai[ai.index("    def _api_model_text_changed"):ai.index("    def _choose_api_model")]
     assert "self.api_model.bind(text=self._api_model_text_changed)" in setup
     assert "self._api_probe_succeeded = False" in handler
-    assert "button.disabled = True" in handler
+    assert "self._invalidate_api_generation_test()" in handler
 
 
 def test_endpoint_and_api_key_edits_invalidate_previous_probe():
@@ -259,7 +259,7 @@ def test_endpoint_and_api_key_edits_invalidate_previous_probe():
     assert "self.api_endpoint.bind(text=self._api_credentials_text_changed)" in endpoint_setup
     assert "self.api_key.bind(text=self._api_credentials_text_changed)" in key_setup
     assert "self._api_probe_succeeded = False" in handler
-    assert "button.disabled = True" in handler
+    assert "self._invalidate_api_generation_test()" in handler
 
 
 def test_api_adapter_is_replaced_only_after_successful_connection_probe():
@@ -459,6 +459,7 @@ def test_in_flight_api_generation_result_is_invalidated_by_config_changes():
     generation = ai[ai.index("    def test_api_generation(self):"):]
     assert "self._api_generation_test_token = getattr(self, \"_api_generation_test_token\", 0) + 1" in invalidator
     assert "self._api_generation_test_running = False" in invalidator
+    assert "button.disabled = True" in invalidator
     assert "self._invalidate_api_generation_test()" in credential_handler
     assert "self._invalidate_api_generation_test()" in connect
     assert 'if token != getattr(self, "_api_generation_test_token", 0):' in generation
