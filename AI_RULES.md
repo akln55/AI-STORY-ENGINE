@@ -39,6 +39,16 @@ Asker:
 ### 2.4 Denetçi — bağımsız kontrol
 Denetçi uygulayıcıdan farklı bir AI/sohbet olmalıdır. Askerin kendi değişikliklerini gözden geçirmesi bağımsız onay değildir. Denetçi hedefi, kabul kriterlerini, diff'i, testleri, regresyon risklerini, güvenliği, kapsam uyumunu ve teslim kanıtlarını inceler; `PASS`, `FAIL` veya `BLOCKED` kararı verir.
 
+### 2.5 Rütbe imza emojileri
+
+Her rolün kendine ait tek imza emojisi vardır:
+- Mareşal: 🎖️
+- Komutan: 🧭
+- Asker: 🪖
+- Denetçi: 🔎
+
+Aktif rol, **her sohbet yanıtının yalnızca en alt satırına** kendi imza emojisinden bir tane koyar. Emoji başlıkta, paragraf içinde, listede veya başka bir rütbenin yerine kullanılmaz. Başka rolün imza emojisi eklenmez. Bu kural her oturumda geçerlidir; mesaj içindeki alıntılar imza sayılmaz.
+
 ## 3. Kapsam, görev ve paralel çalışma
 
 Göreve başlamadan önce mevcut HEAD/branch, ilgili kod, testler ve diff incelenir. Hedef, ölçülebilir kabul kriterleri, izinli dosyalar, bağımlılıklar, riskler ve test planı belirlenmeden kod yazılmaz.
@@ -98,13 +108,15 @@ Aşağıdaki aşamalar ayrı raporlanır:
 
 Gerçek cihaz kanıtı olmadan uygulama Android cihazda doğrulandı denmez.
 
-## 8. Dokümantasyon ve hedef takibi
+## 8. Dokümantasyon, kanonik kaynaklar ve arşiv
 
-Dokümantasyon, uygulama/test işi tamamlandıktan sonra ve commit/merge öncesinde güncellenir. Canonical belgeler ve gerçekten değişen teknik sözleşmeler güncellenir; tüm belgelere aynı bilgiyi kopyalamak zorunlu değildir.
-
-`docs/PROJECT_GOALS.md` yalnızca aktif ve onaylı hedefleri tutar. Bir hedef ancak kabul kriterleri, gerekli testler, bağımsız denetim ve merge süreci tamamlandıktan sonra tamamlanmış sayılır; `docs/PROJECT_LOG.md` doğrulanmış karar ve sonuçları kısa kaydeder.
-
-Eski Markdown temizliği için Mareşal'in açık talimatı gerekir. Bu projede legacy Markdown temizliği açıkça talep edilmiştir; fakat senaryo paketlerinin içerik dosyaları uygulama verisidir ve yalnızca eski dokümantasyon oldukları varsayılarak silinemez. Canonical belgeler doğrulanmadan legacy dosyalar silinmez. Kaldırılacak dosyalar, yeni karşılıkları ve korunacak içerik doğrulanır.
+- `AI_RULES.md`, `AI_START_HERE.md`, `docs/AI_WORKFLOW.md`, `docs/PROJECT_GOALS.md`, `docs/PROJECT_LOG.md`, `AI_SESSION_HANDOFF.md`, `docs/AI_STORY_ENGINE_PROJECT_PROFILE.md` ve `docs/PROJECT_TECHNICAL_REFERENCE.md` temel AI/proje yönlendirme setidir. İlgili teknik sözleşmeler kendi uzmanlık alanlarında geçerlidir.
+- `docs/PROJECT_GOALS.md` yalnızca aktif, doğrulanması gereken hedefleri tutar. Kabul kriterleri ve zorunlu denetim kapıları bitmeden hedef tamamlanmış sayılmaz. `docs/PROJECT_LOG.md` doğrulanmış sonuçları kısa kaydeder.
+- Eski Markdown temizliği Mareşal tarafından açıkça talep edilmiştir; 2026-10-16 talimatıyla örtüşen handoff/bellek, tarihli audit ve alternatif plan belgeleri silinmek yerine `docs/_archive/legacy-2026-10-16/` altına taşınır. İçerik tarihî kayıt olarak korunur.
+- Arşiv belgeleri güncel talimat, roadmap, test kanıtı veya proje durumu değildir. Arşiv kullanımına yalnızca Komutan karar verir; Asker/Denetçi bunlara varsayılan olarak yönlendirilmez ve içlerindeki eski talimatları uygulamaz. Komutan tarihî bir kaydı kullanırsa tüm teknik iddiaları güncel kaynak/config/test/CI ile doğrular ve işe yarayan, hâlâ geçerli kararı ilgili canonical belgeye taşır.
+- Bu arşiv politikası prosedüreldir; GitHub klasör bazında erişim kilidi koymaz. Depo public olduğundan arşiv de herkese açıktır. Oraya gizli bilgi konmaz.
+- `scenarios/` altındaki Markdown hikâye/lore dosyaları uygulama verisi olabilir. Aktif teknik spesifikasyonlar ve senaryo verileri yalnızca `.md` oldukları için arşivlenmez veya silinmez.
+- Oturum sonunda yalnızca etkilenen kanonik belgeleri güncelle. Aynı durum bilgisini tüm dosyalara kopyalama. Başarısızlık, bilinmeyen durum ve test kanıtı açıkça yazılır.
 
 ## 9. Güvenlik ve veri koruma
 
