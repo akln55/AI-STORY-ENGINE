@@ -2200,6 +2200,9 @@ class AIScreen(BaseScreen):
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
         self.api_provider.disabled = True
+        self.api_endpoint.disabled = True
+        self.api_model.disabled = True
+        self.api_key.disabled = True
         token = getattr(self, "_api_probe_token", 0) + 1
         self._api_probe_token = token
 
@@ -2253,6 +2256,7 @@ class AIScreen(BaseScreen):
                 self.api_status.color = ACCENT if apply_success else DANGER
                 self.api_connect_button.disabled = False
                 self.api_provider.disabled = False
+                self.api_key.disabled = False
                 self.api_generation_test_button.disabled = not apply_success
                 if model_ids:
                     self._api_all_model_ids = tuple(model_ids)
