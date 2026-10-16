@@ -113,3 +113,13 @@ Note: `docs/SCENARIO_CREATION_GUIDE.md` has been created and aligned to the curr
 - Source gates on commit `51f44c7f9cf2fa1aa0a16fdecb50c89123bf112d`: [CI run 38690247384](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38690247384) passed; 610 tests, compileall, Android readiness and mutation smoke 3/3.
 - Source queue/checkpoint and bounded release ZIP extraction have regression coverage. The current review's code and docs are on PR #2.
 - APK build/provenance, actual user-archive end-to-end validation, and physical Android device tests remain unchecked. Earlier “not implemented” bullets in dated historical backlog sections are not a current code inventory.
+
+
+## 2026-10-15 — Android blocker sessions
+
+- [x] Session 1 P0 native execution packaging fix and static APK/provenance checks passed in [run 38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501); source CI passed in [run 38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385), artifact id 11956422925.
+- [ ] Confirm native runtime model activation and one real local AI response on physical ARM64 Android.
+- [x] Session 2 implements worker-thread GGUF SAF copy, atomic temporary replacement, visible cancellation/error callbacks, and busy-state reset.
+- [x] Session 2 disables/collapses hidden API TextInput hitboxes and scrolls focused settings fields into view with Android soft-input pan.
+- [ ] Latest session-2 CI must pass. First run reported 627 passed / 1 stale source assertion failure; assertion fixed, retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued at note time.
+- [ ] Device acceptance: GGUF import remains responsive on success/cancel/error; model activation produces one real response; composer/API characters are visible before submit; advanced settings do not open the keyboard through hidden input hitboxes.

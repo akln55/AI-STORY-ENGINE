@@ -98,3 +98,16 @@ The first smoke test should verify:
 ## Important verification boundary
 
 Static source checks are not device evidence. A release must not be marked **Android Verified** until a real APK has been built and the gameplay/local-inference smoke test above has been executed on Android hardware or a controlled emulator.
+
+
+## 2026-10-15 — Native runtime and session-two checks
+
+Session 1 packages the llama server as a native-library entry resolved from Android's nativeLibraryDir. The corresponding source CI [38699968385](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968385) and Android APK static/provenance validation [38699968501](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38699968501) passed; artifact id 11956422925. This is not proof of successful phone inference.
+
+Session 2 PR [#5](https://github.com/akln55/AI-STORY-ENGINE/pull/5) handles GGUF document copies off the UI thread with cancellation/error recovery and fixes hidden API input hitboxes/keyboard focus. Current CI retest [38703963704](https://github.com/akln55/AI-STORY-ENGINE/actions/runs/38703963704) was queued after a stale test assertion was corrected. Once CI passes, install the fresh artifact and test:
+15. Import a valid GGUF; UI remains responsive and reports success.
+16. Cancel the picker; next import attempt remains available.
+17. Select a non-GGUF file or cause a read failure; visible error, no black screen.
+18. Type into gameplay and API inputs; characters/cursor stay visible before submission.
+19. Hide advanced API settings; buttons must not focus hidden inputs/open keyboard.
+20. Open the keyboard in settings; the focused field scrolls into view.

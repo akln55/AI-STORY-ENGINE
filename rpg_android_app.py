@@ -184,7 +184,9 @@ class PillInput(TextInput):
         kwargs.setdefault("multiline", False)
         kwargs.setdefault("background_normal", "")
         kwargs.setdefault("background_active", "")
+        kwargs.setdefault("background_disabled_normal", "")
         kwargs.setdefault("background_color", (0, 0, 0, 0))
+        kwargs.setdefault("cursor_width", dp(2))
         super().__init__(**kwargs)
         with self.canvas.before:
             self._color = Color(rgba=self.fill_color)
@@ -1324,6 +1326,7 @@ class AIScreen(BaseScreen):
     def __init__(self, app, **kwargs):
         super().__init__(app, name="ai", **kwargs)
         root = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        self.scroll = root
         content = BoxLayout(
             orientation="vertical", padding=[dp(20), dp(20), dp(20), dp(28)],
             spacing=dp(12), size_hint_y=None,
@@ -1404,6 +1407,7 @@ class AIScreen(BaseScreen):
         )
         self.hf_search = PillInput(hint_text="Model veya aile ara")
         self.hf_search.bind(on_text_validate=lambda *_: self.search_remote_models())
+        self.hf_search.bind(focus=self._input_focus_changed)
         search_row.add_widget(self.hf_search)
         self.hf_sort = Spinner(
             text="İndirme", values=("İndirme", "Beğeni", "Güncel"),
@@ -1474,14 +1478,17 @@ class AIScreen(BaseScreen):
         self.api_endpoint = PillInput(
             text="https://api.openai.com/v1", hint_text="https://api.openai.com/v1",
         )
+        self.api_endpoint.bind(focus=self._input_focus_changed)
         self._last_api_provider = "OpenAI"
         self.api_advanced_open = False
         self.api_model = PillInput(
             text="gpt-4.1-mini", hint_text="Örn. gpt-4.1-mini",
         )
+        self.api_model.bind(focus=self._input_focus_changed)
         self.api_key = PillInput(
             hint_text="API anahtarını buraya yapıştır", password=True,
         )
+        self.api_key.bind(focus=self._input_focus_changed)
         self.api_key_field = _field_group("API anahtarı", self.api_key)
         api.add_widget(self.api_key_field)
         self.api_advanced_button = SoftButton(
@@ -1510,6 +1517,7 @@ class AIScreen(BaseScreen):
             hint_text="Model listesinde filtrele…", size_hint_y=None, height=0,
         )
         self.api_model_filter.bind(text=lambda *_: self._filter_api_models())
+        self.api_model_filter.bind(focus=self._input_focus_changed)
         api.add_widget(self.api_model_filter)
         self._api_all_model_ids = ()
         self.api_connect_button = AccentButton(
@@ -1604,20 +1612,39 @@ class AIScreen(BaseScreen):
         self._update_api_advanced_visibility()
 
     def _update_api_advanced_visibility(self):
-        """Keep routine providers simple; reveal endpoint/model only when useful."""
+        """Hide both the API field container and its TextInput hitbox.
+
+        A zero-height parent does not guarantee that a fixed-height child
+        TextInput cannot draw outside its bounds or receive focus on every
+        mobile layout. Explicitly collapse, fade and disable hidden controls.
+        """
         provider = self.api_provider.text
         compatible = provider == "OpenAI-compatible"
         show_model = compatible or self.api_advanced_open
         show_endpoint = compatible or (self.api_advanced_open and provider == "OpenAI")
+
         self.api_endpoint_field.height = dp(70) if show_endpoint else 0
         self.api_endpoint_field.opacity = 1 if show_endpoint else 0
-        self.api_endpoint_field.disabled = not show_endpoint or provider == "Gemini"
+        self.api_endpoint_field.disabled = not show_endpoint
+        self.api_endpoint.height = dp(44) if show_endpoint else 0
+        self.api_endpoint.opacity = 1 if show_endpoint else 0
+        self.api_endpoint.disabled = not show_endpoint
+
         self.api_model_field.height = dp(70) if show_model else 0
         self.api_model_field.opacity = 1 if show_model else 0
+        self.api_model_field.disabled = not show_model
+        self.api_model.height = dp(44) if show_model else 0
+        self.api_model.opacity = 1 if show_model else 0
+        self.api_model.disabled = not show_model
+
         has_models = bool(getattr(self, "_api_all_model_ids", ()))
         show_model_picker = show_model and has_models
         self.api_model_filter.height = dp(42) if show_model_picker else 0
+        self.api_model_filter.opacity = 1 if show_model_picker else 0
+        self.api_model_filter.disabled = not show_model_picker
         self.api_models_picker.height = dp(42) if show_model_picker else 0
+        self.api_models_picker.opacity = 1 if show_model_picker else 0
+        self.api_models_picker.disabled = not show_model_picker
         if compatible:
             self.api_advanced_button.text = "Özel sağlayıcı bağlantı alanları"
             self.api_advanced_button.disabled = True
@@ -1628,6 +1655,24 @@ class AIScreen(BaseScreen):
             self.api_advanced_button.disabled = False
         if hasattr(self, "api_panel"):
             self._update_api_panel_height()
+
+    def _input_focus_changed(self, widget, focused):
+        """Scroll a focused settings input above neighbouring controls/keyboard."""
+        if not focused:
+            return
+        scroll = getattr(self, "scroll", None)
+        if scroll is None:
+            return
+
+        def reveal(*_):
+            try:
+                if widget.parent is not None and widget.height > 0 and not widget.disabled:
+                    scroll.scroll_to(widget, padding=dp(18), animate=False)
+            except Exception:
+                # Focus can be lost during provider changes or a screen transition.
+                pass
+
+        Clock.schedule_once(reveal, 0.18)
 
     def _update_api_panel_height(self):
         if not hasattr(self, "api_panel"):
@@ -2046,7 +2091,11 @@ class AIScreen(BaseScreen):
         popup.open()
 
     def activate_local_model(self, path):
-        if getattr(self.app_ref, "_model_activation_in_progress", False):
+        if (
+            getattr(self.app_ref, "_model_activation_in_progress", False)
+            or getattr(self.app_ref, "_model_import_in_progress", False)
+        ):
+            self.app_ref.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
             return
         self.app_ref._model_activation_in_progress = True
         self.app_ref.notify("Local model doğrulanıyor ve başlatılıyor…")
@@ -2280,7 +2329,7 @@ class RPGEngineApp(App):
 
     def build(self):
         Window.clearcolor = BG
-        Window.softinput_mode = "below_target"
+        Window.softinput_mode = "pan"
         self.busy = False
         self._lifecycle_stopping = False
         self._gameplay_initialized = False
@@ -2706,43 +2755,79 @@ class RPGEngineApp(App):
             self.notify(f"Senaryo başlatılamadı: {exc}")
 
     def import_model(self):
-        if self._model_import_in_progress: return
+        if self._model_import_in_progress or self._model_activation_in_progress:
+            self.notify("Başka bir model işlemi devam ediyor. Bitmesini bekle.")
+            return
         try:
             from rpg_android_file_picker import open_model_document
         except ImportError:
-            self._desktop_model_picker(); return
+            self._desktop_model_picker()
+            return
         self._model_import_in_progress = True
+        self.notify("GGUF dosyası seçiliyor…")
         try:
-            launched = open_model_document(self._on_model_import)
+            launched = open_model_document(
+                self._on_model_import,
+                on_error=self._on_model_import_error,
+                on_cancel=self._on_model_import_cancel,
+            )
         except Exception as exc:
-            self._model_import_in_progress = False; self.notify(str(exc)); return
+            self._model_import_in_progress = False
+            self.notify(f"Dosya seçicisi açılamadı: {type(exc).__name__}")
+            return
         if not launched:
-            self._model_import_in_progress = False; self._desktop_model_picker()
+            self._model_import_in_progress = False
+            self._desktop_model_picker()
 
     def _desktop_model_picker(self):
         chooser = FileChooserListView(filters=["*.gguf"], path=str(Path.home()))
-        box = BoxLayout(orientation="vertical"); box.add_widget(chooser)
+        box = BoxLayout(orientation="vertical")
+        box.add_widget(chooser)
         popup = Popup(title="GGUF model seç", content=box, size_hint=(0.96, 0.88), background_color=SURFACE)
         actions = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
         actions.add_widget(SoftButton(text="İptal", on_release=popup.dismiss))
+
         def choose(*_):
-            if not chooser.selection: return
-            popup.dismiss(); self._activate_local_model(chooser.selection[0], cleanup_source=False)
+            if not chooser.selection:
+                return
+            path = chooser.selection[0]
+            popup.dismiss()
+            self._install_imported_model(path, cleanup_source=False)
+
         actions.add_widget(AccentButton(text="Modeli seç", on_release=choose))
-        box.add_widget(actions); popup.open()
+        box.add_widget(actions)
+        popup.open()
 
     def _on_model_import(self, path):
+        # The picker copies the SAF stream on a worker. Only manipulate Kivy
+        # widgets and launch the install stage from the main thread.
         Clock.schedule_once(lambda *_: self._finish_model_import(path), 0)
 
-    def _finish_model_import(self, path):
-        self._model_import_in_progress = False
-        self._activate_local_model(path, cleanup_source=True)
+    def _on_model_import_error(self, message):
+        Clock.schedule_once(lambda *_: self._finish_model_import_error(message), 0)
 
-    def _activate_local_model(self, path, *, cleanup_source=False):
+    def _on_model_import_cancel(self):
+        Clock.schedule_once(lambda *_: self._finish_model_import_cancel(), 0)
+
+    def _finish_model_import_error(self, message):
+        self._model_import_in_progress = False
+        self.notify(f"GGUF içe aktarma başarısız: {message}")
+
+    def _finish_model_import_cancel(self):
+        self._model_import_in_progress = False
+        self.notify("GGUF içe aktarma iptal edildi.")
+
+    def _finish_model_import(self, path):
+        # Keep the import flag set until validation and the atomic install finish.
+        self._install_imported_model(path, cleanup_source=True)
+
+    def _install_imported_model(self, path, *, cleanup_source=False):
         if self._model_activation_in_progress:
+            self._model_import_in_progress = False
+            self.notify("Başka bir model işlemi devam ediyor. Yeniden dene.")
             return
-        self._model_activation_in_progress = True
-        self.notify("Local model içe aktarılıyor…")
+        self._model_import_in_progress = True
+        self.notify("GGUF dosyası doğrulanıyor ve içe aktarılıyor…")
 
         def worker():
             try:
@@ -2754,7 +2839,7 @@ class RPGEngineApp(App):
                 message = f"Local model içe aktarılamadı: {exc}"
 
             def finish(*_):
-                self._model_activation_in_progress = False
+                self._model_import_in_progress = False
                 self.notify(message)
                 self.ai.refresh()
 

@@ -54,9 +54,9 @@ def test_android_uses_model_saf_picker():
 
 def test_desktop_model_selection_does_not_delete_user_source():
     source = (ROOT / "rpg_android_app.py").read_text()
-    assert '_activate_local_model(chooser.selection[0], cleanup_source=False)' in source
-    assert '_activate_local_model(path, cleanup_source=True)' in source
-    assert 'def _activate_local_model(self, path, *, cleanup_source=False):' in source
+    assert '_install_imported_model(path, cleanup_source=False)' in source
+    assert '_install_imported_model(path, cleanup_source=True)' in source
+    assert 'def _install_imported_model(self, path, *, cleanup_source=False):' in source
 
 
 def test_entrypoint_has_startup_failure_logging():
@@ -340,3 +340,46 @@ def test_android_build_verifies_native_pie_and_starts_on_pull_request():
     assert "pull_request:" in workflow
     assert "Type:.*DYN" in workflow
     assert "android_native/arm64-v8a/libllama-server.so" in workflow
+
+
+
+def test_gguf_import_picker_runs_file_copy_off_ui_thread_and_handles_completion():
+    picker = (ROOT / "rpg_android_file_picker.py").read_text()
+    app = (ROOT / "rpg_android_app.py").read_text()
+    picker_method = picker[picker.index("def open_model_document("):]
+    import_flow = app[app.index("    def import_model(self):"):app.index("    def on_start(self):")]
+
+    assert "on_error: Callable[[str], None] | None = None" in picker_method
+    assert "on_cancel: Callable[[], None] | None = None" in picker_method
+    assert 'Thread(target=copy_worker, name="gguf-import-copy", daemon=True).start()' in picker_method
+    assert 'temporary.replace(target)' in picker
+    assert 'intent.setType("*/*")' in picker_method
+    assert "on_error=self._on_model_import_error" in import_flow
+    assert "on_cancel=self._on_model_import_cancel" in import_flow
+    assert "def _finish_model_import_error(self, message):" in import_flow
+    assert "def _finish_model_import_cancel(self):" in import_flow
+    assert "def _install_imported_model(self, path, *, cleanup_source=False):" in import_flow
+    assert "GGUF dosyası doğrulanıyor ve içe aktarılıyor" in import_flow
+
+
+def test_hidden_api_text_inputs_cannot_capture_taps_and_focused_inputs_scroll_into_view():
+    app = (ROOT / "rpg_android_app.py").read_text()
+    ai = app[app.index("class AIScreen(BaseScreen):"):app.index("class SettingsScreen(BaseScreen):")]
+    build = app[app.index("class RPGEngineApp(App):"):]
+    pill = app[app.index("class PillInput(TextInput):"):app.index("class BodyLabel(Label):")]
+
+    visibility = ai[ai.index("    def _update_api_advanced_visibility(self):"):ai.index("    def _update_api_panel_height(self):")]
+    assert "self.api_endpoint.disabled = not show_endpoint" in visibility
+    assert "self.api_endpoint.height = dp(44) if show_endpoint else 0" in visibility
+    assert "self.api_model.disabled = not show_model" in visibility
+    assert "self.api_model.height = dp(44) if show_model else 0" in visibility
+    assert "self.api_model.opacity = 1 if show_model else 0" in visibility
+    assert "self.api_model_filter.disabled = not show_model_picker" in visibility
+    assert "def _input_focus_changed(self, widget, focused):" in ai
+    assert "scroll.scroll_to(widget, padding=dp(18), animate=False)" in ai
+    assert 'Window.softinput_mode = "pan"' in build
+    assert 'kwargs.setdefault("background_disabled_normal", "")' in pill
+    assert 'kwargs.setdefault("cursor_width", dp(2))' in pill
+    gameplay = app[app.index("class GameplayScreen(BaseScreen):"):app.index("class RecentGamesScreen(BaseScreen):")]
+    assert 'multiline=True' in gameplay
+    assert "self.input.bind(text=self._resize_composer, width=self._resize_composer)" in gameplay
