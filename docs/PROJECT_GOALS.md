@@ -13,18 +13,19 @@ This is the authoritative **active goal list**, not a feature wish list. Work on
 
 ## Active goals — priority order
 
-### G0 — Consolidate project documentation safely
-**Status:** In progress  
-**Purpose:** Establish a small, reliable set of canonical AI instructions before deciding what to do with legacy Markdown files.
+### G0 — Consolidate project documentation and remove ambiguity
+**Status:** Documentation branch prepared; independent review and merge pending  
+**Purpose:** Keep one obvious instruction hierarchy, preserve genuinely useful specialist contracts, and move old overlapping plans/status notes out of the active documentation surface without destroying history.
 
 Acceptance:
-- [x] `AI_START_HERE.md` is a short entrypoint and documentation map.
-- [x] `docs/AI_WORKFLOW.md` defines tool discovery, planning, implementation, testing, build authorization, and documentation rules.
-- [x] `docs/PROJECT_GOALS.md` is the single active goal list.
-- [x] `docs/PROJECT_LOG.md` is the concise chronological record.
-- [ ] Existing Markdown files are inventoried and classified as keep, merge, archive, or propose-for-deletion.
-- [ ] No legacy Markdown file is deleted before the user approves a path-by-path deletion proposal.
-- [x] No app code is changed and no build is triggered as part of this goal.
+- [x] Inventory Markdown files and classify current instructions, specialist contracts, navigation aids, historical records, and scenario data.
+- [x] Maintain a short `AI_START_HERE.md` and put binding role/emoji/archive rules in `AI_RULES.md`.
+- [x] Maintain one active goal list (`docs/PROJECT_GOALS.md`) and one concise verified project log (`docs/PROJECT_LOG.md`).
+- [x] Preserve historical files while moving 15 overlapping or stale documents to `docs/_archive/legacy-2026-10-16/`; no source history was rewritten.
+- [x] Explain the archive's procedural Komutan-only decision rule and disclose that GitHub does not enforce private folders inside a public repository.
+- [x] Keep active specialist specs, current project maps, scenario/lore Markdown, and application data out of the cleanup set.
+- [x] No application code was changed and no build was triggered.
+- [ ] Obtain independent Denetçi review of the documentation diff; merge only after the review and required checks are PASS.
 
 ### G1 — Resolve Android local-AI activation and input blockers
 **Status:** Open; symptoms must be re-verified  

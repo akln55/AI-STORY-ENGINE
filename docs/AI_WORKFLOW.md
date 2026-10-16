@@ -9,7 +9,7 @@ The main project conversation owns product direction and cross-task decisions. A
 At task start:
 
 1. Confirm the repository and current branch/HEAD.
-2. Read `AI_START_HERE.md`, this file, and the selected item in `docs/PROJECT_GOALS.md`.
+2. Read `AI_RULES.md` first, then `AI_START_HERE.md`, this workflow, the current `AI_SESSION_HANDOFF.md` if relevant, the project profile, and the selected goal in `docs/PROJECT_GOALS.md`.
 3. Inspect relevant source, tests, current docs, Git status/diff if available, and the latest related CI run.
 4. Separate **verified facts**, **user-reported symptoms**, **hypotheses**, and **unknowns**.
 5. State the exact goal, success criteria, constraints, likely files, and verification plan before coding.
@@ -100,3 +100,12 @@ At the end of a task:
 ## 7. Definition of done
 
 A task is done only when its agreed acceptance criteria pass, relevant tests are reported accurately, the diff is limited to scope, required documentation is updated, and remaining limitations are explicit. A commit, a green unit-test suite, or a successful build alone does not prove overall product readiness.
+
+
+## 10. Canonical documentation and archive policy
+
+- `AI_RULES.md` is the highest-priority project rule file after the Mareşal's latest explicit instruction. `AI_START_HERE.md` defines onboarding and navigation. `docs/PROJECT_GOALS.md` owns the active goals; `docs/PROJECT_LOG.md` records verified outcomes; the project profile and technical reference summarize baseline facts/contracts.
+- Use `docs/project_atlas_map.md`, `docs/runtime_flow_map.md`, and `docs/test_map.md` as navigation aids only. Check all relevant paths and behavior against the current tree and source.
+- `docs/_archive/legacy-2026-10-16/` holds preserved legacy plans, duplicate handoffs, older audits, and retired policy docs. They are not current sources of requirements or evidence. Komutan decides whether historical retrieval is necessary. Asker and Denetçi must not follow archived instructions unless Komutan explicitly assigns a bounded historical investigation.
+- The repository is public: there is no actual folder-level "Komutan-only" permission. This rule controls workflow behavior, not visibility. Never put secrets in the archive.
+- Do not archive specialist contracts, current security/runtime/scenario specifications, or Markdown under `scenarios/` just to lower the file count. Archive candidates must be obsolete or materially overlapping; preserve recoverable history, and record the reason in `docs/_archive/README.md`.

@@ -1,3 +1,7 @@
+> **ARCHIVED — 2026-10-16.** This is preserved for historical recovery only. It is not a current source of instructions or status. Consult `docs/_archive/README.md` and follow `AI_RULES.md` first.
+
+---
+
 # RPG Engine — Durable Memory
 
 > **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
@@ -172,7 +176,7 @@ Last baseline build: [run 38455404595](https://github.com/akln55/AI-STORY-ENGINE
 
 ## 2026-10-15 — New device-tested blocker, saved priority and handoff
 
-The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
+The user's latest physical-phone test supersedes older assumptions that app launch/build success is sufficient. The canonical immediate plan is [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](../../ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md). It is a prioritized subplan; do not discard the earlier campaign in `docs/DEVELOPMENT_PLAN.md`. Return to that master campaign when this subplan's acceptance gates pass.
 
 Evidence from the user's screenshots/messages:
 - Local runtime start fails with `[Errno 13] Permission denied` executing `/data/data/org.rpgengine/files/native_runtime/…`.

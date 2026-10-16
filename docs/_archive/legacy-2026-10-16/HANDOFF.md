@@ -1,3 +1,7 @@
+> **ARCHIVED — 2026-10-16.** This is preserved for historical recovery only. It is not a current source of instructions or status. Consult `docs/_archive/README.md` and follow `AI_RULES.md` first.
+
+---
+
 # RPG Engine — Current Handoff
 
 > **Dikkat — güncellik doğrulaması gerekli:** Bu dosya, önceki bir geliştirme oturumu tamamlanmadan durdurulduğu için güncel olmayan veya kısmen yanlış bilgiler içerebilir. İçindeki durum ve mimari iddialarını güncel gerçek kabul etme. Bir işe başlamadan önce ilgili kaynak kodu, testleri, güncel `main` HEAD'ini ve en son CI sonuçlarını doğrula. Çelişki bulursan bunu sessizce varsayımla düzeltme; gerçek durumu belirt. Her çalışma sonunda bu dosyayı ve etkilenen tüm bilgi içeren `.md` dosyalarını güncelle. Kanıt yoksa bir işi tamamlandı işaretleme.
@@ -112,7 +116,7 @@ The user has added these product requirements to the existing blocker list:
 - A professional rounded chat composer with correct input/cursor/keyboard layout; simplified provider-aware API settings; a rounded API key input.
 - Every planned task must have a persistent checkbox. Mark [x] only after acceptance criteria and evidence pass; default to retaining completed tasks as checked rather than deleting task history. Update docs after each completed task.
 
-**Canonical updated plan:** [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md). It replaces the former priority list and defines weighted priority scoring, dependencies, one approved implementation campaign, acceptance tests and release gates.
+**Canonical updated plan:** [archived DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). It replaces the former priority list and defines weighted priority scoring, dependencies, one approved implementation campaign, acceptance tests and release gates.
 
 ### Highest priorities
 
@@ -218,7 +222,7 @@ No product/code changes were made as part of the plan-writing request. Recheck c
 
 ## 2026-10-15 — User's latest Android test; next work plan
 
-**Important:** the user installed and interacted with the built app on a physical phone. This reveals runtime failures not covered by the previous green source CI or APK packaging checks. Use [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md) as the immediate ordered work plan; after it passes, resume the older open tasks in `docs/DEVELOPMENT_PLAN.md`.
+**Important:** the user installed and interacted with the built app on a physical phone. This reveals runtime failures not covered by the previous green source CI or APK packaging checks. Use [`docs/ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md`](../../ANDROID_AI_RUNTIME_AND_INPUT_PLAN.md) as the immediate ordered work plan; after it passes, resume the older open tasks in `docs/DEVELOPMENT_PLAN.md`.
 
 1. **P0 local AI runtime:** device dialog says `runtime could not start: could not start llama-server: [Errno 13] Permission denied: /data/data/org.rpgengine/files/native_runtime/…`. The source implementation already copies the binary and calls `chmod(0o700)`; do not mark a further chmod as the answer without isolating Android's EACCES cause. Gameplay later reports `You can't do that. (no AI adapter configured)` because no usable adapter is active after the failure. Must validate real generation on-device.
 2. **P1 GGUF workflow:** picking a GGUF for import leaves the screen black/stuck; a downloaded model's activation also fails. Diagnose import, background copy/validation, UI callback and runtime activation separately.
