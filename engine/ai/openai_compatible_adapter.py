@@ -102,7 +102,7 @@ class OpenAICompatibleAdapter(AIAdapter):
             return content.strip()
         except OpenAICompatibleProviderError:
             raise
-        except (ValueError, TypeError, KeyError, IndexError) as exc:
+        except (AttributeError, ValueError, TypeError, KeyError, IndexError) as exc:
             raise OpenAICompatibleProviderError(
                 f"invalid API response envelope: {_safe_detail(str(exc))}"
             ) from exc
