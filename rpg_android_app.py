@@ -1717,6 +1717,7 @@ class AIScreen(BaseScreen):
         # a genuine structured generation against this pending selection.
         self.api_model.text = selected
         self._api_probe_succeeded = False
+        self.api_generation_test_button.disabled = True
         self.api_status.text = (
             f"Model seçildi: {selected}. Ayarları yeniden test ederek uygula."
         )
