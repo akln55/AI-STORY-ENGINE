@@ -2172,6 +2172,7 @@ class AIScreen(BaseScreen):
         # endpoint have passed the connection probe below. This preserves the
         # current adapter if the user mistypes a key or endpoint.
         self._api_probe_succeeded = False
+        self.api_generation_test_button.disabled = True
         self.api_status.text = "Bağlantı ve gerçek AI üretimi kontrol ediliyor…"
         self.api_status.color = MUTED
         self.api_connect_button.disabled = True
